@@ -2,18 +2,19 @@
 #
 # Build libobjc/SGPlayer (master) for kinetic_player iOS integration.
 #
-#   git clone https://github.com/libobjc/SGPlayer.git
-#   cd SGPlayer
-#   git checkout master
-#   ./build.sh iOS build
+# Outputs ios/Frameworks/SGPlayer.xcframework for:
+#   - CocoaPods (vendored_frameworks)
+#   - Swift Package Manager (binaryTarget in ios/kinetic_player/Package.swift)
 #
-# Then packages SGPlayer.framework into ios/Frameworks/ for CocoaPods.
+# Note: FFmpeg/OpenSSL from SGPlayer ./build.sh iOS build are device arm64 only,
+# so the xcframework currently ships an ios-arm64 slice (physical device).
 #
 # Usage:
 #   bash ios/scripts/build_sgplayer.sh          # full build
 #   bash ios/scripts/build_sgplayer.sh clean    # remove artifacts
 #
-# Also invoked automatically by kinetic_player.podspec prepare_command on pod install.
+# Invoked automatically by kinetic_player.podspec prepare_command on pod install.
+# With SPM enabled, run this once before `flutter run` if the xcframework is missing.
 
 set -euo pipefail
 
@@ -28,8 +29,9 @@ IOS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VENDOR_DIR="${IOS_DIR}/third_party"
 SGPLAYER_DIR="${VENDOR_DIR}/SGPlayer"
 OUTPUT_DIR="${IOS_DIR}/Frameworks"
-FRAMEWORK_OUTPUT="${OUTPUT_DIR}/SGPlayer.framework"
-DERIVED_DATA="${SGPLAYER_DIR}/DerivedData"
+LEGACY_FRAMEWORK="${OUTPUT_DIR}/SGPlayer.framework"
+XCFRAMEWORK_OUTPUT="${OUTPUT_DIR}/SGPlayer.xcframework"
+DERIVED_DATA_BASE="${SGPLAYER_DIR}/DerivedData"
 
 log() {
   printf '[build_sgplayer] %s\n' "$*"
@@ -74,7 +76,7 @@ build_dependencies() {
   fi
 
   log "Running ./build.sh iOS build"
-  log "FFmpeg 4.4.4 + OpenSSL 1.1.1w - first run may take 30-60 minutes."
+  log "FFmpeg + OpenSSL - first run may take 30-60 minutes."
   (
     cd "${SGPLAYER_DIR}"
     ./build.sh iOS build
@@ -82,10 +84,11 @@ build_dependencies() {
   [[ -f "${ffmpeg_lib}" ]] || fail "FFmpeg build did not produce ${ffmpeg_lib}"
 }
 
-build_framework() {
+build_device_framework() {
+  local derived_data="${DERIVED_DATA_BASE}/iphoneos"
+
   log "Building SGPlayer.framework (Release, iphoneos)..."
-  mkdir -p "${OUTPUT_DIR}"
-  rm -rf "${DERIVED_DATA}"
+  rm -rf "${derived_data}"
 
   (
     cd "${SGPLAYER_DIR}"
@@ -94,19 +97,37 @@ build_framework() {
       -scheme "SGPlayer iOS" \
       -configuration Release \
       -sdk iphoneos \
-      -derivedDataPath "${DERIVED_DATA}" \
+      -derivedDataPath "${derived_data}" \
       BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
       ONLY_ACTIVE_ARCH=NO \
       build
   )
 
   local built_framework
-  built_framework="$(find "${DERIVED_DATA}" -path "*/Release-iphoneos/SGPlayer.framework" -type d | head -n 1)"
-  [[ -n "${built_framework}" ]] || fail "Could not locate built SGPlayer.framework"
+  built_framework="$(find "${derived_data}" -path "*/Release-iphoneos/SGPlayer.framework" -type d | head -n 1)"
+  [[ -n "${built_framework}" ]] || fail "Could not locate SGPlayer.framework for iphoneos"
+  printf '%s' "${built_framework}"
+}
 
-  rm -rf "${FRAMEWORK_OUTPUT}"
-  cp -R "${built_framework}" "${FRAMEWORK_OUTPUT}"
-  log "Output: ${FRAMEWORK_OUTPUT}"
+build_xcframework() {
+  mkdir -p "${OUTPUT_DIR}"
+  rm -rf "${XCFRAMEWORK_OUTPUT}"
+
+  local device_framework
+  if [[ -d "${LEGACY_FRAMEWORK}" ]]; then
+    log "Reusing existing ${LEGACY_FRAMEWORK}."
+    device_framework="${LEGACY_FRAMEWORK}"
+  else
+    device_framework="$(build_device_framework)"
+  fi
+
+  log "Creating SGPlayer.xcframework (ios-arm64 device slice)..."
+  xcodebuild -create-xcframework \
+    -framework "${device_framework}" \
+    -output "${XCFRAMEWORK_OUTPUT}"
+
+  rm -rf "${LEGACY_FRAMEWORK}"
+  log "Output: ${XCFRAMEWORK_OUTPUT}"
 }
 
 main() {
@@ -115,9 +136,9 @@ main() {
     exit 0
   fi
 
-  if [[ -d "${FRAMEWORK_OUTPUT}" ]]; then
-    log "SGPlayer.framework already exists, skipping build."
-    log "Path: ${FRAMEWORK_OUTPUT}"
+  if [[ -d "${XCFRAMEWORK_OUTPUT}" ]]; then
+    log "SGPlayer.xcframework already exists, skipping build."
+    log "Path: ${XCFRAMEWORK_OUTPUT}"
     exit 0
   fi
 
@@ -126,10 +147,10 @@ main() {
 
   ensure_repo
   build_dependencies
-  build_framework
+  build_xcframework
 
-  log "Done. SGPlayer (${SGPLAYER_BRANCH}) is ready."
-  log "Framework: ${FRAMEWORK_OUTPUT}"
+  log "Done. SGPlayer (${SGPLAYER_BRANCH}) xcframework is ready for CocoaPods + SPM."
+  log "Framework: ${XCFRAMEWORK_OUTPUT}"
 }
 
 main "$@"

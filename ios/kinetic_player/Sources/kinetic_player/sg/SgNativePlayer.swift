@@ -1,4 +1,5 @@
 import UIKit
+import SgNativePlayerBridge
 
 protocol SgPlayerCallbacks: AnyObject {
     func onPlayerStateChanged(_ state: CommonPlayerState)

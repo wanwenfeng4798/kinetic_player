@@ -1,5 +1,5 @@
 name: kinetic_player
-description: "Dual-core video player: GSYVideoPlayer 13.0.0 (Android) + SGPlayer master (iOS, auto-built on pod install)."
+description: "Dual-core video player: GSYVideoPlayer 13.0.0 (Android) + SGPlayer master (iOS). SGPlayer.xcframework is shared by CocoaPods and SPM."
 version: 0.0.1
 homepage:
 
@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  plugin_platform_interface: ^2.0.2
+  plugin_platform_interface: ^2.1.8
 
 dev_dependencies:
   flutter_test:
@@ -23,8 +23,8 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   config:
-    # SGPlayer master is integrated via CocoaPods (vendored_frameworks + prepare_command).
-    enable-swift-package-manager: false
+    # SGPlayer.xcframework: shared by CocoaPods (pod install) and SPM (Package.swift).
+    enable-swift-package-manager: true
 
   plugin:
     platforms:

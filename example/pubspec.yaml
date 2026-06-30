@@ -47,9 +47,8 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-  # kinetic_player iOS requires CocoaPods (SGPlayer vendored_frameworks + auto-build).
   config:
-    enable-swift-package-manager: false
+    enable-swift-package-manager: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
