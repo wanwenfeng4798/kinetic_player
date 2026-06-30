@@ -1,4 +1,4 @@
-package com.example.kinetic_player
+package com.keepwan.kinetic_player
 
 class ThrottledProgressReporter(
     private val minIntervalMs: Long = 250L,

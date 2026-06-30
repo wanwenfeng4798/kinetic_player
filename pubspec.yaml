@@ -30,7 +30,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: com.example.kinetic_player
+        package: com.keepwan.kinetic_player
         pluginClass: KineticPlayerPlugin
       ios:
         pluginClass: KineticPlayerPlugin

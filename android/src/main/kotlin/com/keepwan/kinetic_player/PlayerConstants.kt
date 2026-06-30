@@ -1,4 +1,4 @@
-package com.example.kinetic_player
+package com.keepwan.kinetic_player
 
 object PlayerConstants {
     const val GSY_VIEW_TYPE = "com.example.player/gsy_view_ui"

@@ -1,12 +1,12 @@
-package com.example.kinetic_player.gsy
+package com.keepwan.kinetic_player.gsy
 
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.FrameLayout
-import com.example.kinetic_player.CommonPlayerState
-import com.example.kinetic_player.ThrottledProgressReporter
+import com.keepwan.kinetic_player.CommonPlayerState
+import com.keepwan.kinetic_player.ThrottledProgressReporter
 import com.shuyu.gsyvideoplayer.GSYVideoManager
 import com.shuyu.gsyvideoplayer.builder.GSYVideoOptionBuilder
 import com.shuyu.gsyvideoplayer.listener.GSYSampleCallBack

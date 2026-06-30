@@ -1,7 +1,7 @@
-package com.example.kinetic_player
+package com.keepwan.kinetic_player
 
-import com.example.kinetic_player.gsy.GsyPlatformViewRegistry
-import com.example.kinetic_player.gsy.GsyVideoViewFactory
+import com.keepwan.kinetic_player.gsy.GsyPlatformViewRegistry
+import com.keepwan.kinetic_player.gsy.GsyVideoViewFactory
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 
 class KineticPlayerPlugin : FlutterPlugin {

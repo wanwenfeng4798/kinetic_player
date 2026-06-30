@@ -1,12 +1,12 @@
-package com.example.kinetic_player.gsy
+package com.keepwan.kinetic_player.gsy
 
 import android.content.Context
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
-import com.example.kinetic_player.CommonPlayerState
-import com.example.kinetic_player.PlayerConstants
+import com.keepwan.kinetic_player.CommonPlayerState
+import com.keepwan.kinetic_player.PlayerConstants
 
 class GsyVideoPlatformView(
     context: Context,

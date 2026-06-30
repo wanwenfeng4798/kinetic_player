@@ -1,4 +1,4 @@
-package com.example.kinetic_player
+package com.keepwan.kinetic_player
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.platform.PlatformViewRegistry

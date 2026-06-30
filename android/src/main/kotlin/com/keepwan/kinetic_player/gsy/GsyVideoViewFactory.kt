@@ -1,4 +1,4 @@
-package com.example.kinetic_player.gsy
+package com.keepwan.kinetic_player.gsy
 
 import android.content.Context
 import io.flutter.plugin.common.StandardMessageCodec

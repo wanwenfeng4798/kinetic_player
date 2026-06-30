@@ -1,4 +1,4 @@
-group = "com.example.kinetic_player"
+group = "com.keepwan.kinetic_player"
 version = "1.0-SNAPSHOT"
 
 buildscript {
@@ -27,7 +27,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.kinetic_player"
+    namespace = "com.keepwan.kinetic_player"
 
     compileSdk = 36
 
