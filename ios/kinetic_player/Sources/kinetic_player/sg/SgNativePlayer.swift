@@ -41,7 +41,7 @@ final class SgNativePlayer: NSObject {
     }
 
     func seek(positionMs: Int) {
-        bridge.seekToMs(positionMs)
+        bridge.seek(toMs: positionMs)
     }
 
     func setRenderMode(_ mode: Int) {

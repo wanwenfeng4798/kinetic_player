@@ -40,6 +40,5 @@ SGPlayer is built automatically on first `pod install` (may take 30-60 minutes).
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    'SWIFT_OBJC_BRIDGING_HEADER' => '$(PODS_TARGET_SRCROOT)/kinetic_player/Sources/kinetic_player/kinetic_player-Bridging-Header.h',
   }
 end

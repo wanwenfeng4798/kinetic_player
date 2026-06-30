@@ -1,6 +1,6 @@
 #import "SgNativePlayerBridge.h"
 
-#import <SGPlayer/SGPlayerHeader.h>
+#import <SGPlayer/SGPlayer.h>
 
 @interface SgNativePlayerBridge ()
 
@@ -95,7 +95,7 @@
 }
 
 - (void)releasePlayer {
-  [_player stop];
+  [_player pause];
   _player = nil;
 }
 
