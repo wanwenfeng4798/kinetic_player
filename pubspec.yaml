@@ -1,7 +1,8 @@
 name: kinetic_player
-description: "Dual-core video player: GSYVideoPlayer 13.0.0 (Android) + SGPlayer master (iOS). SGPlayer.xcframework is shared by CocoaPods and SPM."
+description: "Dual-core Flutter video player: GSYVideoPlayer 13.0.0 (Android) + SGPlayer master (iOS). Prebuilt SGPlayer via GitHub Release."
 version: 0.0.1
-homepage:
+homepage: https://github.com/wanwenfeng4798/kinetic_player
+license: MIT
 
 environment:
   sdk: ^3.12.2

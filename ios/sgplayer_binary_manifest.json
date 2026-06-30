@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "github_repository": "https://github.com/wanwenfeng4798/kinetic_player",
+  "sgplayer_branch": "master",
+  "asset_name": "SGPlayer.xcframework.zip",
+  "download_url": "",
+  "sha256": "",
+  "notes": "After publishing Release tag sgplayer-v1.0.0, set download_url to https://github.com/wanwenfeng4798/kinetic_player/releases/download/sgplayer-v1.0.0/SGPlayer.xcframework.zip and sha256 from package_sgplayer_release.sh output."
+}

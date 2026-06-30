@@ -13,8 +13,7 @@
 #   bash ios/scripts/build_sgplayer.sh          # full build
 #   bash ios/scripts/build_sgplayer.sh clean    # remove artifacts
 #
-# Invoked automatically by kinetic_player.podspec prepare_command on pod install.
-# With SPM enabled, run this once before `flutter run` if the xcframework is missing.
+# Invoked by ensure_sgplayer.sh when prebuilt download is unavailable.
 
 set -euo pipefail
 

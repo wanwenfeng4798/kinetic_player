@@ -1,17 +1,14 @@
-# kinetic_player_example
+# kinetic_player Example
 
-Demonstrates how to use the kinetic_player plugin.
+演示 [kinetic_player](../) 双核播放器的 Example 应用。
 
-## Getting Started
+## 快速运行
 
-This project is a starting point for a Flutter application.
+```bash
+# 从 example 目录
+bash ../ios/scripts/ensure_sgplayer.sh   # iOS 仅首次需要
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+详细说明见 [../docs/EXAMPLE.md](../docs/EXAMPLE.md)。

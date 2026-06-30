@@ -10,9 +10,9 @@ Flutter video player plugin. iOS uses libobjc/SGPlayer master; Android uses GSYV
 SGPlayer.xcframework is built on first `pod install` or `bash ios/scripts/build_sgplayer.sh` (30-60 min first run).
 Shared artifact supports CocoaPods (vendored_frameworks) and Swift Package Manager (binaryTarget).
                        DESC
-  s.homepage         = 'http://example.com'
-  s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.homepage         = 'https://github.com/wanwenfeng4798/kinetic_player'
+  s.license          = { :type => 'MIT', :file => '../LICENSE' }
+  s.author           = { 'wanwenfeng4798' => 'https://github.com/wanwenfeng4798' }
   s.source           = { :path => '.' }
   s.platform         = :ios, '13.0'
   s.swift_version    = '5.0'
@@ -24,13 +24,7 @@ Shared artifact supports CocoaPods (vendored_frameworks) and Swift Package Manag
     set -e
     export LANG=en_US.UTF-8
     export LC_ALL=en_US.UTF-8
-    if [ -d "#{sgplayer_framework}" ]; then
-      echo "[kinetic_player] Using existing #{sgplayer_framework}"
-    else
-      echo "[kinetic_player] SGPlayer.xcframework not found - building automatically."
-      echo "[kinetic_player] First run may take 30-60 minutes (FFmpeg + OpenSSL)."
-      bash scripts/build_sgplayer.sh
-    fi
+    bash scripts/ensure_sgplayer.sh
   CMD
 
   s.vendored_frameworks = sgplayer_framework
