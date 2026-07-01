@@ -154,7 +154,7 @@ Map<String, dynamic> gsySeamlessHandoffParams({
   Map<String, dynamic>? extra,
 }) {
   return {
-    'url': ?url,
+    'url': url,
     'playTag': 'kinetic_$viewId',
     ...?extra,
   };
