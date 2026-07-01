@@ -53,7 +53,11 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
         previewLayout = findViewById(R.id.preview_layout)
         previewImage = findViewById(R.id.preview_image)
         previewImage?.scaleType = ImageView.ScaleType.CENTER_CROP
-        uiConfig.previewVttUrl?.let { setPreviewVttUrl(it) }
+    }
+
+    override fun applyUiConfig() {
+        super.applyUiConfig()
+        storedUiConfig?.previewVttUrl?.let { setPreviewVttUrl(it) }
     }
 
     override fun onProgressChanged(

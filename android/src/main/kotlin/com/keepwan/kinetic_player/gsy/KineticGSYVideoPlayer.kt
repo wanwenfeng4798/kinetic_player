@@ -20,16 +20,20 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
 
     constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
 
-    var uiConfig: GsyUiConfig = GsyUiConfig()
+    protected var storedUiConfig: GsyUiConfig? = null
+
+    var uiConfig: GsyUiConfig
+        get() = storedUiConfig ?: GsyUiConfig()
         set(value) {
-            field = value
+            storedUiConfig = value
             applyUiConfig()
         }
 
     override fun init(context: Context) {
         super.init(context)
         wireNativeControls()
-        applyUiConfig()
+        // GSY invokes init() from its superclass constructor before subclass fields
+        // are initialized; applyUiConfig runs when [uiConfig] is assigned afterward.
     }
 
     private fun wireNativeControls() {
@@ -38,30 +42,31 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         }
     }
 
-    fun applyUiConfig() {
-        setIsTouchWiget(uiConfig.enableNativeControls)
-        setIsTouchWigetFull(uiConfig.enableNativeControlsFullscreen)
-        setRotateViewAuto(uiConfig.rotateViewAuto)
-        setRotateWithSystem(uiConfig.rotateWithSystem)
-        setLockLand(uiConfig.lockLand)
-        setNeedOrientationUtils(uiConfig.needOrientationUtils)
-        setShowFullAnimation(uiConfig.showFullAnimation)
-        setHideKey(uiConfig.hideVirtualKey)
-        setShowPauseCover(uiConfig.showPauseCover)
-        setNeedShowWifiTip(uiConfig.needShowWifiTip)
-        setSurfaceErrorPlay(uiConfig.surfaceErrorPlay)
-        setReleaseWhenLossAudio(uiConfig.releaseWhenLossAudio)
-        setShowDragProgressTextOnSeekBar(uiConfig.showDragProgressTextOnSeekBar)
-        setDismissControlTime(uiConfig.dismissControlTime)
-        setSeekRatio(uiConfig.seekRatio)
-        setSpeed(uiConfig.speed, false)
-        setLooping(uiConfig.looping)
-        setAutoFullWithSize(uiConfig.autoFullWithSize)
-        setNeedLockFull(uiConfig.showLockButton)
-        if (uiConfig.seekOnStartMs >= 0) {
-            setSeekOnStart(uiConfig.seekOnStartMs)
+    open fun applyUiConfig() {
+        val config = storedUiConfig ?: return
+        setIsTouchWiget(config.enableNativeControls)
+        setIsTouchWigetFull(config.enableNativeControlsFullscreen)
+        setRotateViewAuto(config.rotateViewAuto)
+        setRotateWithSystem(config.rotateWithSystem)
+        setLockLand(config.lockLand)
+        setNeedOrientationUtils(config.needOrientationUtils)
+        setShowFullAnimation(config.showFullAnimation)
+        setHideKey(config.hideVirtualKey)
+        setShowPauseCover(config.showPauseCover)
+        setNeedShowWifiTip(config.needShowWifiTip)
+        setSurfaceErrorPlay(config.surfaceErrorPlay)
+        setReleaseWhenLossAudio(config.releaseWhenLossAudio)
+        setShowDragProgressTextOnSeekBar(config.showDragProgressTextOnSeekBar)
+        setDismissControlTime(config.dismissControlTime)
+        setSeekRatio(config.seekRatio)
+        setSpeed(config.speed, false)
+        setLooping(config.looping)
+        setAutoFullWithSize(config.autoFullWithSize)
+        setNeedLockFull(config.showLockButton)
+        if (config.seekOnStartMs >= 0) {
+            setSeekOnStart(config.seekOnStartMs)
         }
-        titleTextView?.text = uiConfig.videoTitle
+        titleTextView?.text = config.videoTitle
         applyEmbeddedChrome()
     }
 
