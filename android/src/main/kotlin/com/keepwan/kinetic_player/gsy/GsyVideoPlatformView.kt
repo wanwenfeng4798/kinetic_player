@@ -15,6 +15,7 @@ class GsyVideoPlatformView(
     creationParams: Map<String, Any?>?,
 ) : PlatformView, MethodChannel.MethodCallHandler {
     private val channel = MethodChannel(messenger, PlayerConstants.gsyChannelName(viewId))
+    private val uiConfig = GsyUiConfig.fromCreationParams(creationParams)
     private val player =
         GsyNativePlayer(
             context,
@@ -36,10 +37,12 @@ class GsyVideoPlatformView(
                     )
                 }
             },
+            initialUiConfig = uiConfig,
         )
 
     init {
         channel.setMethodCallHandler(this)
+        player.applyUiConfig(uiConfig)
         val url = creationParams?.get("url") as? String
         if (!url.isNullOrEmpty()) {
             player.setUrl(url)
@@ -76,6 +79,29 @@ class GsyVideoPlatformView(
             "gsyToggleDanmaku" -> {
                 val enabled = call.argument<Boolean>("enabled") ?: false
                 player.toggleDanmaku(enabled)
+                result.success(null)
+            }
+            "gsyStartFullscreen" -> {
+                player.startFullscreen()
+                result.success(null)
+            }
+            "gsySetPreviewVttUrl" -> {
+                player.setPreviewVttUrl(call.argument<String>("url"))
+                result.success(null)
+            }
+            "gsySetUiConfig" -> {
+                @Suppress("UNCHECKED_CAST")
+                val ui = call.argument<Map<String, Any?>>("gsyUi")
+                player.applyUiConfig(GsyUiConfig.fromCreationParams(mapOf("gsyUi" to ui)))
+                result.success(null)
+            }
+            "gsySetSpeed" -> {
+                val speed = call.argument<Double>("speed")?.toFloat() ?: 1f
+                player.setSpeed(speed)
+                result.success(null)
+            }
+            "gsySetLooping" -> {
+                player.setLooping(call.argument<Boolean>("looping") ?: false)
                 result.success(null)
             }
             "sgSetVRMode", "sgSetSyncGroupId" -> result.notImplemented()

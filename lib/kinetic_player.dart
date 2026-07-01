@@ -6,5 +6,6 @@ export 'src/common/common_video_player_factory.dart';
 export 'src/common/common_video_player_view.dart';
 export 'src/common/player_view_types.dart';
 export 'src/common/platform_guard.dart';
+export 'src/gsy/gsy_ui_config.dart';
 export 'src/gsy/gsy_video_controller_impl.dart';
 export 'src/sg/sg_video_controller_impl.dart';

@@ -55,7 +55,12 @@ class _CommonVideoPlayerViewState extends State<CommonVideoPlayerView> {
       layoutDirection: TextDirection.ltr,
       creationParams: creationParams.isEmpty ? null : creationParams,
       creationParamsCodec: const StandardMessageCodec(),
-      gestureRecognizers: widget.gestureRecognizers,
+      // Let GSY handle progress/volume/brightness gestures inside PlatformView.
+      gestureRecognizers: widget.gestureRecognizers.isEmpty
+          ? const <Factory<OneSequenceGestureRecognizer>>{
+              Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
+            }
+          : widget.gestureRecognizers,
       onPlatformViewCreated: widget.onPlatformViewCreated,
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'gsy_ui_config.dart';
 import '../common/common_player_state.dart';
 import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
@@ -64,6 +65,25 @@ class GSYVideoControllerImpl implements CommonVideoController {
   /// GSY unique: toggle danmaku overlay visibility.
   Future<void> gsyToggleDanmaku({required bool enabled}) =>
       _invoke('gsyToggleDanmaku', {'enabled': enabled});
+
+  /// GSY unique: enter or exit native window fullscreen.
+  Future<void> gsyStartFullscreen() => _invoke('gsyStartFullscreen');
+
+  /// GSY unique: set WebVTT URL for seek-bar thumbnail preview.
+  Future<void> gsySetPreviewVttUrl(String? url) =>
+      _invoke('gsySetPreviewVttUrl', {'url': url});
+
+  /// GSY unique: update native UI options at runtime.
+  Future<void> gsySetUiConfig(GsyUiConfig config) =>
+      _invoke('gsySetUiConfig', config.toCreationParams());
+
+  /// GSY unique: playback speed (1.0 = normal).
+  Future<void> gsySetSpeed(double speed) =>
+      _invoke('gsySetSpeed', {'speed': speed});
+
+  /// GSY unique: loop playback.
+  Future<void> gsySetLooping({required bool looping}) =>
+      _invoke('gsySetLooping', {'looping': looping});
 
   @override
   Future<void> dispose() async {

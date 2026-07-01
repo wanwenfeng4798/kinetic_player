@@ -1,6 +1,8 @@
 package com.keepwan.kinetic_player.gsy
 
+import android.app.Activity
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -16,7 +18,6 @@ import com.shuyu.gsyvideoplayer.player.PlayerFactory
 import com.shuyu.gsyvideoplayer.player.SystemPlayerManager
 import com.shuyu.gsyvideoplayer.utils.GSYVideoType
 import tv.danmaku.ijk.media.exo2.Exo2PlayerManager
-import com.shuyu.gsyvideoplayer.video.StandardGSYVideoPlayer
 import com.shuyu.gsyvideoplayer.video.base.GSYVideoView
 
 interface GsyPlayerCallbacks {
@@ -27,13 +28,16 @@ interface GsyPlayerCallbacks {
 class GsyNativePlayer(
     context: Context,
     private val callbacks: GsyPlayerCallbacks,
+    initialUiConfig: GsyUiConfig = GsyUiConfig(),
 ) {
     private val container = FrameLayout(context)
-    private val playerView = StandardGSYVideoPlayer(context)
+    private val playerView = KineticPreViewGSYVideoPlayer(context)
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    private var uiConfig = initialUiConfig
     private var danmakuVisible = false
     private var isPlaying = false
+    private var currentUrl: String? = null
 
     private val progressReporter = ThrottledProgressReporter { positionMs, durationMs ->
         callbacks.onPositionChanged(positionMs, durationMs)
@@ -69,6 +73,7 @@ class GsyNativePlayer(
         }
 
     init {
+        playerView.uiConfig = uiConfig
         container.addView(
             playerView,
             FrameLayout.LayoutParams(
@@ -77,23 +82,83 @@ class GsyNativePlayer(
             ),
         )
         mainHandler.post(progressRunnable)
+        GsyPlayerLifecycleRegistry.register(this)
     }
 
     fun getView(): View = container
 
+    fun onConfigurationChanged(
+        activity: Activity,
+        newConfig: Configuration,
+    ) {
+        playerView.dispatchConfigurationChanged(activity, newConfig)
+    }
+
+    fun applyUiConfig(config: GsyUiConfig) {
+        uiConfig = config
+        playerView.uiConfig = config
+        config.previewVttUrl?.let { playerView.setPreviewVttUrl(it) }
+        currentUrl?.let { setUrl(it) }
+    }
+
+    fun setPreviewVttUrl(url: String?) {
+        uiConfig = uiConfig.copy(previewVttUrl = url)
+        playerView.setPreviewVttUrl(url)
+    }
+
+    fun startFullscreen() {
+        playerView.toggleWindowFullscreen()
+    }
+
+    fun setSpeed(speed: Float) {
+        uiConfig = uiConfig.copy(speed = speed)
+        playerView.setSpeed(speed, false)
+    }
+
+    fun setLooping(looping: Boolean) {
+        uiConfig = uiConfig.copy(looping = looping)
+        playerView.setLooping(looping)
+    }
+
     fun setUrl(videoUrl: String) {
-        GSYVideoOptionBuilder()
+        currentUrl = videoUrl
+        buildVideoOptions()
             .setUrl(videoUrl)
-            .setVideoTitle("")
-            .setIsTouchWiget(false)
-            .setRotateViewAuto(false)
-            .setLockLand(false)
-            .setShowFullAnimation(false)
-            .setNeedLockFull(true)
-            .setCacheWithPlay(true)
-            .setVideoAllCallBack(videoCallback)
             .build(playerView)
+        uiConfig.previewVttUrl?.let { playerView.setPreviewVttUrl(it) }
         callbacks.onPlayerStateChanged(CommonPlayerState.IDLE)
+    }
+
+    private fun buildVideoOptions(): GSYVideoOptionBuilder {
+        val builder =
+            GSYVideoOptionBuilder()
+                .setVideoTitle(uiConfig.videoTitle)
+                .setIsTouchWiget(uiConfig.enableNativeControls)
+                .setIsTouchWigetFull(uiConfig.enableNativeControlsFullscreen)
+                .setRotateViewAuto(uiConfig.rotateViewAuto)
+                .setRotateWithSystem(uiConfig.rotateWithSystem)
+                .setLockLand(uiConfig.lockLand)
+                .setNeedOrientationUtils(uiConfig.needOrientationUtils)
+                .setShowFullAnimation(uiConfig.showFullAnimation)
+                .setHideKey(uiConfig.hideVirtualKey)
+                .setShowPauseCover(uiConfig.showPauseCover)
+                .setNeedShowWifiTip(uiConfig.needShowWifiTip)
+                .setSurfaceErrorPlay(uiConfig.surfaceErrorPlay)
+                .setReleaseWhenLossAudio(uiConfig.releaseWhenLossAudio)
+                .setShowDragProgressTextOnSeekBar(uiConfig.showDragProgressTextOnSeekBar)
+                .setDismissControlTime(uiConfig.dismissControlTime)
+                .setSeekRatio(uiConfig.seekRatio)
+                .setSpeed(uiConfig.speed)
+                .setLooping(uiConfig.looping)
+                .setAutoFullWithSize(uiConfig.autoFullWithSize)
+                .setNeedLockFull(uiConfig.showLockButton)
+                .setCacheWithPlay(uiConfig.cacheWithPlay)
+                .setStartAfterPrepared(uiConfig.startAfterPrepared)
+                .setVideoAllCallBack(videoCallback)
+        if (uiConfig.seekOnStartMs >= 0) {
+            builder.setSeekOnStart(uiConfig.seekOnStartMs)
+        }
+        return builder
     }
 
     fun startPlayLogic() {
@@ -120,7 +185,6 @@ class GsyNativePlayer(
 
     fun changeRenderCore(core: Int) {
         PlayerFactory.setPlayManager(playManagerClassForCore(core))
-        // Release current player so the next prepare uses the new kernel.
         GSYVideoManager.instance().releaseMediaPlayer()
     }
 
@@ -160,6 +224,7 @@ class GsyNativePlayer(
     fun release() {
         isPlaying = false
         mainHandler.removeCallbacks(progressRunnable)
+        GsyPlayerLifecycleRegistry.unregister(this)
         playerView.release()
         GSYVideoManager.releaseAllVideos()
         progressReporter.reset()

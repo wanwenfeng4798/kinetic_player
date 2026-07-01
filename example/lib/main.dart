@@ -49,6 +49,10 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
           Expanded(
             child: CommonVideoPlayerViewBuilder(
               url: _demoUrl,
+              creationParams: const GsyUiConfig(
+                enableNativeControls: true,
+                showFullscreenButton: true,
+              ).toCreationParams(),
               builder: (controller) {
                 if (!identical(_controller, controller)) {
                   setState(() => _controller = controller);
@@ -109,11 +113,16 @@ class _ControlPanel extends StatelessWidget {
                     : () => active.seekTo(const Duration(seconds: 10)),
                 child: const Text('Seek 10s'),
               ),
-              if (active is GSYVideoControllerImpl)
+              if (active is GSYVideoControllerImpl) ...[
+                FilledButton(
+                  onPressed: () => active.gsyStartFullscreen(),
+                  child: const Text('GSY Fullscreen'),
+                ),
                 FilledButton(
                   onPressed: () => active.gsyToggleDanmaku(enabled: true),
                   child: const Text('GSY Danmaku'),
                 ),
+              ],
               if (active is SGVideoControllerImpl)
                 FilledButton(
                   onPressed: () => active.sgSetVRMode(enabled: true),

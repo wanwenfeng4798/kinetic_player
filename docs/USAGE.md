@@ -87,11 +87,19 @@ flutter run   # 真机
 ```dart
 CommonVideoPlayerViewBuilder(
   url: videoUrl,
+  creationParams: const GsyUiConfig(
+    enableNativeControls: true,
+    showFullscreenButton: true,
+    showLockButton: true,
+    previewVttUrl: 'https://example.com/thumbs.vtt',
+  ).toCreationParams(),
   builder: (controller) {
     // 保存 controller 引用
   },
 )
 ```
+
+Android 默认使用 `EagerGestureRecognizer`，原生进度条/音量/亮度手势不会被 Flutter 抢走。若外层需要自定义手势竞争，可传入 `gestureRecognizers` 覆盖默认行为。
 
 ### CommonVideoPlayerView（低级）
 
@@ -114,8 +122,32 @@ CommonVideoPlayerView(
 if (controller is GSYVideoControllerImpl) {
   await controller.gsySwitchRenderCore(1); // 0=IJK, 1=Exo, 2=System
   await controller.gsyToggleDanmaku(enabled: true);
+  await controller.gsyStartFullscreen(); // 原生窗口全屏（也可点播放器全屏按钮）
+  await controller.gsySetPreviewVttUrl('https://example.com/thumbs.vtt');
+  await controller.gsySetUiConfig(const GsyUiConfig(videoTitle: 'Demo'));
 }
 ```
+
+#### GSY 原生 UI（AndroidView 内嵌，与 StandardGSYVideoPlayer 默认一致）
+
+| 能力 | 配置 / API |
+|------|------------|
+| 播放/暂停（中心按钮、双击） | 原生默认 |
+| 单击显隐控制栏 | 原生默认 |
+| 进度条拖动 / 缓冲条 | 原生默认 |
+| 横向滑动快进、竖向音量/亮度 | `enableNativeControls` / `enableNativeControlsFullscreen` |
+| 滑动快进/音量/亮度弹窗 | 原生默认 |
+| 全屏窗口 / 退出全屏 | 全屏按钮、`gsyStartFullscreen()`、系统返回键 |
+| 全屏锁屏 | `showLockButton` |
+| 标题栏 | `videoTitle` |
+| 移动网络流量提示 | `needShowWifiTip` |
+| 错误点击重试 | `surfaceErrorPlay` |
+| 自动旋转 / 横屏全屏 | `rotateViewAuto`、`lockLand`、`needOrientationUtils` |
+| 进度条拖动时间文字 | `showDragProgressTextOnSeekBar` |
+| 进度条缩略图预览 | `previewVttUrl` / `gsySetPreviewVttUrl` |
+| 倍速 / 循环 | `gsySetSpeed` / `gsySetLooping` 或 `GsyUiConfig.speed` / `looping` |
+
+宿主 Activity 需在 `onBackPressed` 中调用 `KineticPlayerPlugin.handleBackPressed(this)`，全屏时系统返回键才能退出 GSY 窗口全屏（example 已配置）。
 
 ### iOS — SGVideoControllerImpl
 
@@ -141,5 +173,17 @@ controller.position.addListener(() {
 ## 注意事项
 
 1. 每个 `CommonVideoPlayerViewBuilder` 会在 dispose 时自动释放 controller；若手动持有 controller，需在页面 dispose 时调用 `controller.dispose()`。
-2. Android Activity 建议配置 `android:configChanges` 含 `orientation|screenSize`（GSY 全屏场景）。
+2. Android Activity 建议配置 `android:configChanges` 含 `orientation|screenSize`（GSY 全屏场景），并在 Activity 中转发：
+
+```kotlin
+override fun onConfigurationChanged(newConfig: Configuration) {
+  super.onConfigurationChanged(newConfig)
+  KineticPlayerPlugin.handleConfigurationChanged(this, newConfig)
+}
+
+override fun onBackPressed() {
+  if (KineticPlayerPlugin.handleBackPressed(this)) return
+  super.onBackPressed()
+}
+```
 3. iOS 需在真机测试 SGPlayer 相关功能。
