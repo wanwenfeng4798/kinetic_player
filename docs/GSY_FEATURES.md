@@ -25,7 +25,7 @@ Android 侧基于 **GSYVideoPlayer 13.0.0**（`io.github.carguo:gsyvideoplayer-*
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 视频帧截图 | ✅ | `captureFrame()` |
+| 视频帧截图 | ✅ | `captureFrame()`（公共 API） |
 | 播放器 UI 组合截图 | ✅ | `captureFrame(includeOverlay: true)` |
 | 保存截图到文件 | ✅ | `gsySaveScreenshot()`（Android GSY 专属） |
 | 生成 GIF | ✅ | `gsyStartGifRecording()` → `gsyStopGifRecording()` |
@@ -66,6 +66,8 @@ Android 侧基于 **GSYVideoPlayer 13.0.0**（`io.github.carguo:gsyvideoplayer-*
 
 Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 `gsyListExoVideoTracks` / `gsySelectExoVideoTrack`。
 
+**音轨（音频）** 公共 API：`getAudioTracks()` / `selectAudioTrack(index)`（Exo / IJK 内核，见 `GsyAudioTrackHelper`）。
+
 ---
 
 ## 6. 布局 / 纯播放 / 弹幕 / 自定义布局
@@ -75,7 +77,10 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 
 | 全屏 / 非全屏两套布局 | ✅ | 原生 `startWindowFullscreen` + `GsyUiConfig` |
 | 无控件纯播放 | ✅ | `gsySetPurePlayMode(enabled: true)` |
 | 弹幕 | ✅ | `gsySetDanmakuUrl(url)` + `gsyToggleDanmaku(enabled)`（DanmakuFlameMaster + B 站 XML） |
+| B 站风格控制栏 | ✅ | 竖向音量弹窗 + 设置面板音轨；见 `GsyUiConfig` |
 | 继承自定义布局 | ⚠️ | fork `KineticGSYVideoPlayer` 并重写 `getLayoutId()` |
+
+布局文件：`kinetic_video_layout_preview.xml`（进度条、`kinetic_seek_progress` 配色、喇叭/齿轮/全屏按钮）。
 
 ---
 
@@ -92,10 +97,21 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 
 
 ## 8. 小窗口 / PiP
 
-| 能力 | 状态 | API |
-|------|------|-----|
-| Android 画中画 | ✅ | `gsyEnterPictureInPicture()`（需 Activity 支持 PiP） |
+| 能力 | 状态 | API / 说明 |
+|------|------|------------|
+| Android 画中画 | ✅ | **`pictureInPictureEnabled: true`（默认）**；播放中按 Home / 切后台自动进入 PiP |
+| 手动 PiP | ✅ | `gsyEnterPictureInPicture()` |
+| Android 12+ 系统自动 PiP | ✅ | 内部 `PictureInPictureParams.setAutoEnterEnabled` |
+| 宿主 Manifest | ⚠️ | `supportsPictureInPicture="true"`、`resizeableActivity="true"` |
+| 宿主 Activity | ⚠️ | `KineticPlayerPlugin.handleUserLeaveHint(this)` |
+| iOS 画中画 | ❌ | SGPlayer 自定义渲染，无系统 PiP |
 | 桌面多窗体 | ⚠️ | 依赖 Android 系统多窗口 + PiP |
+
+关闭 PiP：
+
+```dart
+GsyUiConfig(pictureInPictureEnabled: false)
+```
 
 ---
 
@@ -141,5 +157,9 @@ if (controller is GSYVideoControllerImpl) {
   await controller.gsyToggleDanmaku(enabled: true);
   final tracks = await controller.gsyListExoVideoTracks();
   if (tracks.isNotEmpty) await controller.gsySelectExoVideoTrack(0);
+  final audioTracks = await controller.getAudioTracks();
+  if (audioTracks.length > 1) {
+    await controller.selectAudioTrack(audioTracks[1].index);
+  }
 }
 ```

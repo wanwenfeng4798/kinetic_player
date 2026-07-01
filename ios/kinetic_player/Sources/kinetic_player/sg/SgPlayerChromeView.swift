@@ -207,7 +207,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             progressRow.bottomAnchor.constraint(equalTo: bottomPanel.bottomAnchor, constant: -4),
             progressRow.heightAnchor.constraint(equalToConstant: 36),
 
-            audioPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -44),
+            audioPanel.centerXAnchor.constraint(equalTo: volumeButton.centerXAnchor),
             audioPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
 
             settingsPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),

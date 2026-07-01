@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="180dp"
+    android:layout_width="@dimen/kinetic_settings_panel_width"
     android:layout_height="wrap_content"
     android:background="@drawable/kinetic_audio_panel_bg"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="@dimen/kinetic_settings_panel_padding">
 
     <TextView
         android:layout_width="wrap_content"
@@ -22,18 +22,10 @@
         android:textColor="#CCFFFFFF"
         android:textSize="12sp" />
 
-    <ScrollView
+    <LinearLayout
+        android:id="@+id/settings_panel_track_list"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:maxHeight="180dp"
-        android:overScrollMode="never"
-        android:scrollbars="none">
-
-        <LinearLayout
-            android:id="@+id/settings_panel_track_list"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-    </ScrollView>
+        android:orientation="vertical" />
 </LinearLayout>

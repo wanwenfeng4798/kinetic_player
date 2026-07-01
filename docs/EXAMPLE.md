@@ -1,6 +1,6 @@
 # Example 示例
 
-Example 项目位于 `kinetic_player/example/`，演示双核播放器的最小集成。
+Example 项目位于 `kinetic_player/example/`，演示双核播放器的集成与主要能力。
 
 ## 运行
 
@@ -20,45 +20,45 @@ Android 可直接 `flutter run`。
 
 `example/lib/main.dart` 包含：
 
-1. **视频区域** — `CommonVideoPlayerViewBuilder` 加载远程 MP4
-2. **控制面板** — Play / Pause / Seek 10s
-3. **平台独有按钮** — 运行时按 controller 类型显示：
-   - Android：`GSY Danmaku`
-   - iOS：`SG VR`
+1. **视频区域** — `CommonVideoPlayerViewBuilder` 加载远程 MP4，Android 附带 `GsyUiConfig`（原生控制栏、进度条缩略图等）
+2. **设置 · 音轨** — 下拉选择音轨（`getAudioTracks` / `selectAudioTrack`）；播放器内齿轮按钮亦可切换
+3. **Android 专属** — GL 滤镜、字幕（WebVTT / 推送文本）、弹幕（B 站 XML）
+4. **循环 / 截图** — `setLooping`、`captureFrame`
+5. **公共控制** — Play / Pause / Seek 10s、状态与进度显示
+6. **平台独有按钮** — Android：`GSY Fullscreen`；iOS：`SG Fullscreen`、`SG VR`
+
+## 原生控制栏（Example 中已启用）
+
+| 交互 | 说明 |
+|------|------|
+| 点击画面 | 显隐控制栏与中央播放按钮 |
+| 喇叭 | 弹出竖向音量条（B 站风格） |
+| 齿轮 | 弹出设置面板，选择音轨 |
+| 全屏 | 窗口级全屏 |
+
+Android 播放中按 Home 键可进入画中画（需 `MainActivity` 已配置 PiP，example 已配置）。
 
 ## 核心代码
 
 ```dart
-class _PlayerDemoPageState extends State<PlayerDemoPage> {
-  CommonVideoController? _controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: CommonVideoPlayerViewBuilder(
-              url: _demoUrl,
-              builder: (controller) {
-                if (!identical(_controller, controller)) {
-                  setState(() => _controller = controller);
-                }
-              },
-            ),
-          ),
-          _ControlPanel(controller: _controller),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-}
+CommonVideoPlayerViewBuilder(
+  url: _DemoMedia.videoUrl,
+  creationParams: isAndroid
+      ? GsyUiConfig(
+          enableNativeControls: true,
+          showFullscreenButton: true,
+          showVolumeToolbar: true,
+          showSettingsButton: true,
+          pictureInPictureEnabled: true,
+          showDragProgressTextOnSeekBar: true,
+          videoTitle: 'GSY Demo',
+          previewVttUrl: _previewVttUri,
+        ).toCreationParams()
+      : null,
+  builder: (controller) {
+    setState(() => _controller = controller);
+  },
+)
 ```
 
 ## 控制面板逻辑
@@ -68,6 +68,12 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
 await controller?.play();
 await controller?.pause();
 await controller?.seekTo(const Duration(seconds: 10));
+await controller?.setLooping(true);
+final path = await controller?.captureFrame(highQuality: true, includeOverlay: true);
+
+// 音轨
+final tracks = await controller?.getAudioTracks();
+await controller?.selectAudioTrack(tracks.first.index);
 
 // 监听状态
 ValueListenableBuilder<CommonPlayerState>(
@@ -78,23 +84,51 @@ ValueListenableBuilder<CommonPlayerState>(
 // GSY 独有（Android）
 if (controller is GSYVideoControllerImpl) {
   await controller.gsyToggleDanmaku(enabled: true);
+  await controller.gsyStartFullscreen();
 }
 
 // SG 独有（iOS）
 if (controller is SGVideoControllerImpl) {
   await controller.sgSetVRMode(enabled: true);
+  await controller.sgStartFullscreen();
+}
+```
+
+## Android 宿主配置（example 已包含）
+
+`example/android/app/src/main/AndroidManifest.xml`：
+
+- `android:supportsPictureInPicture="true"`
+- `android:resizeableActivity="true"`
+
+`MainActivity.kt`：
+
+```kotlin
+override fun onConfigurationChanged(newConfig: Configuration) {
+  super.onConfigurationChanged(newConfig)
+  KineticPlayerPlugin.handleConfigurationChanged(this, newConfig)
+}
+
+override fun onBackPressed() {
+  if (KineticPlayerPlugin.handleBackPressed(this)) return
+  super.onBackPressed()
+}
+
+override fun onUserLeaveHint() {
+  super.onUserLeaveHint()
+  KineticPlayerPlugin.handleUserLeaveHint(this)
 }
 ```
 
 ## 演示 URL
 
-默认使用 GitHub 托管的公开 MP4：
+默认使用 W3Schools 公开 MP4：
 
 ```
-https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4
+https://www.w3schools.com/html/mov_bbb.mp4
 ```
 
-可在 `main.dart` 中替换 `_demoUrl`。
+可在 `main.dart` 的 `_DemoMedia.videoUrl` 中替换。
 
 ## 测试
 

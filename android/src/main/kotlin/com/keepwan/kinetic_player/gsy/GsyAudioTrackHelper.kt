@@ -4,6 +4,7 @@ import com.shuyu.gsyvideoplayer.GSYVideoManager
 import com.shuyu.gsyvideoplayer.player.IjkPlayerManager
 import tv.danmaku.ijk.media.exo2.Exo2PlayerManager
 import tv.danmaku.ijk.media.exo2.IjkExo2MediaPlayer
+import tv.danmaku.ijk.media.player.IjkMediaPlayer
 import tv.danmaku.ijk.media.player.misc.ITrackInfo
 
 object GsyAudioTrackHelper {
@@ -77,23 +78,26 @@ object GsyAudioTrackHelper {
 
     private fun listIjkAudioTracks(): List<AudioTrack> {
         val manager = GSYVideoManager.instance().curPlayerManager as? IjkPlayerManager ?: return emptyList()
-        val mediaPlayer = manager.mediaPlayer ?: return emptyList()
+        val ijkPlayer = manager.mediaPlayer as? IjkMediaPlayer ?: return emptyList()
         val trackInfos =
             try {
-                mediaPlayer.trackInfo
+                ijkPlayer.trackInfo
             } catch (_: Exception) {
                 return emptyList()
             } ?: return emptyList()
+        val selectedAudioStream = ijkPlayer.getSelectedTrack(ITrackInfo.MEDIA_TRACK_TYPE_AUDIO)
         val result = mutableListOf<AudioTrack>()
         var audioIndex = 0
-        for (trackInfo in trackInfos) {
+        for ((streamIndex, trackInfo) in trackInfos.withIndex()) {
             if (trackInfo.trackType != ITrackInfo.MEDIA_TRACK_TYPE_AUDIO) continue
+            val inline = trackInfo.infoInline?.takeIf { it.isNotBlank() }
+            val language = trackInfo.language?.takeIf { it.isNotBlank() }
             result.add(
                 AudioTrack(
                     index = audioIndex++,
-                    label = trackInfo.info ?: "audio",
-                    language = null,
-                    selected = false,
+                    label = inline ?: language ?: "audio",
+                    language = language,
+                    selected = streamIndex == selectedAudioStream,
                 ),
             )
         }
@@ -102,18 +106,18 @@ object GsyAudioTrackHelper {
 
     private fun selectIjkAudioTrack(index: Int): Boolean {
         val manager = GSYVideoManager.instance().curPlayerManager as? IjkPlayerManager ?: return false
-        val mediaPlayer = manager.mediaPlayer ?: return false
+        val ijkPlayer = manager.mediaPlayer as? IjkMediaPlayer ?: return false
         val trackInfos =
             try {
-                mediaPlayer.trackInfo
+                ijkPlayer.trackInfo
             } catch (_: Exception) {
                 return false
             } ?: return false
         var audioIndex = 0
-        for ((trackIndex, trackInfo) in trackInfos.withIndex()) {
+        for ((streamIndex, trackInfo) in trackInfos.withIndex()) {
             if (trackInfo.trackType != ITrackInfo.MEDIA_TRACK_TYPE_AUDIO) continue
             if (audioIndex == index) {
-                mediaPlayer.selectTrack(trackIndex)
+                ijkPlayer.selectTrack(streamIndex)
                 return true
             }
             audioIndex++

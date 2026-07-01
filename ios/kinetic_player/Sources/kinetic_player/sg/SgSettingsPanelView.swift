@@ -38,6 +38,8 @@ final class SgSettingsPanelView: UIView {
             let button = UIButton(type: .system)
             button.contentHorizontalAlignment = .leading
             button.titleLabel?.font = .systemFont(ofSize: 13)
+            button.titleLabel?.numberOfLines = 1
+            button.titleLabel?.lineBreakMode = .byTruncatingTail
             button.setTitle(title, for: .normal)
             button.setTitleColor(selected ? KineticPlayerColors.seekActive : .white, for: .normal)
             button.tag = index

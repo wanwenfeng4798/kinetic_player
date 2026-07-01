@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="kinetic_audio_panel_width">56dp</dimen>
+    <dimen name="kinetic_audio_panel_slider_height">120dp</dimen>
+    <dimen name="kinetic_panel_padding_vertical">12dp</dimen>
+    <dimen name="kinetic_panel_popup_margin_bottom">6dp</dimen>
+    <dimen name="kinetic_settings_panel_width">180dp</dimen>
+    <dimen name="kinetic_settings_panel_padding">12dp</dimen>
+    <dimen name="kinetic_control_icon_size">28dp</dimen>
+    <!-- GSY seek-preview thumbnail width (used by preview_layout + KineticPreViewGSYVideoPlayer). -->
     <dimen name="seek_bar_image">150dp</dimen>
 </resources>

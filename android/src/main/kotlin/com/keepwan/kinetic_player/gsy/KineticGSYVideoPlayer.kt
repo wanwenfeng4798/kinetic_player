@@ -6,10 +6,12 @@ import android.content.res.Configuration
 import android.opengl.GLSurfaceView
 import android.util.AttributeSet
 import android.graphics.Color
+import android.text.TextUtils
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -140,6 +142,11 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     private fun showAudioPanel() {
         audioPanel?.visibility = View.VISIBLE
         audioPanelVisible = true
+        positionPanelCenteredAboveAnchor(
+            panel = audioPanel,
+            anchor = volumeTrigger,
+            panelWidthRes = R.dimen.kinetic_audio_panel_width,
+        )
         audioPanel?.bringToFront()
     }
 
@@ -152,6 +159,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         refreshSettingsTracks()
         settingsPanel?.visibility = View.VISIBLE
         settingsPanelVisible = true
+        positionSettingsPanelAboveBottomBar()
         settingsPanel?.bringToFront()
     }
 
@@ -187,7 +195,14 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     text = title
                     setPadding(0, padV, 0, padV)
                     textSize = 13f
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
                     setTextColor(if (selected) activeColor else Color.WHITE)
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
                     setOnClickListener {
                         onAudioTrackSelected?.invoke(index)
                         refreshSettingsTracks()
@@ -286,11 +301,86 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         mLoadingProgressBar?.bringToFront()
         if (audioPanelVisible) {
             audioPanel?.bringToFront()
+            positionPanelCenteredAboveAnchor(
+                panel = audioPanel,
+                anchor = volumeTrigger,
+                panelWidthRes = R.dimen.kinetic_audio_panel_width,
+            )
         }
         if (settingsPanelVisible) {
             settingsPanel?.bringToFront()
+            positionSettingsPanelAboveBottomBar()
         }
         syncBottomChromeTouchPassthrough()
+    }
+
+    /** Centers popup horizontally over an anchor in the bottom control row. */
+    private fun positionPanelCenteredAboveAnchor(
+        panel: View?,
+        anchor: View?,
+        panelWidthRes: Int,
+    ) {
+        val panelView = panel ?: return
+        val anchorView = anchor ?: return
+        val host = panelView.parent as? RelativeLayout ?: return
+        val panelWidthPx = resources.getDimensionPixelSize(panelWidthRes)
+        val bottomMarginPx =
+            resources.getDimensionPixelSize(R.dimen.kinetic_panel_popup_margin_bottom)
+        panelView.post {
+            if (!panelView.isShown) return@post
+            if (host.width == 0 || anchorView.width == 0) {
+                panelView.post {
+                    positionPanelCenteredAboveAnchor(panel, anchor, panelWidthRes)
+                }
+                return@post
+            }
+            val measuredWidth = if (panelView.width > 0) panelView.width else panelWidthPx
+            val hostLoc = IntArray(2)
+            val anchorLoc = IntArray(2)
+            host.getLocationInWindow(hostLoc)
+            anchorView.getLocationInWindow(anchorLoc)
+            val anchorLeft = anchorLoc[0] - hostLoc[0]
+            val centeredLeft = anchorLeft + (anchorView.width - measuredWidth) / 2
+            val maxLeft = (host.width - measuredWidth).coerceAtLeast(0)
+            val lp = panelView.layoutParams as RelativeLayout.LayoutParams
+            lp.width = panelWidthPx
+            lp.addRule(RelativeLayout.ABOVE, R.id.layout_bottom)
+            lp.addRule(RelativeLayout.ALIGN_PARENT_START)
+            lp.removeRule(RelativeLayout.ALIGN_START)
+            lp.removeRule(RelativeLayout.ALIGN_PARENT_END)
+            lp.removeRule(RelativeLayout.ALIGN_PARENT_LEFT)
+            lp.removeRule(RelativeLayout.ALIGN_PARENT_RIGHT)
+            lp.leftMargin = centeredLeft.coerceIn(0, maxLeft)
+            lp.rightMargin = 0
+            lp.bottomMargin = bottomMarginPx
+            panelView.layoutParams = lp
+            panelView.requestLayout()
+        }
+    }
+
+    /** Matches iOS: settings sheet trailing inset 12dp, above bottom bar. */
+    private fun positionSettingsPanelAboveBottomBar() {
+        val panelView = settingsPanel ?: return
+        val host = panelView.parent as? RelativeLayout ?: return
+        val panelWidthPx =
+            resources.getDimensionPixelSize(R.dimen.kinetic_settings_panel_width)
+        val marginEndPx = CommonUtil.dip2px(context, 12f)
+        val bottomMarginPx =
+            resources.getDimensionPixelSize(R.dimen.kinetic_panel_popup_margin_bottom)
+        panelView.post {
+            if (!panelView.isShown) return@post
+            val lp = panelView.layoutParams as RelativeLayout.LayoutParams
+            lp.width = panelWidthPx
+            lp.addRule(RelativeLayout.ABOVE, R.id.layout_bottom)
+            lp.addRule(RelativeLayout.ALIGN_PARENT_END)
+            lp.removeRule(RelativeLayout.ALIGN_START)
+            lp.removeRule(RelativeLayout.ALIGN_PARENT_START)
+            lp.leftMargin = 0
+            lp.rightMargin = marginEndPx
+            lp.bottomMargin = bottomMarginPx
+            panelView.layoutParams = lp
+            panelView.requestLayout()
+        }
     }
 
     /**
@@ -308,7 +398,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         bottom.isClickable = false
         bottom.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_UP) {
-                onClickUiToggle()
+                onClickUiToggle(event)
             }
             true
         }
@@ -356,10 +446,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         fixControlOverlayLayering()
     }
 
-    override fun onClickUiToggle() {
+    override fun onClickUiToggle(event: MotionEvent) {
         hideAudioPanel()
         hideSettingsPanel()
-        super.onClickUiToggle()
+        super.onClickUiToggle(event)
     }
 
     override fun startPlayLogic() {

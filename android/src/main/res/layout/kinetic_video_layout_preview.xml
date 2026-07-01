@@ -62,8 +62,8 @@
                 android:minHeight="4dp"
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp"
-                android:progressDrawable="@drawable/kinetic_seek_progress"
-                android:thumb="@drawable/kinetic_seek_thumb" />
+                android:progressDrawable="@drawable/video_seek_progress"
+                android:thumb="@drawable/video_seek_thumb" />
 
             <TextView
                 android:id="@+id/total"
@@ -104,23 +104,21 @@
     <include
         android:id="@+id/audio_panel"
         layout="@layout/kinetic_audio_panel"
-        android:layout_width="wrap_content"
+        android:layout_width="@dimen/kinetic_audio_panel_width"
         android:layout_height="wrap_content"
         android:layout_above="@id/layout_bottom"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="44dp"
-        android:layout_marginBottom="6dp"
+        android:layout_marginBottom="@dimen/kinetic_panel_popup_margin_bottom"
         android:visibility="gone" />
 
     <include
         android:id="@+id/settings_panel"
         layout="@layout/kinetic_settings_panel"
-        android:layout_width="wrap_content"
+        android:layout_width="@dimen/kinetic_settings_panel_width"
         android:layout_height="wrap_content"
         android:layout_above="@id/layout_bottom"
         android:layout_alignParentEnd="true"
         android:layout_marginEnd="12dp"
-        android:layout_marginBottom="6dp"
+        android:layout_marginBottom="@dimen/kinetic_panel_popup_margin_bottom"
         android:visibility="gone" />
 
     <ProgressBar
