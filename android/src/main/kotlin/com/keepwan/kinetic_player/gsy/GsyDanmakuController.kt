@@ -1,6 +1,7 @@
 package com.keepwan.kinetic_player.gsy
 
 import android.content.Context
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.FrameLayout
@@ -22,6 +23,7 @@ import master.flame.danmaku.danmaku.parser.BaseDanmakuParser
 import master.flame.danmaku.danmaku.parser.IDataSource
 import master.flame.danmaku.ui.widget.DanmakuView
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
@@ -102,7 +104,7 @@ class GsyDanmakuController(
                 val newParser = createParser(stream)
                 container.post {
                     parser = newParser
-                    prepareDanmaku()
+                    prepareDanmaku(forceReload = true)
                 }
             } catch (_: Exception) {
                 // ignore load failures
@@ -111,6 +113,30 @@ class GsyDanmakuController(
     }
 
     fun onPrepared() = prepareDanmaku()
+
+    fun onPlaybackStart() {
+        attachIfNeeded()
+        val view = danmakuView ?: return
+        if (!view.isPrepared) {
+            prepareDanmaku()
+            return
+        }
+        val positionMs = playerView.currentPositionWhenPlaying.coerceAtLeast(0L)
+        view.seekTo(positionMs)
+        if (view.isPaused) {
+            view.resume()
+        } else {
+            view.start()
+        }
+        if (visible) view.show() else view.hide()
+    }
+
+    fun onPlaybackComplete() {
+        val view = danmakuView ?: return
+        if (view.isPrepared) {
+            view.pause()
+        }
+    }
 
     fun onPause() {
         if (danmakuView?.isPrepared == true) {
@@ -141,12 +167,19 @@ class GsyDanmakuController(
         prepared = false
     }
 
-    private fun prepareDanmaku() {
+    private fun prepareDanmaku(forceReload: Boolean = false) {
         val view = danmakuView ?: return
         val p = parser ?: emptyParser()
-        if (!view.isPrepared) {
-            view.prepare(p, danmakuContext)
+        if (view.isPrepared) {
+            if (!forceReload) {
+                syncToPlayerPosition()
+                if (visible) view.show() else view.hide()
+                return
+            }
+            view.release()
+            prepared = false
         }
+        view.prepare(p, danmakuContext)
     }
 
     private fun createParser(stream: InputStream): BaseDanmakuParser {
@@ -164,6 +197,15 @@ class GsyDanmakuController(
         }
 
     private fun readUrl(urlString: String): String {
+        when {
+            urlString.startsWith("file://", ignoreCase = true) -> {
+                val path = Uri.parse(urlString).path ?: return ""
+                return File(path).readText()
+            }
+            urlString.startsWith("/") -> {
+                return File(urlString).readText()
+            }
+        }
         val connection = URL(urlString).openConnection() as HttpURLConnection
         connection.connectTimeout = 15_000
         connection.readTimeout = 15_000

@@ -28,7 +28,7 @@ class KineticPlayerExampleApp extends StatelessWidget {
 /// Demo media URLs (Android GSY).
 class _DemoMedia {
   static const videoUrl =
-      'https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4';
+      'https://www.w3schools.com/html/mov_bbb.mp4';
 
   /// Stable public JPEGs for demo seek-preview cues (avoid picsum 404/redirect).
   static const _previewImages = <String>[
@@ -97,6 +97,63 @@ class _DemoMedia {
     }
     return buffer.toString();
   }
+
+  static const _danmakuColors = <int>[
+    0xFFFFFF,
+    0xFF5252,
+    0xFFD740,
+    0x69F0AE,
+    0x40C4FF,
+  ];
+
+  static const _demoDanmaku = <_DanmakuCue>[
+    _DanmakuCue(0, 'Kinetic Player 弹幕示例'),
+    _DanmakuCue(2, 'DanmakuFlameMaster + B 站 XML'),
+    _DanmakuCue(4, '从右向左滚动弹幕'),
+    _DanmakuCue(6, '支持加载本地 XML 文件'),
+    _DanmakuCue(8, '也可在下方输入框发送弹幕'),
+    _DanmakuCue(10, 'gsySetDanmakuUrl / gsyToggleDanmaku'),
+  ];
+
+  /// Bilibili XML danmaku track for demo playback.
+  static Future<String> prepareDanmakuXmlUri({
+    List<_DanmakuCue> extra = const [],
+  }) async {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/kinetic_demo_danmaku.xml');
+    await file.writeAsString(_buildDanmakuXml([..._demoDanmaku, ...extra]));
+    return file.uri.toString();
+  }
+
+  static String _buildDanmakuXml(List<_DanmakuCue> cues) {
+    final buffer = StringBuffer(
+      '<?xml version="1.0" encoding="UTF-8"?><i>',
+    );
+    for (var i = 0; i < cues.length; i++) {
+      final cue = cues[i];
+      final color = _danmakuColors[i % _danmakuColors.length];
+      buffer.write(
+        '<d p="${cue.timeSec.toStringAsFixed(1)},1,25,$color,0,0,0,0">'
+        '${_escapeXml(cue.text)}</d>',
+      );
+    }
+    buffer.write('</i>');
+    return buffer.toString();
+  }
+
+  static String _escapeXml(String text) =>
+      text
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;');
+}
+
+class _DanmakuCue {
+  const _DanmakuCue(this.timeSec, this.text);
+
+  final double timeSec;
+  final String text;
 }
 
 class PlayerDemoPage extends StatefulWidget {
@@ -137,6 +194,7 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
           ? Column(
               children: [
                 Expanded(
+                  flex: 3,
                   child: CommonVideoPlayerViewBuilder(
                     url: _DemoMedia.videoUrl,
                     creationParams: isAndroid
@@ -155,7 +213,12 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                     },
                   ),
                 ),
-                _ControlPanel(controller: _controller),
+                Expanded(
+                  flex: 2,
+                  child: SingleChildScrollView(
+                    child: _ControlPanel(controller: _controller),
+                  ),
+                ),
               ],
             )
           : const Center(child: CircularProgressIndicator()),
@@ -182,8 +245,14 @@ class _ControlPanelState extends State<_ControlPanel> {
   String _selectedFilter = 'none';
   String? _subtitleVttUri;
   bool _subtitlesEnabled = true;
+  String? _danmakuXmlUri;
+  bool _danmakuVisible = false;
+  final List<_DanmakuCue> _customDanmaku = [];
   final TextEditingController _subtitleTextController = TextEditingController(
     text: 'Hello from Flutter — gsySetEmbeddedSubtitleText',
+  );
+  final TextEditingController _danmakuTextController = TextEditingController(
+    text: 'Hello Danmaku!',
   );
 
   @override
@@ -194,12 +263,16 @@ class _ControlPanelState extends State<_ControlPanel> {
       _DemoMedia.prepareSubtitleVttUri().then((uri) {
         if (mounted) setState(() => _subtitleVttUri = uri);
       });
+      _DemoMedia.prepareDanmakuXmlUri().then((uri) {
+        if (mounted) setState(() => _danmakuXmlUri = uri);
+      });
     }
   }
 
   @override
   void dispose() {
     _subtitleTextController.dispose();
+    _danmakuTextController.dispose();
     super.dispose();
   }
 
@@ -268,6 +341,40 @@ class _ControlPanelState extends State<_ControlPanel> {
     final enabled = !_subtitlesEnabled;
     await gsy.gsySetSubtitleEnabled(enabled: enabled);
     if (mounted) setState(() => _subtitlesEnabled = enabled);
+  }
+
+  Future<void> _reloadDanmakuFile(GSYVideoControllerImpl gsy) async {
+    final uri = await _DemoMedia.prepareDanmakuXmlUri(extra: _customDanmaku);
+    if (!mounted) return;
+    setState(() => _danmakuXmlUri = uri);
+    await gsy.gsySetDanmakuUrl(uri);
+    if (_danmakuVisible) {
+      await gsy.gsyToggleDanmaku(enabled: true);
+    }
+  }
+
+  Future<void> _loadDemoDanmaku(GSYVideoControllerImpl gsy) async {
+    await _reloadDanmakuFile(gsy);
+    await gsy.gsyToggleDanmaku(enabled: true);
+    if (mounted) setState(() => _danmakuVisible = true);
+  }
+
+  Future<void> _sendDanmaku(GSYVideoControllerImpl gsy) async {
+    final text = _danmakuTextController.text.trim();
+    if (text.isEmpty) return;
+    final timeSec = gsy.position.value.inMilliseconds / 1000.0;
+    setState(() {
+      _customDanmaku.add(_DanmakuCue(timeSec, text));
+    });
+    await _reloadDanmakuFile(gsy);
+    await gsy.gsyToggleDanmaku(enabled: true);
+    if (mounted) setState(() => _danmakuVisible = true);
+  }
+
+  Future<void> _toggleDanmaku(GSYVideoControllerImpl gsy) async {
+    final visible = !_danmakuVisible;
+    await gsy.gsyToggleDanmaku(enabled: visible);
+    if (mounted) setState(() => _danmakuVisible = visible);
   }
 
   @override
@@ -364,6 +471,46 @@ class _ControlPanelState extends State<_ControlPanel> {
               '「加载 WebVTT」使用外挂轨道；「发送字幕」通过 gsySetEmbeddedSubtitleText 即时显示。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
+            const SizedBox(height: 12),
+            const Text(
+              '弹幕',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _danmakuTextController,
+              decoration: const InputDecoration(
+                labelText: '弹幕内容',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: _danmakuXmlUri == null
+                      ? null
+                      : () => _loadDemoDanmaku(active),
+                  child: const Text('加载弹幕'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _sendDanmaku(active),
+                  child: const Text('发送弹幕'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _toggleDanmaku(active),
+                  child: Text(_danmakuVisible ? '隐藏弹幕' : '显示弹幕'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '「加载弹幕」使用 B 站 XML 本地文件；「发送弹幕」在当前播放时间点追加一条并重新加载。',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
           ],
           const SizedBox(height: 8),
           Wrap(
@@ -384,16 +531,11 @@ class _ControlPanelState extends State<_ControlPanel> {
                     : () => active.seekTo(const Duration(seconds: 10)),
                 child: const Text('Seek 10s'),
               ),
-              if (isAndroidGsy) ...[
+              if (isAndroidGsy)
                 FilledButton(
                   onPressed: () => active.gsyStartFullscreen(),
                   child: const Text('GSY Fullscreen'),
                 ),
-                FilledButton(
-                  onPressed: () => active.gsyToggleDanmaku(enabled: true),
-                  child: const Text('GSY Danmaku'),
-                ),
-              ],
               if (active is SGVideoControllerImpl)
                 FilledButton(
                   onPressed: () => active.sgSetVRMode(enabled: true),

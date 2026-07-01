@@ -108,6 +108,7 @@ class GsyNativePlayer(
                         startPlayLogic()
                     }
                     else -> {
+                        danmakuController.onPlaybackComplete()
                         callbacks.onPlayerStateChanged(CommonPlayerState.COMPLETED)
                         reportProgress(force = true)
                     }
@@ -126,6 +127,9 @@ class GsyNativePlayer(
 
     init {
         playerView.uiConfig = initialUiConfig
+        playerView.onDanmakuPlaybackStart = { danmakuController.onPlaybackStart() }
+        playerView.onDanmakuPlaybackPause = { danmakuController.onPause() }
+        playerView.onDanmakuPlaybackComplete = { danmakuController.onPlaybackComplete() }
         container.addView(
             playerView,
             FrameLayout.LayoutParams(
@@ -250,7 +254,6 @@ class GsyNativePlayer(
     fun startPlayLogic() {
         playerView.startPlayLogic()
         isPlaying = true
-        danmakuController.onResume()
         emitMappedState(GSYVideoView.CURRENT_STATE_PLAYING)
         reportProgress(force = true)
     }
@@ -258,7 +261,6 @@ class GsyNativePlayer(
     fun onVideoPause() {
         playerView.onVideoPause()
         isPlaying = false
-        danmakuController.onPause()
         emitMappedState(GSYVideoView.CURRENT_STATE_PAUSE)
     }
 

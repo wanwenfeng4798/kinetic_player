@@ -23,6 +23,11 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
 
     protected var storedUiConfig: GsyUiConfig? = null
 
+    /** Wired by [GsyNativePlayer] to keep danmaku in sync with native play/pause/replay. */
+    var onDanmakuPlaybackStart: (() -> Unit)? = null
+    var onDanmakuPlaybackPause: (() -> Unit)? = null
+    var onDanmakuPlaybackComplete: (() -> Unit)? = null
+
     var uiConfig: GsyUiConfig
         get() = storedUiConfig ?: DEFAULT_UI_CONFIG
         set(value) {
@@ -119,6 +124,31 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     override fun changeUiToCompleteShow() {
         super.changeUiToCompleteShow()
         fixControlOverlayLayering()
+    }
+
+    override fun startPlayLogic() {
+        super.startPlayLogic()
+        onDanmakuPlaybackStart?.invoke()
+    }
+
+    override fun onVideoPause() {
+        super.onVideoPause()
+        onDanmakuPlaybackPause?.invoke()
+    }
+
+    override fun onVideoResume() {
+        super.onVideoResume()
+        onDanmakuPlaybackStart?.invoke()
+    }
+
+    override fun onVideoResume(seek: Boolean) {
+        super.onVideoResume(seek)
+        onDanmakuPlaybackStart?.invoke()
+    }
+
+    override fun onAutoCompletion() {
+        super.onAutoCompletion()
+        onDanmakuPlaybackComplete?.invoke()
     }
 
     fun toggleWindowFullscreen() {
