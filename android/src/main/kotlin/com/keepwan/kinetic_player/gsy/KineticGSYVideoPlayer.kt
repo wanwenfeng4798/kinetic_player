@@ -23,17 +23,21 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     protected var storedUiConfig: GsyUiConfig? = null
 
     var uiConfig: GsyUiConfig
-        get() = storedUiConfig ?: GsyUiConfig()
+        get() = storedUiConfig ?: DEFAULT_UI_CONFIG
         set(value) {
-            storedUiConfig = value
+            storedUiConfig = value ?: DEFAULT_UI_CONFIG
             applyUiConfig()
         }
 
     override fun init(context: Context) {
+        // GSY calls init() from its superclass constructor before Kotlin field
+        // initializers run; ensure config exists before super.init() continues.
+        if (storedUiConfig == null) {
+            storedUiConfig = DEFAULT_UI_CONFIG
+        }
         super.init(context)
         wireNativeControls()
-        // GSY invokes init() from its superclass constructor before subclass fields
-        // are initialized; applyUiConfig runs when [uiConfig] is assigned afterward.
+        applyUiConfig()
     }
 
     private fun wireNativeControls() {
@@ -43,7 +47,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     }
 
     open fun applyUiConfig() {
-        val config = storedUiConfig ?: return
+        val config = storedUiConfig ?: DEFAULT_UI_CONFIG
         setIsTouchWiget(config.enableNativeControls)
         setIsTouchWigetFull(config.enableNativeControlsFullscreen)
         setRotateViewAuto(config.rotateViewAuto)
@@ -122,10 +126,15 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     }
 
     private fun applyEmbeddedChrome() {
+        val config = storedUiConfig ?: DEFAULT_UI_CONFIG
         if (!isIfCurrentIsFullscreen) {
             backButton?.visibility = View.GONE
         }
         fullscreenButton?.visibility =
-            if (uiConfig.showFullscreenButton) View.VISIBLE else View.GONE
+            if (config.showFullscreenButton) View.VISIBLE else View.GONE
+    }
+
+    companion object {
+        private val DEFAULT_UI_CONFIG = GsyUiConfig()
     }
 }

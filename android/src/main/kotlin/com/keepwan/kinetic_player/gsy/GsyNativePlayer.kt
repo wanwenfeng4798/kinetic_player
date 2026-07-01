@@ -123,7 +123,7 @@ class GsyNativePlayer(
         }
 
     init {
-        playerView.uiConfig = uiConfig
+        playerView.uiConfig = initialUiConfig
         container.addView(
             playerView,
             FrameLayout.LayoutParams(
