@@ -257,6 +257,9 @@ class GsyNativePlayer(
     }
 
     fun startPlayLogic() {
+        if (playerView.currentState == GSYVideoView.CURRENT_STATE_AUTO_COMPLETE) {
+            GSYVideoManager.instance().seekTo(0)
+        }
         playerView.startPlayLogic()
         isPlaying = true
         emitMappedState(GSYVideoView.CURRENT_STATE_PLAYING)

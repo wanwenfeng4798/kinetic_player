@@ -1,11 +1,14 @@
 import Flutter
 import UIKit
 
-final class SgVideoPlatformView: NSObject, FlutterPlatformView {
+final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDelegate {
     private let container = UIView()
     private let player: SgNativePlayer
     private let channel: FlutterMethodChannel
-    private let volumeToolbar = SgVolumeToolbarView()
+    private let chrome: SgPlayerChromeView
+    private let fullscreenPresenter = SgFullscreenPresenter()
+    private let channelCallbacks: SgChannelCallbacks
+    private var isPlaying = false
 
     init(
         frame: CGRect,
@@ -13,53 +16,40 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
         messenger: FlutterBinaryMessenger,
         args: Any?,
     ) {
+        let params = args as? [String: Any]
+        let uiConfig = SgUiConfig.fromCreationParams(params)
+
         channel = FlutterMethodChannel(
             name: PlayerConstants.sgChannelName(viewId: Int(viewId)),
             binaryMessenger: messenger,
         )
-        player = SgNativePlayer(
-            callbacks: SgChannelCallbacks(channel: channel),
-        )
+        channelCallbacks = SgChannelCallbacks(channel: channel)
+        chrome = SgPlayerChromeView(config: uiConfig)
+        player = SgNativePlayer(callbacks: channelCallbacks)
         super.init()
 
-        let params = args as? [String: Any]
-        let gsyUi = params?["gsyUi"] as? [String: Any]
-        let showVolumeToolbar =
-            params?["showVolumeToolbar"] as? Bool
-            ?? gsyUi?["showVolumeToolbar"] as? Bool
-            ?? true
+        channelCallbacks.attach(host: self)
 
         container.frame = frame
         container.backgroundColor = .black
-        player.view.frame = container.bounds
-        player.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+
+        player.view.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(player.view)
 
-        volumeToolbar.translatesAutoresizingMaskIntoConstraints = false
-        volumeToolbar.isHidden = !showVolumeToolbar
-        container.addSubview(volumeToolbar)
-        NSLayoutConstraint.activate([
-            volumeToolbar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            volumeToolbar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            volumeToolbar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-        ])
+        chrome.translatesAutoresizingMaskIntoConstraints = false
+        chrome.delegate = self
+        container.addSubview(chrome)
 
-        volumeToolbar.onVolumeChanged = { [weak self] volume in
-            guard let self else { return }
-            self.player.setVolume(volume)
-            self.volumeToolbar.sync(
-                volume: self.player.currentVolume(),
-                muted: self.player.isMuted(),
-            )
-        }
-        volumeToolbar.onMuteToggle = { [weak self] muted in
-            guard let self else { return }
-            self.player.setMute(muted)
-            self.volumeToolbar.sync(
-                volume: self.player.currentVolume(),
-                muted: self.player.isMuted(),
-            )
-        }
+        NSLayoutConstraint.activate([
+            player.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            player.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            player.view.topAnchor.constraint(equalTo: container.topAnchor),
+            player.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            chrome.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            chrome.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            chrome.topAnchor.constraint(equalTo: container.topAnchor),
+            chrome.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
 
         if let url = params?["url"] as? String {
             player.switchVideoSource(url, autoPlay: false)
@@ -71,6 +61,47 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
     }
 
     func view() -> UIView { container }
+
+    func onProgressChanged(positionMs: Int64, durationMs: Int64) {
+        chrome.updateProgress(positionMs: positionMs, durationMs: durationMs)
+    }
+
+    func onPlayerStateChanged(_ state: CommonPlayerState) {
+        isPlaying = state == .playing
+        chrome.updatePlayState(isPlaying: isPlaying)
+        if state == .paused || state == .completed || state == .idle {
+            chrome.setControlsVisible(true, animated: true)
+        }
+    }
+
+    // MARK: - SgPlayerChromeDelegate
+
+    func chromeDidTapPlayPause() {
+        if isPlaying {
+            player.pause()
+        } else {
+            player.play()
+        }
+    }
+
+    func chromeDidSeek(toMs: Int) {
+        player.seek(positionMs: toMs)
+    }
+
+    func chromeDidTapFullscreen() {
+        fullscreenPresenter.toggleFullscreen(container: container)
+        chrome.updateFullscreenIcon(isFullscreen: fullscreenPresenter.isFullscreen)
+    }
+
+    func chromeDidChangeVolume(_ volume: Double) {
+        player.setVolume(volume)
+        chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
+    }
+
+    func chromeDidToggleMute(_ muted: Bool) {
+        player.setMute(muted)
+        chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
+    }
 
     private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
@@ -102,13 +133,13 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
             let args = call.arguments as? [String: Any]
             let volume = args?["volume"] as? Double ?? 1.0
             player.setVolume(volume)
-            volumeToolbar.sync(volume: player.currentVolume(), muted: player.isMuted())
+            chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
             result(nil)
         case "setMute":
             let args = call.arguments as? [String: Any]
             let muted = args?["muted"] as? Bool ?? false
             player.setMute(muted)
-            volumeToolbar.sync(volume: player.currentVolume(), muted: player.isMuted())
+            chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
             result(nil)
         case "switchVideoSource":
             let args = call.arguments as? [String: Any]
@@ -135,6 +166,20 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
             result(nil)
         case "captureFrame":
             result(player.captureFrame())
+        case "sgStartFullscreen":
+            if !fullscreenPresenter.isFullscreen {
+                fullscreenPresenter.enterFullscreen(container: container)
+                chrome.updateFullscreenIcon(isFullscreen: true)
+            }
+            result(nil)
+        case "sgExitFullscreen":
+            if fullscreenPresenter.isFullscreen {
+                fullscreenPresenter.exitFullscreen()
+                chrome.updateFullscreenIcon(isFullscreen: false)
+            }
+            result(nil)
+        case "sgIsFullscreen":
+            result(fullscreenPresenter.isFullscreen)
         case "sgSetVRMode":
             let args = call.arguments as? [String: Any]
             let enabled = args?["enabled"] as? Bool ?? false
@@ -146,6 +191,9 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
             player.setSyncGroupId(id)
             result(nil)
         case "dispose":
+            if fullscreenPresenter.isFullscreen {
+                fullscreenPresenter.exitFullscreen()
+            }
             channel.setMethodCallHandler(nil)
             player.release()
             result(nil)
@@ -157,16 +205,23 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
 
 private final class SgChannelCallbacks: SgPlayerCallbacks {
     private let channel: FlutterMethodChannel
+    private weak var host: SgVideoPlatformView?
 
     init(channel: FlutterMethodChannel) {
         self.channel = channel
     }
 
+    func attach(host: SgVideoPlatformView) {
+        self.host = host
+    }
+
     func onPlayerStateChanged(_ state: CommonPlayerState) {
+        host?.onPlayerStateChanged(state)
         channel.invokeMethod("onPlayerStateChanged", arguments: ["state": state.rawValue])
     }
 
     func onPositionChanged(positionMs: Int64, durationMs: Int64) {
+        host?.onProgressChanged(positionMs: positionMs, durationMs: durationMs)
         channel.invokeMethod(
             "onPositionChanged",
             arguments: [

@@ -153,12 +153,27 @@ if (controller is GSYVideoControllerImpl) {
 
 ### iOS — SGVideoControllerImpl
 
+原生播放器界面（与 Android GSY 控制栏对齐）：
+
+| 能力 | 说明 / API |
+|------|------------|
+| 播放 / 暂停 | 画面中央按钮；也可 `play()` / `pause()` |
+| 进度条拖动 | 底部 Seek 条 + 当前/总时长 |
+| 单击显隐控制栏 | 点击画面空白区域；播放中约 2.5s 自动隐藏 |
+| 全屏 | 底部全屏按钮、`sgStartFullscreen()` / `sgExitFullscreen()` |
+| 音量 | 底部音量条（`showVolumeToolbar`） |
+
 ```dart
 if (controller is SGVideoControllerImpl) {
+  await controller.sgStartFullscreen();
+  await controller.sgExitFullscreen();
+  final inFullscreen = await controller.sgIsFullscreen();
   await controller.sgSetVRMode(enabled: true);
   await controller.sgSetSyncGroupId('group-1');
 }
 ```
+
+`creationParams` 可配置：`showNativeControls`、`showVolumeToolbar`、`showFullscreenButton`、`dismissControlTime`（与 Android `gsyUi` 字段兼容）。
 
 ## 监听状态
 

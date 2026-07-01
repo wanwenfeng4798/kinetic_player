@@ -75,6 +75,17 @@ class SGVideoControllerImpl
   Future<void> sgSetSyncGroupId(String id) =>
       _invoke('sgSetSyncGroupId', {'id': id});
 
+  /// SG unique: enter window-level fullscreen overlay.
+  Future<void> sgStartFullscreen() => _invoke('sgStartFullscreen');
+
+  /// SG unique: exit window-level fullscreen overlay.
+  Future<void> sgExitFullscreen() => _invoke('sgExitFullscreen');
+
+  Future<bool> sgIsFullscreen() async {
+    final result = await _channel.invokeMethod<bool>('sgIsFullscreen');
+    return result ?? false;
+  }
+
   @override
   Future<void> dispose() async {
     if (_isDisposed) return;

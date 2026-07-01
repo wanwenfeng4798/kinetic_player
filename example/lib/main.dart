@@ -247,6 +247,8 @@ class _ControlPanelState extends State<_ControlPanel> {
   bool _subtitlesEnabled = true;
   String? _danmakuXmlUri;
   bool _danmakuVisible = false;
+  bool _loopingEnabled = false;
+  String? _lastCapturePath;
   final List<_DanmakuCue> _customDanmaku = [];
   final TextEditingController _subtitleTextController = TextEditingController(
     text: 'Hello from Flutter — gsySetEmbeddedSubtitleText',
@@ -512,6 +514,64 @@ class _ControlPanelState extends State<_ControlPanel> {
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
+          const SizedBox(height: 12),
+          const Text(
+            '循环 / 截图',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonal(
+                onPressed: active == null
+                    ? null
+                    : () async {
+                        final next = !_loopingEnabled;
+                        await active.setLooping(next);
+                        if (!mounted) return;
+                        setState(() => _loopingEnabled = next);
+                      },
+                child: Text(_loopingEnabled ? '循环: 开' : '循环: 关'),
+              ),
+              FilledButton.tonal(
+                onPressed: active == null
+                    ? null
+                    : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final path = await active.captureFrame(
+                          highQuality: true,
+                          includeOverlay: isAndroidGsy,
+                        );
+                        if (!mounted) return;
+                        setState(() => _lastCapturePath = path);
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              path == null ? '截图失败' : '已保存: $path',
+                            ),
+                          ),
+                        );
+                      },
+                child: const Text('截图 captureFrame'),
+              ),
+            ],
+          ),
+          if (_lastCapturePath != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              '最近截图: $_lastCapturePath',
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            isAndroidGsy
+                ? '循环走 GSY 原生 isLooping；截图可用 includeOverlay 包含控制栏。'
+                : '循环在 iOS 播放结束时自动 seek(0)+play；截图保存到临时目录 PNG。',
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -536,11 +596,16 @@ class _ControlPanelState extends State<_ControlPanel> {
                   onPressed: () => active.gsyStartFullscreen(),
                   child: const Text('GSY Fullscreen'),
                 ),
-              if (active is SGVideoControllerImpl)
+              if (active is SGVideoControllerImpl) ...[
+                FilledButton(
+                  onPressed: () => active.sgStartFullscreen(),
+                  child: const Text('SG Fullscreen'),
+                ),
                 FilledButton(
                   onPressed: () => active.sgSetVRMode(enabled: true),
                   child: const Text('SG VR'),
                 ),
+              ],
             ],
           ),
         ],

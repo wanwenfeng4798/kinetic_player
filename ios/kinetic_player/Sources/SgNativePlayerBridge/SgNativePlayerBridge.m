@@ -65,6 +65,11 @@
 }
 
 - (void)play {
+  SGStateInfo stateInfo = [_player sstateInfo];
+  if (stateInfo.playback & SGPlaybackStateFinished) {
+    [self replayFromBeginning];
+    return;
+  }
   [_player play];
 }
 
@@ -188,6 +193,23 @@
 
 - (void)setLooping:(BOOL)looping {
   _looping = looping;
+  if (looping) {
+    SGStateInfo stateInfo = [_player sstateInfo];
+    if (stateInfo.playback & SGPlaybackStateFinished) {
+      [self replayFromBeginning];
+    }
+  }
+}
+
+- (void)replayFromBeginning {
+  __weak typeof(self) weakSelf = self;
+  [_player seekToTime:kCMTimeZero
+                result:^(CMTime time, NSError *error) {
+                  if (error) {
+                    return;
+                  }
+                  [weakSelf.player play];
+                }];
 }
 
 - (NSString *)captureFrame {
@@ -261,8 +283,7 @@
   if (action & SGInfoActionState) {
     [self emitState:[self mapCommonState:stateInfo]];
     if ((stateInfo.playback & SGPlaybackStateFinished) && self.looping) {
-      [_player seekToTime:kCMTimeZero];
-      [_player play];
+      [self replayFromBeginning];
     }
   }
 
