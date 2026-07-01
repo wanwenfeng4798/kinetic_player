@@ -141,6 +141,8 @@ class GsyNativePlayer(
         )
         playerView.onVolumeChanged = { setVolume(it) }
         playerView.onMuteToggle = { setMute(it) }
+        playerView.onRequestAudioTracks = { listAudioTracks() }
+        playerView.onAudioTrackSelected = { selectAudioTrack(it) }
         playerView.syncVolumeToolbar(savedVolume, muted)
         mainHandler.post(progressRunnable)
         GsyPlayerLifecycleRegistry.register(this)

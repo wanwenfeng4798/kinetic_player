@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="kinetic_volume_icon">Volume</string>
+    <string name="kinetic_audio_volume">音量</string>
+    <string name="kinetic_audio_tracks">音轨</string>
 </resources>

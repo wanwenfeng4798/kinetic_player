@@ -103,6 +103,15 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
         chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
     }
 
+    func chromeDidRequestAudioTracks() -> [[String: Any]] {
+        player.getAudioTracks()
+    }
+
+    func chromeDidSelectAudioTrack(index: Int) {
+        _ = player.selectAudioTrack(index)
+        chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
+    }
+
     private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "play":

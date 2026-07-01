@@ -5,9 +5,13 @@ import android.content.Context
 import android.content.res.Configuration
 import android.opengl.GLSurfaceView
 import android.util.AttributeSet
+import android.graphics.Color
 import android.view.View
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.TextView
+import androidx.core.content.ContextCompat
 import com.shuyu.gsyvideoplayer.utils.CommonUtil
 import com.shuyu.gsyvideoplayer.video.StandardGSYVideoPlayer
 import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer
@@ -37,9 +41,18 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     /** Invoked when the native volume icon toggles mute. */
     var onMuteToggle: ((Boolean) -> Unit)? = null
 
-    private var volumeToolbar: View? = null
-    private var volumeSeekBar: SeekBar? = null
-    private var volumeIcon: ImageView? = null
+    /** Supplies audio tracks when the popup panel opens. */
+    var onRequestAudioTracks: (() -> List<Map<String, Any?>>)? = null
+
+    /** Invoked when the user picks an audio track in the popup panel. */
+    var onAudioTrackSelected: ((Int) -> Unit)? = null
+
+    private var audioPanel: View? = null
+    private var volumeTrigger: ImageView? = null
+    private var audioPanelVolumeSeekBar: SeekBar? = null
+    private var audioPanelTrackList: LinearLayout? = null
+    private var audioPanelDivider: View? = null
+    private var audioPanelVisible = false
     private var volumeUiSyncing = false
     internal var volumeToolbarMuted = false
     internal var volumeToolbarLevel = 1f
@@ -59,17 +72,19 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         }
         super.init(context)
         wireNativeControls()
-        wireVolumeToolbar()
+        wireAudioPanel()
         applyUiConfig()
     }
 
-    private fun wireVolumeToolbar() {
-        volumeToolbar = findViewById(R.id.layout_volume_toolbar)
-        volumeSeekBar = findViewById(R.id.volume_progress)
-        volumeIcon = findViewById(R.id.volume_icon)
-        volumeSeekBar?.progress = (volumeToolbarLevel * 100).toInt()
+    private fun wireAudioPanel() {
+        audioPanel = findViewById(R.id.audio_panel)
+        volumeTrigger = findViewById(R.id.volume_trigger)
+        audioPanelVolumeSeekBar = findViewById(R.id.audio_panel_volume)
+        audioPanelTrackList = findViewById(R.id.audio_panel_track_list)
+        audioPanelDivider = findViewById(R.id.audio_panel_divider)
+        audioPanelVolumeSeekBar?.progress = (volumeToolbarLevel * 100).toInt()
         updateVolumeIcon()
-        volumeSeekBar?.setOnSeekBarChangeListener(
+        audioPanelVolumeSeekBar?.setOnSeekBarChangeListener(
             object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(
                     seekBar: SeekBar?,
@@ -92,9 +107,70 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                 override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
             },
         )
-        volumeIcon?.setOnClickListener {
-            onMuteToggle?.invoke(!volumeToolbarMuted)
+        volumeTrigger?.setOnClickListener { toggleAudioPanel() }
+    }
+
+    private fun toggleAudioPanel() {
+        if (audioPanelVisible) {
+            hideAudioPanel()
+        } else {
+            showAudioPanel()
         }
+    }
+
+    private fun showAudioPanel() {
+        refreshAudioTracks()
+        audioPanel?.visibility = View.VISIBLE
+        audioPanelVisible = true
+        audioPanel?.bringToFront()
+    }
+
+    fun hideAudioPanel() {
+        audioPanel?.visibility = View.GONE
+        audioPanelVisible = false
+    }
+
+    private fun refreshAudioTracks() {
+        val trackList = audioPanelTrackList ?: return
+        trackList.removeAllViews()
+        val tracks = onRequestAudioTracks?.invoke().orEmpty()
+        val showTracks = tracks.size > 1
+        audioPanelDivider?.visibility = if (showTracks) View.VISIBLE else View.GONE
+        if (!showTracks) return
+
+        val activeColor = ContextCompat.getColor(context, R.color.kinetic_seek_active)
+        val padV = CommonUtil.dip2px(context, 8f)
+        for (track in tracks) {
+            val index = track["index"] as? Int ?: continue
+            val label = track["label"] as? String ?: "Track $index"
+            val language = track["language"] as? String
+            val selected = track["selected"] as? Boolean == true
+            val title = formatVerticalTrackLabel(label, language)
+            val item =
+                TextView(context).apply {
+                    text = title
+                    gravity = android.view.Gravity.CENTER_HORIZONTAL
+                    setPadding(0, padV, 0, padV)
+                    textSize = 12f
+                    setTextColor(if (selected) activeColor else Color.WHITE)
+                    setOnClickListener {
+                        onAudioTrackSelected?.invoke(index)
+                        refreshAudioTracks()
+                    }
+                }
+            trackList.addView(item)
+        }
+    }
+
+    private fun formatVerticalTrackLabel(label: String, language: String?): String {
+        val compact = label.trim()
+        val vertical =
+            if (compact.any { it.code in 0x4E00..0x9FFF }) {
+                compact.filter { !it.isWhitespace() }.toList().joinToString("\n")
+            } else {
+                compact
+            }
+        return if (!language.isNullOrEmpty()) "$vertical\n($language)" else vertical
     }
 
     fun syncVolumeToolbar(
@@ -104,7 +180,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         volumeToolbarLevel = volume.coerceIn(0f, 1f)
         volumeToolbarMuted = muted
         volumeUiSyncing = true
-        volumeSeekBar?.progress =
+        audioPanelVolumeSeekBar?.progress =
             if (muted) {
                 0
             } else {
@@ -116,12 +192,12 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
 
     private fun updateVolumeIcon() {
         val iconRes =
-            if (volumeToolbarMuted || (volumeSeekBar?.progress ?: 0) == 0) {
+            if (volumeToolbarMuted || (audioPanelVolumeSeekBar?.progress ?: 0) == 0) {
                 R.drawable.kinetic_ic_volume_off
             } else {
                 R.drawable.kinetic_ic_volume_on
             }
-        volumeIcon?.setImageResource(iconRes)
+        volumeTrigger?.setImageResource(iconRes)
     }
 
     private fun wireNativeControls() {
@@ -155,8 +231,11 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             setSeekOnStart(config.seekOnStartMs)
         }
         titleTextView?.text = config.videoTitle
-        volumeToolbar?.visibility =
+        volumeTrigger?.visibility =
             if (config.showVolumeToolbar) View.VISIBLE else View.GONE
+        if (!config.showVolumeToolbar) {
+            hideAudioPanel()
+        }
         applyEmbeddedChrome()
         fixControlOverlayLayering()
     }
@@ -176,7 +255,9 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         mStartButton?.bringToFront()
         mLockScreen?.bringToFront()
         mLoadingProgressBar?.bringToFront()
-        volumeToolbar?.bringToFront()
+        if (audioPanelVisible) {
+            audioPanel?.bringToFront()
+        }
     }
 
     override fun onLayout(
@@ -197,14 +278,29 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         fixControlOverlayLayering()
     }
 
+    override fun changeUiToPlayingClear() {
+        hideAudioPanel()
+        super.changeUiToPlayingClear()
+    }
+
     override fun changeUiToPauseShow() {
         super.changeUiToPauseShow()
         fixControlOverlayLayering()
     }
 
+    override fun changeUiToPauseClear() {
+        hideAudioPanel()
+        super.changeUiToPauseClear()
+    }
+
     override fun changeUiToCompleteShow() {
         super.changeUiToCompleteShow()
         fixControlOverlayLayering()
+    }
+
+    override fun onClickUiToggle() {
+        hideAudioPanel()
+        super.onClickUiToggle()
     }
 
     override fun startPlayLogic() {
@@ -268,6 +364,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         toPlayer.uiConfig = fromPlayer.uiConfig
         toPlayer.onVolumeChanged = fromPlayer.onVolumeChanged
         toPlayer.onMuteToggle = fromPlayer.onMuteToggle
+        toPlayer.onRequestAudioTracks = fromPlayer.onRequestAudioTracks
+        toPlayer.onAudioTrackSelected = fromPlayer.onAudioTrackSelected
         toPlayer.syncVolumeToolbar(fromPlayer.volumeToolbarLevel, fromPlayer.volumeToolbarMuted)
     }
 

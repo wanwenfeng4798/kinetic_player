@@ -122,7 +122,7 @@
     BOOL selected = [selection.tracks containsObject:track];
     [result addObject:@{
       @"index" : @(index),
-      @"label" : [NSString stringWithFormat:@"audio_%ld", (long)track.index],
+      @"label" : [NSString stringWithFormat:@"音轨_%ld", (long)track.index],
       @"language" : [NSNull null],
       @"selected" : @(selected),
     }];
