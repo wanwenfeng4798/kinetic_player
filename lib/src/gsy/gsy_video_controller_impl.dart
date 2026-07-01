@@ -2,12 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'gsy_ui_config.dart';
+import 'gsy_video_features.dart';
 import '../common/common_player_state.dart';
 import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
 import '../common/platform_guard.dart';
 
 class GSYVideoControllerImpl implements CommonVideoController {
+  GSYVideoControllerImpl(this.viewId) {
+    assertAndroidPlatform('GSYVideoControllerImpl');
+    _channel = MethodChannel('com.example.player/gsy_$viewId');
+    _channel.setMethodCallHandler(_handleNativeEvents);
+  }
+
   final int viewId;
   late MethodChannel _channel;
   bool _isDisposed = false;
@@ -20,27 +27,16 @@ class GSYVideoControllerImpl implements CommonVideoController {
   @override
   final ValueNotifier<Duration> duration = ValueNotifier(Duration.zero);
 
-  GSYVideoControllerImpl(this.viewId) {
-    assertAndroidPlatform('GSYVideoControllerImpl');
-    _channel = MethodChannel('com.example.player/gsy_$viewId');
-    _channel.setMethodCallHandler(_handleNativeEvents);
-  }
-
   Future<void> _handleNativeEvents(MethodCall call) async {
     if (_isDisposed) return;
     switch (call.method) {
       case 'onPlayerStateChanged':
         final args = call.arguments as Map;
-        playerState.value =
-            CommonPlayerState.values[args['state'] as int];
-        break;
+        playerState.value = CommonPlayerState.values[args['state'] as int];
       case 'onPositionChanged':
         final args = call.arguments as Map;
-        position.value =
-            Duration(milliseconds: args['position'] as int);
-        duration.value =
-            Duration(milliseconds: args['duration'] as int);
-        break;
+        position.value = Duration(milliseconds: args['position'] as int);
+        duration.value = Duration(milliseconds: args['duration'] as int);
     }
   }
 
@@ -58,32 +54,137 @@ class GSYVideoControllerImpl implements CommonVideoController {
   Future<void> setScaleMode(CommonScaleMode mode) =>
       _invoke('setScaleMode', {'mode': mode.index});
 
-  /// GSY unique: switch render core (IJK / Exo / System).
-  Future<void> gsySwitchRenderCore(int core) =>
-      _invoke('gsySwitchRenderCore', {'core': core});
+  Future<void> setUrl(String url) => _invoke('setUrl', {'url': url});
 
-  /// GSY unique: toggle danmaku overlay visibility.
+  Future<void> gsySwitchRenderCore(GsyRenderCore core) =>
+      _invoke('gsySwitchRenderCore', {'core': core.gsyIndex});
+
   Future<void> gsyToggleDanmaku({required bool enabled}) =>
       _invoke('gsyToggleDanmaku', {'enabled': enabled});
 
-  /// GSY unique: enter or exit native window fullscreen.
   Future<void> gsyStartFullscreen() => _invoke('gsyStartFullscreen');
 
-  /// GSY unique: set WebVTT URL for seek-bar thumbnail preview.
   Future<void> gsySetPreviewVttUrl(String? url) =>
       _invoke('gsySetPreviewVttUrl', {'url': url});
 
-  /// GSY unique: update native UI options at runtime.
   Future<void> gsySetUiConfig(GsyUiConfig config) =>
       _invoke('gsySetUiConfig', config.toCreationParams());
 
-  /// GSY unique: playback speed (1.0 = normal).
   Future<void> gsySetSpeed(double speed) =>
       _invoke('gsySetSpeed', {'speed': speed});
 
-  /// GSY unique: loop playback.
   Future<void> gsySetLooping({required bool looping}) =>
       _invoke('gsySetLooping', {'looping': looping});
+
+  Future<void> gsySetGsyShowType(
+    GsyShowType type, {
+    double? customRatio,
+  }) =>
+      _invoke('gsySetGsyShowType', {
+        'mode': type.gsyIndex,
+        'customRatio': ?customRatio,
+      });
+
+  Future<void> gsySetRenderType(GsyRenderType type) =>
+      _invoke('gsySetRenderType', {'renderType': type.gsyIndex});
+
+  Future<void> gsySetEffectFilter(GsyEffectFilterName name) =>
+      _invoke('gsySetEffectFilter', {'name': name});
+
+  Future<List<String>> gsyListEffectFilters() async {
+    final result = await _channel.invokeMethod<List<Object?>>('gsyListEffectFilters');
+    return result?.cast<String>() ?? const <String>[];
+  }
+
+  Future<void> gsySetRenderRotation(int degrees) =>
+      _invoke('gsySetRenderRotation', {'degrees': degrees});
+
+  Future<void> gsySetMirrorHorizontal({required bool enabled}) =>
+      _invoke('gsySetMirrorHorizontal', {'enabled': enabled});
+
+  Future<GsyNetSpeed> gsyGetNetSpeed() async {
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>('gsyGetNetSpeed');
+    return GsyNetSpeed(
+      bytesPerSecond: result?['bytesPerSecond'] as int? ?? 0,
+      text: result?['text'] as String? ?? '',
+    );
+  }
+
+  Future<void> gsySetSubtitleUrl(
+    String url, {
+    String? mimeType,
+  }) =>
+      _invoke('gsySetSubtitleUrl', {
+        'url': url,
+        'mimeType': ?mimeType,
+      });
+
+  Future<void> gsySetSubtitleEnabled({required bool enabled}) =>
+      _invoke('gsySetSubtitleEnabled', {'enabled': enabled});
+
+  Future<void> gsySetEmbeddedSubtitleText(String? text) =>
+      _invoke('gsySetEmbeddedSubtitleText', {'text': text});
+
+  Future<String?> gsyTakeScreenshot({
+    bool withView = false,
+    bool high = false,
+  }) async {
+    return _channel.invokeMethod<String>('gsyTakeScreenshot', {
+      'withView': withView,
+      'high': high,
+    });
+  }
+
+  Future<String?> gsySaveScreenshot({
+    bool withView = false,
+    bool high = false,
+  }) async {
+    return _channel.invokeMethod<String>('gsySaveScreenshot', {
+      'withView': withView,
+      'high': high,
+    });
+  }
+
+  Future<String?> gsyCaptureFirstFrame() =>
+      _channel.invokeMethod<String>('gsyCaptureFirstFrame');
+
+  Future<void> gsyStartGifRecording() => _invoke('gsyStartGifRecording');
+
+  Future<String?> gsyStopGifRecording() =>
+      _channel.invokeMethod<String>('gsyStopGifRecording');
+
+  Future<void> gsySetPlaylist(
+    List<String> urls, {
+    int startIndex = 0,
+  }) =>
+      _invoke('gsySetPlaylist', {
+        'urls': urls,
+        'startIndex': startIndex,
+      });
+
+  Future<bool> gsyPlayNextInPlaylist() async {
+    final result = await _channel.invokeMethod<bool>('gsyPlayNextInPlaylist');
+    return result ?? false;
+  }
+
+  Future<void> gsyPlayWithPreRollAd({
+    required String adUrl,
+    required String contentUrl,
+  }) =>
+      _invoke('gsyPlayWithPreRollAd', {
+        'adUrl': adUrl,
+        'contentUrl': contentUrl,
+      });
+
+  Future<void> gsySetPurePlayMode({required bool enabled}) =>
+      _invoke('gsySetPurePlayMode', {'enabled': enabled});
+
+  Future<bool> gsyEnterPictureInPicture() async {
+    final result = await _channel.invokeMethod<bool>('gsyEnterPictureInPicture');
+    return result ?? false;
+  }
+
+  Future<void> gsyReleaseAllVideos() => _invoke('gsyReleaseAllVideos');
 
   @override
   Future<void> dispose() async {

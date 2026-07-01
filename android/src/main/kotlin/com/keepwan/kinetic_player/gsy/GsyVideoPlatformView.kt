@@ -38,6 +38,7 @@ class GsyVideoPlatformView(
                 }
             },
             initialUiConfig = uiConfig,
+            playTag = "kinetic_$viewId",
         )
 
     init {
@@ -46,6 +47,11 @@ class GsyVideoPlatformView(
         val url = creationParams?.get("url") as? String
         if (!url.isNullOrEmpty()) {
             player.setUrl(url)
+        }
+        @Suppress("UNCHECKED_CAST")
+        val playlist = creationParams?.get("playlist") as? List<String>
+        if (!playlist.isNullOrEmpty()) {
+            player.setPlaylist(playlist)
         }
     }
 
@@ -62,23 +68,23 @@ class GsyVideoPlatformView(
                 result.success(null)
             }
             "seekTo" -> {
-                val position = call.argument<Int>("position") ?: 0
-                player.seekTo(position)
+                player.seekTo(call.argument<Int>("position") ?: 0)
                 result.success(null)
             }
             "setScaleMode" -> {
-                val mode = call.argument<Int>("mode") ?: 0
-                player.setShowType(mode)
+                player.setScaleMode(call.argument<Int>("mode") ?: 0)
+                result.success(null)
+            }
+            "setUrl" -> {
+                player.setUrl(call.argument<String>("url") ?: "")
                 result.success(null)
             }
             "gsySwitchRenderCore" -> {
-                val core = call.argument<Int>("core") ?: 0
-                player.changeRenderCore(core)
-                result.success(null)
+                val ok = player.changeRenderCore(call.argument<Int>("core") ?: 0)
+                if (ok) result.success(null) else result.error("UNSUPPORTED", "Core not available (AliPlayer/custom)", null)
             }
             "gsyToggleDanmaku" -> {
-                val enabled = call.argument<Boolean>("enabled") ?: false
-                player.toggleDanmaku(enabled)
+                player.toggleDanmaku(call.argument<Boolean>("enabled") ?: false)
                 result.success(null)
             }
             "gsyStartFullscreen" -> {
@@ -96,12 +102,103 @@ class GsyVideoPlatformView(
                 result.success(null)
             }
             "gsySetSpeed" -> {
-                val speed = call.argument<Double>("speed")?.toFloat() ?: 1f
-                player.setSpeed(speed)
+                player.setSpeed(call.argument<Double>("speed")?.toFloat() ?: 1f)
                 result.success(null)
             }
             "gsySetLooping" -> {
                 player.setLooping(call.argument<Boolean>("looping") ?: false)
+                result.success(null)
+            }
+            "gsySetGsyShowType" -> {
+                player.setGsyShowType(
+                    call.argument<Int>("mode") ?: 0,
+                    call.argument<Double>("customRatio")?.toFloat(),
+                )
+                result.success(null)
+            }
+            "gsySetRenderType" -> {
+                player.setRenderType(call.argument<Int>("renderType") ?: GSY_RENDER_TEXTURE)
+                result.success(null)
+            }
+            "gsySetEffectFilter" -> {
+                player.setEffectFilter(call.argument<String>("name") ?: "none")
+                result.success(null)
+            }
+            "gsyListEffectFilters" -> result.success(GsyEffectRegistry.effectNames)
+            "gsySetRenderRotation" -> {
+                player.setRenderRotation(call.argument<Int>("degrees") ?: 0)
+                result.success(null)
+            }
+            "gsySetMirrorHorizontal" -> {
+                player.setMirrorHorizontal(call.argument<Boolean>("enabled") ?: false)
+                result.success(null)
+            }
+            "gsyGetNetSpeed" -> {
+                result.success(
+                    mapOf(
+                        "bytesPerSecond" to player.getNetSpeedBytesPerSecond(),
+                        "text" to player.getNetSpeedText(),
+                    ),
+                )
+            }
+            "gsySetSubtitleUrl" -> {
+                player.setSubtitleUrl(
+                    call.argument<String>("url") ?: "",
+                    call.argument<String>("mimeType"),
+                )
+                result.success(null)
+            }
+            "gsySetSubtitleEnabled" -> {
+                player.setSubtitleEnabled(call.argument<Boolean>("enabled") ?: true)
+                result.success(null)
+            }
+            "gsySetEmbeddedSubtitleText" -> {
+                player.setEmbeddedSubtitleText(call.argument<String>("text"))
+                result.success(null)
+            }
+            "gsyTakeScreenshot" -> {
+                player.takeScreenshot(
+                    withView = call.argument<Boolean>("withView") ?: false,
+                    high = call.argument<Boolean>("high") ?: false,
+                ) { path -> result.success(path) }
+            }
+            "gsySaveScreenshot" -> {
+                player.saveScreenshot(
+                    withView = call.argument<Boolean>("withView") ?: false,
+                    high = call.argument<Boolean>("high") ?: false,
+                ) { path -> result.success(path) }
+            }
+            "gsyCaptureFirstFrame" -> {
+                player.captureFirstFrame { path -> result.success(path) }
+            }
+            "gsyStartGifRecording" -> {
+                player.startGifRecording()
+                result.success(null)
+            }
+            "gsyStopGifRecording" -> {
+                player.stopGifRecording { path -> result.success(path) }
+            }
+            "gsySetPlaylist" -> {
+                @Suppress("UNCHECKED_CAST")
+                val urls = call.argument<List<String>>("urls") ?: emptyList()
+                player.setPlaylist(urls, call.argument<Int>("startIndex") ?: 0)
+                result.success(null)
+            }
+            "gsyPlayNextInPlaylist" -> result.success(player.playNextInPlaylist())
+            "gsyPlayWithPreRollAd" -> {
+                player.playWithPreRollAd(
+                    call.argument<String>("adUrl") ?: "",
+                    call.argument<String>("contentUrl") ?: "",
+                )
+                result.success(null)
+            }
+            "gsySetPurePlayMode" -> {
+                player.setPurePlayMode(call.argument<Boolean>("enabled") ?: true)
+                result.success(null)
+            }
+            "gsyEnterPictureInPicture" -> result.success(player.enterPictureInPicture())
+            "gsyReleaseAllVideos" -> {
+                player.releaseAllVideos()
                 result.success(null)
             }
             "sgSetVRMode", "sgSetSyncGroupId" -> result.notImplemented()
@@ -116,5 +213,11 @@ class GsyVideoPlatformView(
     override fun dispose() {
         channel.setMethodCallHandler(null)
         player.release()
+    }
+
+    companion object {
+        const val GSY_RENDER_TEXTURE = 0
+        const val GSY_RENDER_SURFACE = 1
+        const val GSY_RENDER_GLSURFACE = 2
     }
 }

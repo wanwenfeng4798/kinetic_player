@@ -1,10 +1,15 @@
 package com.keepwan.kinetic_player.gsy
 
 import android.app.Activity
+import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Matrix
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Rational
 import android.view.View
 import android.widget.FrameLayout
 import com.keepwan.kinetic_player.CommonPlayerState
@@ -12,13 +17,22 @@ import com.keepwan.kinetic_player.ThrottledProgressReporter
 import com.shuyu.gsyvideoplayer.GSYVideoManager
 import com.shuyu.gsyvideoplayer.builder.GSYVideoOptionBuilder
 import com.shuyu.gsyvideoplayer.listener.GSYSampleCallBack
+import com.shuyu.gsyvideoplayer.listener.GSYVideoGifSaveListener
+import com.shuyu.gsyvideoplayer.listener.GSYVideoShotListener
+import com.shuyu.gsyvideoplayer.listener.GSYVideoShotSaveListener
 import com.shuyu.gsyvideoplayer.player.IjkPlayerManager
 import com.shuyu.gsyvideoplayer.player.IPlayerManager
 import com.shuyu.gsyvideoplayer.player.PlayerFactory
 import com.shuyu.gsyvideoplayer.player.SystemPlayerManager
+import com.shuyu.gsyvideoplayer.subtitle.GSYSubtitleSource
+import com.shuyu.gsyvideoplayer.utils.CommonUtil
 import com.shuyu.gsyvideoplayer.utils.GSYVideoType
+import com.shuyu.gsyvideoplayer.utils.GifCreateHelper
 import tv.danmaku.ijk.media.exo2.Exo2PlayerManager
 import com.shuyu.gsyvideoplayer.video.base.GSYVideoView
+import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
 
 interface GsyPlayerCallbacks {
     fun onPlayerStateChanged(state: CommonPlayerState)
@@ -29,15 +43,26 @@ class GsyNativePlayer(
     context: Context,
     private val callbacks: GsyPlayerCallbacks,
     initialUiConfig: GsyUiConfig = GsyUiConfig(),
+    private val playTag: String = "kinetic_${UUID.randomUUID()}",
 ) {
+    private val appContext = context.applicationContext
     private val container = FrameLayout(context)
     private val playerView = KineticPreViewGSYVideoPlayer(context)
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val cacheDir = File(appContext.cacheDir, "kinetic_player").apply { mkdirs() }
 
     private var uiConfig = initialUiConfig
+    private var danmakuOverlay: View? = null
     private var danmakuVisible = false
     private var isPlaying = false
     private var currentUrl: String? = null
+    private var playlist: List<String> = emptyList()
+    private var playlistIndex = 0
+    private var pendingContentUrl: String? = null
+    private var gifHelper: GifCreateHelper? = null
+    private var gifResultCallback: ((String?) -> Unit)? = null
+    private var renderRotation = 0
+    private var mirrorHorizontal = false
 
     private val progressReporter = ThrottledProgressReporter { positionMs, durationMs ->
         callbacks.onPositionChanged(positionMs, durationMs)
@@ -62,12 +87,28 @@ class GsyNativePlayer(
 
             override fun onAutoComplete(url: String?, vararg objects: Any?) {
                 isPlaying = false
-                callbacks.onPlayerStateChanged(CommonPlayerState.COMPLETED)
-                reportProgress(force = true)
+                when {
+                    pendingContentUrl != null -> {
+                        val content = pendingContentUrl!!
+                        pendingContentUrl = null
+                        setUrl(content)
+                        startPlayLogic()
+                    }
+                    playlistIndex < playlist.lastIndex -> {
+                        playlistIndex++
+                        setUrl(playlist[playlistIndex])
+                        startPlayLogic()
+                    }
+                    else -> {
+                        callbacks.onPlayerStateChanged(CommonPlayerState.COMPLETED)
+                        reportProgress(force = true)
+                    }
+                }
             }
 
             override fun onPrepared(url: String?, vararg objects: Any?) {
                 callbacks.onPlayerStateChanged(CommonPlayerState.READY)
+                applyRenderTransform()
                 reportProgress(force = true)
             }
         }
@@ -106,9 +147,7 @@ class GsyNativePlayer(
         playerView.setPreviewVttUrl(url)
     }
 
-    fun startFullscreen() {
-        playerView.toggleWindowFullscreen()
-    }
+    fun startFullscreen() = playerView.toggleWindowFullscreen()
 
     fun setSpeed(speed: Float) {
         uiConfig = uiConfig.copy(speed = speed)
@@ -117,16 +156,52 @@ class GsyNativePlayer(
 
     fun setLooping(looping: Boolean) {
         uiConfig = uiConfig.copy(looping = looping)
-        playerView.setLooping(looping)
+        playerView.isLooping = looping
     }
 
     fun setUrl(videoUrl: String) {
         currentUrl = videoUrl
         buildVideoOptions()
             .setUrl(videoUrl)
+            .setPlayTag(playTag)
             .build(playerView)
         uiConfig.previewVttUrl?.let { playerView.setPreviewVttUrl(it) }
         callbacks.onPlayerStateChanged(CommonPlayerState.IDLE)
+    }
+
+    fun setPlaylist(urls: List<String>, startIndex: Int = 0) {
+        playlist = urls
+        playlistIndex = startIndex.coerceIn(0, (urls.size - 1).coerceAtLeast(0))
+        if (urls.isNotEmpty()) {
+            setUrl(urls[playlistIndex])
+        }
+    }
+
+    fun playNextInPlaylist(): Boolean {
+        if (playlistIndex >= playlist.lastIndex) return false
+        playlistIndex++
+        setUrl(playlist[playlistIndex])
+        startPlayLogic()
+        return true
+    }
+
+    fun playWithPreRollAd(
+        adUrl: String,
+        contentUrl: String,
+    ) {
+        pendingContentUrl = contentUrl
+        setUrl(adUrl)
+    }
+
+    fun setPurePlayMode(enabled: Boolean) {
+        applyUiConfig(
+            uiConfig.copy(
+                enableNativeControls = !enabled,
+                enableNativeControlsFullscreen = !enabled,
+                showFullscreenButton = !enabled,
+                showLockButton = !enabled,
+            ),
+        )
     }
 
     private fun buildVideoOptions(): GSYVideoOptionBuilder {
@@ -179,26 +254,233 @@ class GsyNativePlayer(
         reportProgress(force = true)
     }
 
-    fun setShowType(mode: Int) {
-        GSYVideoType.setShowType(mode)
+    /** CommonScaleMode: 0=fit, 1=fill, 2=stretch */
+    fun setScaleMode(commonMode: Int) {
+        val gsyMode =
+            when (commonMode) {
+                0 -> GSYVideoType.SCREEN_TYPE_DEFAULT
+                1 -> GSYVideoType.SCREEN_TYPE_FULL
+                2 -> GSYVideoType.SCREEN_MATCH_FULL
+                else -> GSYVideoType.SCREEN_TYPE_DEFAULT
+            }
+        GSYVideoType.setShowType(gsyMode)
     }
 
-    fun changeRenderCore(core: Int) {
-        PlayerFactory.setPlayManager(playManagerClassForCore(core))
-        GSYVideoManager.instance().releaseMediaPlayer()
-    }
-
-    private fun playManagerClassForCore(core: Int): Class<out IPlayerManager> =
-        when (core) {
-            1 -> Exo2PlayerManager::class.java
-            2 -> SystemPlayerManager::class.java
-            else -> IjkPlayerManager::class.java
+    fun setGsyShowType(
+        mode: Int,
+        customRatio: Float?,
+    ) {
+        if (customRatio != null && mode == 6) {
+            GsyScaleModeMapper.setCustomRatio(customRatio)
+        } else {
+            GSYVideoType.setShowType(GsyScaleModeMapper.toGsyShowType(mode))
         }
+    }
+
+    fun setRenderType(renderType: Int) {
+        GSYVideoType.setRenderType(renderType)
+    }
+
+    fun setEffectFilter(name: String) {
+        val effect = GsyEffectRegistry.resolve(name)
+        playerView.setEffectFilter(effect)
+    }
+
+    fun setRenderRotation(degrees: Int) {
+        renderRotation = degrees
+        applyRenderTransform()
+    }
+
+    fun setMirrorHorizontal(enabled: Boolean) {
+        mirrorHorizontal = enabled
+        applyRenderTransform()
+    }
+
+    private fun applyRenderTransform() {
+        val proxy = playerView.getRenderProxy() ?: return
+        val matrix = Matrix()
+        val w = playerView.width.takeIf { it > 0 } ?: return
+        val h = playerView.height.takeIf { it > 0 } ?: return
+        matrix.postRotate(renderRotation.toFloat(), w / 2f, h / 2f)
+        if (mirrorHorizontal) {
+            matrix.postScale(-1f, 1f, w / 2f, h / 2f)
+        }
+        proxy.setTransform(matrix)
+    }
+
+    fun getNetSpeedBytesPerSecond(): Long = playerView.getNetSpeed()
+
+    fun getNetSpeedText(): String = playerView.getNetSpeedText()
+
+    fun changeRenderCore(core: Int): Boolean =
+        when (core) {
+            0 -> {
+                PlayerFactory.setPlayManager(IjkPlayerManager::class.java)
+                GSYVideoManager.instance().releaseMediaPlayer()
+                true
+            }
+            1 -> {
+                PlayerFactory.setPlayManager(Exo2PlayerManager::class.java)
+                GSYVideoManager.instance().releaseMediaPlayer()
+                true
+            }
+            2 -> {
+                PlayerFactory.setPlayManager(SystemPlayerManager::class.java)
+                GSYVideoManager.instance().releaseMediaPlayer()
+                true
+            }
+            else -> false
+        }
+
+    fun setSubtitleUrl(
+        url: String,
+        mimeType: String?,
+    ) {
+        val builder = GSYSubtitleSource.Builder(url)
+        if (!mimeType.isNullOrEmpty()) {
+            builder.setMimeType(mimeType)
+        }
+        playerView.setSubtitleSource(builder.build())
+        playerView.setSubtitleEnabled(true)
+    }
+
+    fun setSubtitleEnabled(enabled: Boolean) {
+        playerView.setSubtitleEnabled(enabled)
+    }
+
+    fun setEmbeddedSubtitleText(text: String?) {
+        if (text.isNullOrEmpty()) {
+            playerView.clearSubtitleTextFromPlayer()
+        } else {
+            playerView.setSubtitleTextFromPlayer(text)
+        }
+    }
+
+    fun takeScreenshot(
+        withView: Boolean,
+        high: Boolean,
+        callback: (String?) -> Unit,
+    ) {
+        val output = File(cacheDir, "shot_${System.currentTimeMillis()}.png")
+        val listener =
+            object : GSYVideoShotListener {
+                override fun getBitmap(bitmap: Bitmap?) {
+                    if (bitmap == null) {
+                        mainHandler.post { callback(null) }
+                        return
+                    }
+                    try {
+                        FileOutputStream(output).use { out ->
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        }
+                        mainHandler.post { callback(output.absolutePath) }
+                    } catch (_: Exception) {
+                        mainHandler.post { callback(null) }
+                    }
+                }
+            }
+        if (withView) {
+            playerView.taskShotPicWithView(listener, high)
+        } else {
+            playerView.taskShotPic(listener, high)
+        }
+    }
+
+    fun saveScreenshot(
+        withView: Boolean,
+        high: Boolean,
+        callback: (String?) -> Unit,
+    ) {
+        val output = File(cacheDir, "frame_${System.currentTimeMillis()}.png")
+        val listener =
+            GSYVideoShotSaveListener { success, _ ->
+                mainHandler.post {
+                    callback(if (success) output.absolutePath else null)
+                }
+            }
+        if (withView) {
+            playerView.saveFrameWithView(output, high, listener)
+        } else {
+            playerView.saveFrame(output, high, listener)
+        }
+    }
+
+    fun captureFirstFrame(callback: (String?) -> Unit) {
+        takeScreenshot(withView = false, high = true, callback = callback)
+    }
+
+    fun startGifRecording() {
+        stopGifRecordingInternal(save = false)
+        gifHelper =
+            GifCreateHelper(
+                playerView,
+                object : GSYVideoGifSaveListener {
+                    override fun process(
+                        curPosition: Int,
+                        total: Int,
+                    ) = Unit
+
+                    override fun result(
+                        success: Boolean,
+                        file: File?,
+                    ) {
+                        mainHandler.post {
+                            gifResultCallback?.invoke(if (success) file?.absolutePath else null)
+                            gifResultCallback = null
+                        }
+                    }
+                },
+            )
+        gifHelper?.startGif(File(cacheDir, "gif_tmp"))
+    }
+
+    fun stopGifRecording(callback: (String?) -> Unit) {
+        val helper = gifHelper
+        if (helper == null) {
+            callback(null)
+            return
+        }
+        gifResultCallback = callback
+        helper.stopGif(File(cacheDir, "video_${System.currentTimeMillis()}.gif"))
+        gifHelper = null
+    }
+
+    private fun stopGifRecordingInternal(save: Boolean) {
+        gifHelper?.cancelTask()
+        if (!save) {
+            gifHelper = null
+        }
+    }
 
     fun toggleDanmaku(enabled: Boolean) {
         danmakuVisible = enabled
-        val danmakuView = container.findViewWithTag<View>("gsy_danmaku")
-        danmakuView?.visibility = if (enabled) View.VISIBLE else View.GONE
+        if (enabled && danmakuOverlay == null) {
+            danmakuOverlay =
+                FrameLayout(appContext).apply {
+                    tag = "gsy_danmaku"
+                    layoutParams =
+                        FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                        )
+                }
+            container.addView(danmakuOverlay)
+        }
+        danmakuOverlay?.visibility = if (enabled) View.VISIBLE else View.GONE
+    }
+
+    fun enterPictureInPicture(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        val activity = CommonUtil.scanForActivity(playerView.context) as? Activity ?: return false
+        val params =
+            PictureInPictureParams.Builder()
+                .setAspectRatio(Rational(16, 9))
+                .build()
+        return activity.enterPictureInPictureMode(params)
+    }
+
+    fun releaseAllVideos() {
+        GSYVideoManager.releaseAllVideos()
     }
 
     private fun emitMappedState(rawState: Int) {
@@ -224,9 +506,9 @@ class GsyNativePlayer(
     fun release() {
         isPlaying = false
         mainHandler.removeCallbacks(progressRunnable)
+        stopGifRecordingInternal(save = false)
         GsyPlayerLifecycleRegistry.unregister(this)
         playerView.release()
-        GSYVideoManager.releaseAllVideos()
         progressReporter.reset()
     }
 }

@@ -149,6 +149,8 @@ if (controller is GSYVideoControllerImpl) {
 
 宿主 Activity 需在 `onBackPressed` 中调用 `KineticPlayerPlugin.handleBackPressed(this)`，全屏时系统返回键才能退出 GSY 窗口全屏（example 已配置）。
 
+完整 GSY 高级能力对照见 [GSY_FEATURES.md](GSY_FEATURES.md)（滤镜、截图、GIF、字幕、列表、PiP 等）。
+
 ### iOS — SGVideoControllerImpl
 
 ```dart
