@@ -11,12 +11,14 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.SeekBar
+import android.net.Uri
 import com.keepwan.kinetic_player.R
 import com.shuyu.gsyvideoplayer.preview.GSYVideoPreviewFrame
 import com.shuyu.gsyvideoplayer.preview.GSYVideoPreviewProvider
 import com.shuyu.gsyvideoplayer.preview.GSYVideoPreviewVttParser
 import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -200,6 +202,15 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
     }
 
     private fun readUrl(urlString: String): String {
+        when {
+            urlString.startsWith("file://", ignoreCase = true) -> {
+                val path = Uri.parse(urlString).path ?: return ""
+                return File(path).readText(Charset.forName("UTF-8"))
+            }
+            urlString.startsWith("/") -> {
+                return File(urlString).readText(Charset.forName("UTF-8"))
+            }
+        }
         val connection = URL(urlString).openConnection() as HttpURLConnection
         connection.connectTimeout = 15_000
         connection.readTimeout = 15_000

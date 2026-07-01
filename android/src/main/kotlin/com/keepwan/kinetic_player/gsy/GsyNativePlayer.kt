@@ -291,6 +291,7 @@ class GsyNativePlayer(
 
     fun setRenderType(renderType: Int) {
         GSYVideoType.setRenderType(renderType)
+        currentUrl?.let { setUrl(it) }
     }
 
     fun setEffectFilter(name: String) {

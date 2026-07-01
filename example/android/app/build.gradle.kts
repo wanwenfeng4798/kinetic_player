@@ -19,10 +19,14 @@ android {
         applicationId = "com.example.kinetic_player_example"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 24
+         minSdk = 24
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
+        ndk {
+            abiFilters += listOf("armeabi-v7a","arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
