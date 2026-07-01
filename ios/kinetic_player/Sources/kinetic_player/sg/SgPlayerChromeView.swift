@@ -10,7 +10,7 @@ protocol SgPlayerChromeDelegate: AnyObject {
     func chromeDidSelectAudioTrack(index: Int)
 }
 
-/// Native playback chrome: center play/pause, progress bar, fullscreen, Bilibili-style audio panel.
+/// Native playback chrome: play/pause, progress, settings (音轨), volume, fullscreen.
 final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     weak var delegate: SgPlayerChromeDelegate?
 
@@ -20,14 +20,17 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private let currentTimeLabel = UILabel()
     private let totalTimeLabel = UILabel()
     private let progressSlider = UISlider()
+    private let settingsButton = UIButton(type: .system)
     private let volumeButton = UIButton(type: .system)
     private let fullscreenButton = UIButton(type: .system)
     private let centerPlayButton = UIButton(type: .system)
     private let audioPanel = SgAudioPanelView()
+    private let settingsPanel = SgSettingsPanelView()
 
     private var hideTimer: Timer?
     private var controlsVisible = true
     private var audioPanelVisible = false
+    private var settingsPanelVisible = false
     private var isSeeking = false
     private var isPlaying = false
     private var durationMs: Int64 = 0
@@ -84,6 +87,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             self.centerPlayButton.alpha = alpha
             if !visible {
                 self.hideAudioPanel()
+                self.hideSettingsPanel()
             }
         }
         if animated {
@@ -137,6 +141,11 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         progressSlider.addTarget(self, action: #selector(sliderChanged), for: .valueChanged)
         progressSlider.addTarget(self, action: #selector(sliderTouchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
 
+        settingsButton.tintColor = .white
+        settingsButton.setImage(UIImage(systemName: "gearshape.fill"), for: .normal)
+        settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
+        settingsButton.setContentHuggingPriority(.required, for: .horizontal)
+
         volumeButton.tintColor = .white
         volumeButton.addTarget(self, action: #selector(volumeTapped), for: .touchUpInside)
         volumeButton.setContentHuggingPriority(.required, for: .horizontal)
@@ -148,6 +157,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         progressRow.addArrangedSubview(currentTimeLabel)
         progressRow.addArrangedSubview(progressSlider)
         progressRow.addArrangedSubview(totalTimeLabel)
+        progressRow.addArrangedSubview(settingsButton)
         progressRow.addArrangedSubview(volumeButton)
         progressRow.addArrangedSubview(fullscreenButton)
 
@@ -163,13 +173,17 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             self.delegate?.chromeDidChangeVolume(volume)
             self.scheduleAutoHide()
         }
-        audioPanel.onSelectTrack = { [weak self] index in
+        addSubview(audioPanel)
+
+        settingsPanel.translatesAutoresizingMaskIntoConstraints = false
+        settingsPanel.isHidden = true
+        settingsPanel.onSelectTrack = { [weak self] index in
             guard let self else { return }
             self.delegate?.chromeDidSelectAudioTrack(index: index)
-            self.reloadAudioTracks()
+            self.reloadSettingsTracks()
             self.scheduleAutoHide()
         }
-        addSubview(audioPanel)
+        addSubview(settingsPanel)
 
         centerPlayButton.tintColor = .white
         centerPlayButton.backgroundColor = UIColor(white: 0, alpha: 0.45)
@@ -192,6 +206,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             audioPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -44),
             audioPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
 
+            settingsPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            settingsPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
+
             centerPlayButton.centerXAnchor.constraint(equalTo: centerXAnchor),
             centerPlayButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             centerPlayButton.widthAnchor.constraint(equalToConstant: 60),
@@ -212,16 +229,19 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         bottomPanel.isHidden = !config.showNativeControls
         centerPlayButton.isHidden = !config.showNativeControls
         volumeButton.isHidden = !config.showVolumeToolbar
+        settingsButton.isHidden = !config.showSettingsButton
         fullscreenButton.isHidden = !config.showFullscreenButton
         if !config.showVolumeToolbar {
             hideAudioPanel()
+        }
+        if !config.showSettingsButton {
+            hideSettingsPanel()
         }
     }
 
     private func updateCenterPlayIcon() {
         let symbol = isPlaying ? "pause.fill" : "play.fill"
-        let image = UIImage(systemName: symbol)
-        centerPlayButton.setImage(image, for: .normal)
+        centerPlayButton.setImage(UIImage(systemName: symbol), for: .normal)
     }
 
     private func updateVolumeIcon() {
@@ -233,12 +253,21 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         if audioPanelVisible {
             hideAudioPanel()
         } else {
+            hideSettingsPanel()
             showAudioPanel()
         }
     }
 
+    private func toggleSettingsPanel() {
+        if settingsPanelVisible {
+            hideSettingsPanel()
+        } else {
+            hideAudioPanel()
+            showSettingsPanel()
+        }
+    }
+
     private func showAudioPanel() {
-        reloadAudioTracks()
         audioPanel.isHidden = false
         audioPanelVisible = true
         bringSubviewToFront(audioPanel)
@@ -251,14 +280,28 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         scheduleAutoHide()
     }
 
-    private func reloadAudioTracks() {
+    private func showSettingsPanel() {
+        reloadSettingsTracks()
+        settingsPanel.isHidden = false
+        settingsPanelVisible = true
+        bringSubviewToFront(settingsPanel)
+        hideTimer?.invalidate()
+    }
+
+    private func hideSettingsPanel() {
+        settingsPanel.isHidden = true
+        settingsPanelVisible = false
+        scheduleAutoHide()
+    }
+
+    private func reloadSettingsTracks() {
         let tracks = delegate?.chromeDidRequestAudioTracks() ?? []
-        audioPanel.reloadTracks(tracks)
+        settingsPanel.reloadTracks(tracks)
     }
 
     private func scheduleAutoHide() {
         hideTimer?.invalidate()
-        guard config.showNativeControls, isPlaying, !audioPanelVisible else { return }
+        guard config.showNativeControls, isPlaying, !audioPanelVisible, !settingsPanelVisible else { return }
         hideTimer = Timer.scheduledTimer(
             withTimeInterval: TimeInterval(config.dismissControlTimeMs) / 1000.0,
             repeats: false,
@@ -272,12 +315,16 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             hideAudioPanel()
             return
         }
+        if settingsPanelVisible {
+            hideSettingsPanel()
+            return
+        }
         toggleControlsVisibility()
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         let point = touch.location(in: self)
-        if audioPanel.frame.contains(point) {
+        if audioPanel.frame.contains(point) || settingsPanel.frame.contains(point) {
             return false
         }
         if bottomPanel.frame.contains(point) {
@@ -297,6 +344,10 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     @objc private func fullscreenTapped() {
         delegate?.chromeDidTapFullscreen()
         scheduleAutoHide()
+    }
+
+    @objc private func settingsTapped() {
+        toggleSettingsPanel()
     }
 
     @objc private func volumeTapped() {

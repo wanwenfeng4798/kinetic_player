@@ -26,28 +26,4 @@
             android:rotation="270"
             android:thumb="@drawable/kinetic_seek_thumb" />
     </FrameLayout>
-
-    <View
-        android:id="@+id/audio_panel_divider"
-        android:layout_width="32dp"
-        android:layout_height="1dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
-        android:background="@color/kinetic_seek_background"
-        android:visibility="gone" />
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:maxHeight="160dp"
-        android:overScrollMode="never"
-        android:scrollbars="none">
-
-        <LinearLayout
-            android:id="@+id/audio_panel_track_list"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
-            android:orientation="vertical" />
-    </ScrollView>
 </LinearLayout>

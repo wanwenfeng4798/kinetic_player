@@ -3,6 +3,7 @@ import Foundation
 struct SgUiConfig {
     let showNativeControls: Bool
     let showVolumeToolbar: Bool
+    let showSettingsButton: Bool
     let showFullscreenButton: Bool
     let dismissControlTimeMs: Int
 
@@ -16,6 +17,10 @@ struct SgUiConfig {
             showVolumeToolbar:
                 params?["showVolumeToolbar"] as? Bool
                 ?? gsyUi?["showVolumeToolbar"] as? Bool
+                ?? true,
+            showSettingsButton:
+                params?["showSettingsButton"] as? Bool
+                ?? gsyUi?["showSettingsButton"] as? Bool
                 ?? true,
             showFullscreenButton:
                 params?["showFullscreenButton"] as? Bool

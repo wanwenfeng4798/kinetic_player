@@ -10,6 +10,7 @@ class GsyUiConfig {
     this.showFullscreenButton = true,
     this.showLockButton = true,
     this.showVolumeToolbar = true,
+    this.showSettingsButton = true,
     this.rotateViewAuto = true,
     this.rotateWithSystem = true,
     this.lockLand = false,
@@ -44,6 +45,7 @@ class GsyUiConfig {
   final bool showFullscreenButton;
   final bool showLockButton;
   final bool showVolumeToolbar;
+  final bool showSettingsButton;
   final bool rotateViewAuto;
   final bool rotateWithSystem;
   final bool lockLand;
@@ -75,6 +77,7 @@ class GsyUiConfig {
           'showFullscreenButton': showFullscreenButton,
           'showLockButton': showLockButton,
           'showVolumeToolbar': showVolumeToolbar,
+          'showSettingsButton': showSettingsButton,
           'rotateViewAuto': rotateViewAuto,
           'rotateWithSystem': rotateWithSystem,
           'lockLand': lockLand,

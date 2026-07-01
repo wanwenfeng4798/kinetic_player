@@ -249,6 +249,8 @@ class _ControlPanelState extends State<_ControlPanel> {
   bool _danmakuVisible = false;
   bool _loopingEnabled = false;
   String? _lastCapturePath;
+  List<CommonAudioTrack> _audioTracks = const [];
+  int? _selectedAudioTrackIndex;
   final List<_DanmakuCue> _customDanmaku = [];
   final TextEditingController _subtitleTextController = TextEditingController(
     text: 'Hello from Flutter — gsySetEmbeddedSubtitleText',
@@ -283,7 +285,29 @@ class _ControlPanelState extends State<_ControlPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       _loadFilters();
+      _loadAudioTracks();
     }
+  }
+
+  Future<void> _loadAudioTracks() async {
+    final controller = widget.controller;
+    if (controller == null) return;
+    final tracks = await controller.getAudioTracks();
+    if (!mounted) return;
+    setState(() {
+      _audioTracks = tracks;
+      _selectedAudioTrackIndex =
+          tracks.where((t) => t.selected).map((t) => t.index).firstOrNull;
+    });
+  }
+
+  Future<void> _onAudioTrackChanged(int? index) async {
+    final controller = widget.controller;
+    if (controller == null || index == null) return;
+    await controller.selectAudioTrack(index);
+    if (!mounted) return;
+    setState(() => _selectedAudioTrackIndex = index);
+    await _loadAudioTracks();
   }
 
   Future<void> _loadFilters() async {
@@ -400,6 +424,56 @@ class _ControlPanelState extends State<_ControlPanel> {
               return Text('${_format(position)} / ${_format(duration)}');
             },
           ),
+          if (active != null) ...[
+            const SizedBox(height: 12),
+            const Text(
+              '设置',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Text('音轨：'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _audioTracks.isEmpty
+                      ? Text(
+                          '暂无可用音轨',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        )
+                      : DropdownButton<int>(
+                          isExpanded: true,
+                          value: _selectedAudioTrackIndex,
+                          items: [
+                            for (final track in _audioTracks)
+                              DropdownMenuItem(
+                                value: track.index,
+                                child: Text(
+                                  track.language == null
+                                      ? track.label
+                                      : '${track.label} (${track.language})',
+                                ),
+                              ),
+                          ],
+                          onChanged: _onAudioTrackChanged,
+                        ),
+                ),
+                IconButton(
+                  tooltip: '刷新音轨',
+                  onPressed: _loadAudioTracks,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '音轨请在设置中选择；播放器内齿轮按钮也可切换原生音轨。',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
           if (isAndroidGsy) ...[
             const SizedBox(height: 8),
             const Text(

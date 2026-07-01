@@ -41,18 +41,20 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     /** Invoked when the native volume icon toggles mute. */
     var onMuteToggle: ((Boolean) -> Unit)? = null
 
-    /** Supplies audio tracks when the popup panel opens. */
+    /** Supplies audio tracks when the settings panel opens. */
     var onRequestAudioTracks: (() -> List<Map<String, Any?>>)? = null
 
-    /** Invoked when the user picks an audio track in the popup panel. */
+    /** Invoked when the user picks an audio track in the settings panel. */
     var onAudioTrackSelected: ((Int) -> Unit)? = null
 
     private var audioPanel: View? = null
+    private var settingsPanel: View? = null
     private var volumeTrigger: ImageView? = null
+    private var settingsTrigger: ImageView? = null
     private var audioPanelVolumeSeekBar: SeekBar? = null
-    private var audioPanelTrackList: LinearLayout? = null
-    private var audioPanelDivider: View? = null
+    private var settingsPanelTrackList: LinearLayout? = null
     private var audioPanelVisible = false
+    private var settingsPanelVisible = false
     private var volumeUiSyncing = false
     internal var volumeToolbarMuted = false
     internal var volumeToolbarLevel = 1f
@@ -73,15 +75,21 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         super.init(context)
         wireNativeControls()
         wireAudioPanel()
+        wireSettingsPanel()
         applyUiConfig()
+    }
+
+    private fun wireSettingsPanel() {
+        settingsPanel = findViewById(R.id.settings_panel)
+        settingsTrigger = findViewById(R.id.settings_trigger)
+        settingsPanelTrackList = findViewById(R.id.settings_panel_track_list)
+        settingsTrigger?.setOnClickListener { toggleSettingsPanel() }
     }
 
     private fun wireAudioPanel() {
         audioPanel = findViewById(R.id.audio_panel)
         volumeTrigger = findViewById(R.id.volume_trigger)
         audioPanelVolumeSeekBar = findViewById(R.id.audio_panel_volume)
-        audioPanelTrackList = findViewById(R.id.audio_panel_track_list)
-        audioPanelDivider = findViewById(R.id.audio_panel_divider)
         audioPanelVolumeSeekBar?.progress = (volumeToolbarLevel * 100).toInt()
         updateVolumeIcon()
         audioPanelVolumeSeekBar?.setOnSeekBarChangeListener(
@@ -114,12 +122,21 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (audioPanelVisible) {
             hideAudioPanel()
         } else {
+            hideSettingsPanel()
             showAudioPanel()
         }
     }
 
+    private fun toggleSettingsPanel() {
+        if (settingsPanelVisible) {
+            hideSettingsPanel()
+        } else {
+            hideAudioPanel()
+            showSettingsPanel()
+        }
+    }
+
     private fun showAudioPanel() {
-        refreshAudioTracks()
         audioPanel?.visibility = View.VISIBLE
         audioPanelVisible = true
         audioPanel?.bringToFront()
@@ -130,14 +147,32 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         audioPanelVisible = false
     }
 
-    private fun refreshAudioTracks() {
-        val trackList = audioPanelTrackList ?: return
+    private fun showSettingsPanel() {
+        refreshSettingsTracks()
+        settingsPanel?.visibility = View.VISIBLE
+        settingsPanelVisible = true
+        settingsPanel?.bringToFront()
+    }
+
+    fun hideSettingsPanel() {
+        settingsPanel?.visibility = View.GONE
+        settingsPanelVisible = false
+    }
+
+    private fun refreshSettingsTracks() {
+        val trackList = settingsPanelTrackList ?: return
         trackList.removeAllViews()
         val tracks = onRequestAudioTracks?.invoke().orEmpty()
-        val showTracks = tracks.size > 1
-        audioPanelDivider?.visibility = if (showTracks) View.VISIBLE else View.GONE
-        if (!showTracks) return
-
+        if (tracks.isEmpty()) {
+            val empty =
+                TextView(context).apply {
+                    text = context.getString(R.string.kinetic_no_audio_tracks)
+                    setTextColor(Color.parseColor("#99FFFFFF"))
+                    textSize = 12f
+                }
+            trackList.addView(empty)
+            return
+        }
         val activeColor = ContextCompat.getColor(context, R.color.kinetic_seek_active)
         val padV = CommonUtil.dip2px(context, 8f)
         for (track in tracks) {
@@ -145,32 +180,20 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             val label = track["label"] as? String ?: "Track $index"
             val language = track["language"] as? String
             val selected = track["selected"] as? Boolean == true
-            val title = formatVerticalTrackLabel(label, language)
+            val title = if (!language.isNullOrEmpty()) "$label ($language)" else label
             val item =
                 TextView(context).apply {
                     text = title
-                    gravity = android.view.Gravity.CENTER_HORIZONTAL
                     setPadding(0, padV, 0, padV)
-                    textSize = 12f
+                    textSize = 13f
                     setTextColor(if (selected) activeColor else Color.WHITE)
                     setOnClickListener {
                         onAudioTrackSelected?.invoke(index)
-                        refreshAudioTracks()
+                        refreshSettingsTracks()
                     }
                 }
             trackList.addView(item)
         }
-    }
-
-    private fun formatVerticalTrackLabel(label: String, language: String?): String {
-        val compact = label.trim()
-        val vertical =
-            if (compact.any { it.code in 0x4E00..0x9FFF }) {
-                compact.filter { !it.isWhitespace() }.toList().joinToString("\n")
-            } else {
-                compact
-            }
-        return if (!language.isNullOrEmpty()) "$vertical\n($language)" else vertical
     }
 
     fun syncVolumeToolbar(
@@ -233,8 +256,13 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         titleTextView?.text = config.videoTitle
         volumeTrigger?.visibility =
             if (config.showVolumeToolbar) View.VISIBLE else View.GONE
+        settingsTrigger?.visibility =
+            if (config.showSettingsButton) View.VISIBLE else View.GONE
         if (!config.showVolumeToolbar) {
             hideAudioPanel()
+        }
+        if (!config.showSettingsButton) {
+            hideSettingsPanel()
         }
         applyEmbeddedChrome()
         fixControlOverlayLayering()
@@ -258,6 +286,9 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (audioPanelVisible) {
             audioPanel?.bringToFront()
         }
+        if (settingsPanelVisible) {
+            settingsPanel?.bringToFront()
+        }
     }
 
     override fun onLayout(
@@ -280,6 +311,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
 
     override fun changeUiToPlayingClear() {
         hideAudioPanel()
+        hideSettingsPanel()
         super.changeUiToPlayingClear()
     }
 
@@ -290,6 +322,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
 
     override fun changeUiToPauseClear() {
         hideAudioPanel()
+        hideSettingsPanel()
         super.changeUiToPauseClear()
     }
 
@@ -300,6 +333,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
 
     override fun onClickUiToggle() {
         hideAudioPanel()
+        hideSettingsPanel()
         super.onClickUiToggle()
     }
 

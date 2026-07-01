@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="kinetic_volume_icon">Volume</string>
-    <string name="kinetic_audio_volume">音量</string>
+    <string name="kinetic_settings_icon">Settings</string>
+    <string name="kinetic_settings_title">设置</string>
     <string name="kinetic_audio_tracks">音轨</string>
+    <string name="kinetic_no_audio_tracks">暂无可用音轨</string>
 </resources>
