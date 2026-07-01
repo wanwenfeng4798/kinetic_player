@@ -2,6 +2,7 @@ package com.keepwan.kinetic_player
 
 import android.app.Activity
 import android.content.res.Configuration
+import android.os.Build
 import com.keepwan.kinetic_player.gsy.GsyPlatformViewRegistry
 import com.keepwan.kinetic_player.gsy.GsyPlayerLifecycleRegistry
 import com.keepwan.kinetic_player.gsy.GsyVideoViewFactory
@@ -33,5 +34,12 @@ class KineticPlayerPlugin : FlutterPlugin {
         @JvmStatic
         fun handleBackPressed(activity: Activity): Boolean =
             GsyPlayerLifecycleRegistry.onBackPressed(activity)
+
+        /** Forward from host Activity.onUserLeaveHint for automatic PiP (Android 8+). */
+        @JvmStatic
+        fun handleUserLeaveHint(activity: Activity) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+            GsyPlayerLifecycleRegistry.onUserLeaveHint(activity)
+        }
     }
 }

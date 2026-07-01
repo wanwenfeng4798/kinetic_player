@@ -2,6 +2,7 @@ package com.keepwan.kinetic_player.gsy
 
 import android.app.Activity
 import android.content.res.Configuration
+import android.os.Build
 import com.shuyu.gsyvideoplayer.GSYVideoManager
 import java.lang.ref.WeakReference
 
@@ -30,6 +31,13 @@ object GsyPlayerLifecycleRegistry {
 
     fun onBackPressed(activity: Activity): Boolean =
         GSYVideoManager.backFromWindowFull(activity)
+
+    fun onUserLeaveHint(activity: Activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        activePlayers()
+            .firstOrNull { it.shouldAutoEnterPictureInPicture() }
+            ?.enterPictureInPicture()
+    }
 
     private fun activePlayers(): List<GsyNativePlayer> {
         players.removeAll { it.get() == null }

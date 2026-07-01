@@ -13,6 +13,7 @@ data class GsyUiConfig(
     val showLockButton: Boolean = true,
     val showVolumeToolbar: Boolean = true,
     val showSettingsButton: Boolean = true,
+    val pictureInPictureEnabled: Boolean = true,
     val rotateViewAuto: Boolean = true,
     val rotateWithSystem: Boolean = true,
     val lockLand: Boolean = false,
@@ -53,6 +54,9 @@ data class GsyUiConfig(
                 showSettingsButton =
                     ui["showSettingsButton"] as? Boolean
                         ?: params?.get("showSettingsButton") as? Boolean ?: true,
+                pictureInPictureEnabled =
+                    ui["pictureInPictureEnabled"] as? Boolean
+                        ?: params?.get("pictureInPictureEnabled") as? Boolean ?: true,
                 rotateViewAuto = ui["rotateViewAuto"] as? Boolean ?: true,
                 rotateWithSystem = ui["rotateWithSystem"] as? Boolean ?: true,
                 lockLand = ui["lockLand"] as? Boolean ?: false,

@@ -3,6 +3,7 @@ package com.keepwan.kinetic_player.gsy
 import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -124,6 +125,7 @@ class GsyNativePlayer(
                 danmakuController.onPrepared()
                 danmakuUrl?.let { danmakuController.loadFromUrl(it) }
                 reportProgress(force = true)
+                syncPictureInPictureParams()
             }
         }
 
@@ -162,6 +164,7 @@ class GsyNativePlayer(
         playerView.uiConfig = config
         config.previewVttUrl?.let { playerView.setPreviewVttUrl(it) }
         currentUrl?.let { setUrl(it) }
+        syncPictureInPictureParams()
     }
 
     fun setPreviewVttUrl(url: String?) {
@@ -266,12 +269,14 @@ class GsyNativePlayer(
         isPlaying = true
         emitMappedState(GSYVideoView.CURRENT_STATE_PLAYING)
         reportProgress(force = true)
+        syncPictureInPictureParams()
     }
 
     fun onVideoPause() {
         playerView.onVideoPause()
         isPlaying = false
         emitMappedState(GSYVideoView.CURRENT_STATE_PAUSE)
+        syncPictureInPictureParams()
     }
 
     fun stop() {
@@ -280,6 +285,7 @@ class GsyNativePlayer(
         danmakuController.onPlaybackComplete()
         callbacks.onPlayerStateChanged(CommonPlayerState.IDLE)
         reportProgress(force = true)
+        syncPictureInPictureParams()
     }
 
     fun setVolume(volume: Float) {
@@ -618,13 +624,51 @@ class GsyNativePlayer(
     }
 
     fun enterPictureInPicture(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        if (!uiConfig.pictureInPictureEnabled || !isPictureInPictureSupported()) {
+            return false
+        }
         val activity = CommonUtil.scanForActivity(playerView.context) as? Activity ?: return false
-        val params =
-            PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(16, 9))
-                .build()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        val params = buildPictureInPictureParams(autoEnter = false)
         return activity.enterPictureInPictureMode(params)
+    }
+
+    fun shouldAutoEnterPictureInPicture(): Boolean =
+        uiConfig.pictureInPictureEnabled &&
+            isPictureInPictureSupported() &&
+            isPlaying &&
+            !currentUrl.isNullOrEmpty()
+
+    fun syncPictureInPictureParams() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!isPictureInPictureSupported() || !uiConfig.pictureInPictureEnabled) return
+        val activity = CommonUtil.scanForActivity(playerView.context) as? Activity ?: return
+        activity.setPictureInPictureParams(buildPictureInPictureParams(autoEnter = true))
+    }
+
+    private fun buildPictureInPictureParams(autoEnter: Boolean): PictureInPictureParams {
+        val width = GSYVideoManager.instance().currentVideoWidth
+        val height = GSYVideoManager.instance().currentVideoHeight
+        val aspectRatio =
+            if (width > 0 && height > 0) {
+                Rational(width, height)
+            } else {
+                Rational(16, 9)
+            }
+        val builder =
+            PictureInPictureParams.Builder()
+                .setAspectRatio(aspectRatio)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(
+                autoEnter && uiConfig.pictureInPictureEnabled && isPlaying,
+            )
+        }
+        return builder.build()
+    }
+
+    private fun isPictureInPictureSupported(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        return appContext.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
     }
 
     fun releaseAllVideos() {

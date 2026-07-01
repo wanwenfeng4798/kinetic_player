@@ -16,4 +16,9 @@ class MainActivity : FlutterActivity() {
         }
         super.onBackPressed()
     }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        KineticPlayerPlugin.handleUserLeaveHint(this)
+    }
 }

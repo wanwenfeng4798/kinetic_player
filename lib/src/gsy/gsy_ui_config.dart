@@ -11,6 +11,7 @@ class GsyUiConfig {
     this.showLockButton = true,
     this.showVolumeToolbar = true,
     this.showSettingsButton = true,
+    this.pictureInPictureEnabled = true,
     this.rotateViewAuto = true,
     this.rotateWithSystem = true,
     this.lockLand = false,
@@ -46,6 +47,7 @@ class GsyUiConfig {
   final bool showLockButton;
   final bool showVolumeToolbar;
   final bool showSettingsButton;
+  final bool pictureInPictureEnabled;
   final bool rotateViewAuto;
   final bool rotateWithSystem;
   final bool lockLand;
@@ -78,6 +80,7 @@ class GsyUiConfig {
           'showLockButton': showLockButton,
           'showVolumeToolbar': showVolumeToolbar,
           'showSettingsButton': showSettingsButton,
+          'pictureInPictureEnabled': pictureInPictureEnabled,
           'rotateViewAuto': rotateViewAuto,
           'rotateWithSystem': rotateWithSystem,
           'lockLand': lockLand,
