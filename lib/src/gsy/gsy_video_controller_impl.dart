@@ -83,7 +83,7 @@ class GSYVideoControllerImpl
   }) =>
       _invoke('gsySetGsyShowType', {
         'mode': type.gsyIndex,
-        'customRatio': ?customRatio,
+        'customRatio': customRatio,
       });
 
   Future<void> gsySetRenderType(GsyRenderType type) =>
@@ -117,7 +117,7 @@ class GSYVideoControllerImpl
   }) =>
       _invoke('gsySetSubtitleUrl', {
         'url': url,
-        'mimeType': ?mimeType,
+        'mimeType': mimeType,
       });
 
   Future<void> gsySetSubtitleEnabled({required bool enabled}) =>
