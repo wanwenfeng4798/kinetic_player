@@ -70,6 +70,7 @@ class GsyNativePlayer(
     private var gifResultCallback: ((String?) -> Unit)? = null
     private var renderRotation = 0
     private var mirrorHorizontal = false
+    private var activeRenderType: Int? = null
 
     private val progressReporter = ThrottledProgressReporter { positionMs, durationMs ->
         callbacks.onPositionChanged(positionMs, durationMs)
@@ -116,6 +117,7 @@ class GsyNativePlayer(
             override fun onPrepared(url: String?, vararg objects: Any?) {
                 callbacks.onPlayerStateChanged(CommonPlayerState.READY)
                 applyRenderTransform()
+                playerView.fixControlOverlayLayering()
                 danmakuController.onPrepared()
                 danmakuUrl?.let { danmakuController.loadFromUrl(it) }
                 reportProgress(force = true)
@@ -290,13 +292,23 @@ class GsyNativePlayer(
     }
 
     fun setRenderType(renderType: Int) {
+        if (activeRenderType == renderType) return
+        activeRenderType = renderType
         GSYVideoType.setRenderType(renderType)
         currentUrl?.let { setUrl(it) }
+        scheduleControlOverlayFix()
     }
 
     fun setEffectFilter(name: String) {
         val effect = GsyEffectRegistry.resolve(name)
         playerView.setEffectFilter(effect)
+        scheduleControlOverlayFix()
+    }
+
+    private fun scheduleControlOverlayFix() {
+        playerView.post { playerView.fixControlOverlayLayering() }
+        playerView.postDelayed({ playerView.fixControlOverlayLayering() }, 100)
+        playerView.postDelayed({ playerView.fixControlOverlayLayering() }, 400)
     }
 
     fun setRenderRotation(degrees: Int) {

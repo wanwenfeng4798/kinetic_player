@@ -60,6 +60,9 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
     override fun applyUiConfig() {
         super.applyUiConfig()
         storedUiConfig?.previewVttUrl?.let { setPreviewVttUrl(it) }
+        fixControlOverlayLayering()
+        previewLayout?.bringToFront()
+        previewImage?.bringToFront()
     }
 
     override fun onProgressChanged(
@@ -162,10 +165,16 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
         val imageView = previewImage ?: return
         val requestId = ++previewImageRequestId
         PREVIEW_EXECUTOR.execute {
-            val bitmap = loadPreviewBitmap(frame)
-            mainHandler.post {
-                if (requestId != previewImageRequestId) return@post
-                imageView.setImageBitmap(bitmap)
+            try {
+                val bitmap = loadPreviewBitmap(frame)
+                mainHandler.post {
+                    if (requestId != previewImageRequestId) return@post
+                    if (bitmap != null) {
+                        imageView.setImageBitmap(bitmap)
+                    }
+                }
+            } catch (_: Exception) {
+                // Ignore failed preview frame loads.
             }
         }
     }
@@ -216,6 +225,9 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
         connection.readTimeout = 15_000
         connection.requestMethod = "GET"
         connection.connect()
+        if (connection.responseCode !in 200..299) {
+            return ""
+        }
         connection.inputStream.use { inputStream ->
             BufferedReader(InputStreamReader(inputStream, Charset.forName("UTF-8"))).use { reader ->
                 val builder = StringBuilder()
@@ -235,16 +247,24 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
 
         private fun loadBitmap(url: String): Bitmap? {
             BITMAP_CACHE.get(url)?.let { return it }
-            val connection = URL(url).openConnection() as HttpURLConnection
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 15_000
-            connection.connect()
-            val bitmap =
-                connection.inputStream.use { stream ->
-                    BitmapFactory.decodeStream(stream)
-                } ?: return null
-            BITMAP_CACHE.put(url, bitmap)
-            return bitmap
+            return try {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 15_000
+                connection.requestMethod = "GET"
+                connection.connect()
+                if (connection.responseCode !in 200..299) {
+                    return null
+                }
+                val bitmap =
+                    connection.inputStream.use { stream ->
+                        BitmapFactory.decodeStream(stream)
+                    } ?: return null
+                BITMAP_CACHE.put(url, bitmap)
+                bitmap
+            } catch (_: Exception) {
+                null
+            }
         }
 
         private fun cropBitmap(

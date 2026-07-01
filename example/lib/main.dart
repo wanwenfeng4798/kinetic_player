@@ -30,13 +30,19 @@ class _DemoMedia {
   static const videoUrl =
       'https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4';
 
+  /// Stable public JPEGs for demo seek-preview cues (avoid picsum 404/redirect).
+  static const _previewImages = <String>[
+    'https://www.gstatic.com/webp/gallery/1.jpg',
+    'https://www.gstatic.com/webp/gallery/2.jpg',
+    'https://www.gstatic.com/webp/gallery/3.jpg',
+    'https://www.gstatic.com/webp/gallery/4.jpg',
+  ];
+
   /// Writes a WebVTT track with public thumbnail URLs for seek preview.
   static Future<String> preparePreviewVttUri() async {
     final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/kinetic_demo_preview.vtt');
-    if (!await file.exists()) {
-      await file.writeAsString(_buildPreviewVtt());
-    }
+    final file = File('${dir.path}/kinetic_demo_preview_v2.vtt');
+    await file.writeAsString(_buildPreviewVtt());
     return file.uri.toString();
   }
 
@@ -48,7 +54,7 @@ class _DemoMedia {
       buffer.writeln(
         '${_formatVttTime(startSec)} --> ${_formatVttTime(endSec)}',
       );
-      buffer.writeln('https://picsum.photos/id/${1010 + i}/284/160');
+      buffer.writeln(_previewImages[i % _previewImages.length]);
       buffer.writeln();
     }
     return buffer.toString();
@@ -59,6 +65,37 @@ class _DemoMedia {
     final minutes = ((totalSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
     final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
     return '$hours:$minutes:$seconds.000';
+  }
+
+  static const _subtitleLines = <String>[
+    'Kinetic Player 字幕示例',
+    '外挂 WebVTT 字幕轨道',
+    '拖动进度条可验证同步',
+    '支持 SRT / WebVTT 文件',
+    '也可用下方输入框推送字幕',
+    'gsySetEmbeddedSubtitleText',
+  ];
+
+  /// Demo WebVTT subtitle track aligned to the sample video timeline.
+  static Future<String> prepareSubtitleVttUri() async {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/kinetic_demo_subtitles.vtt');
+    await file.writeAsString(_buildSubtitleVtt());
+    return file.uri.toString();
+  }
+
+  static String _buildSubtitleVtt() {
+    final buffer = StringBuffer('WEBVTT\n\n');
+    for (var i = 0; i < _subtitleLines.length; i++) {
+      final startSec = i * 8;
+      final endSec = startSec + 8;
+      buffer.writeln(
+        '${_formatVttTime(startSec)} --> ${_formatVttTime(endSec)}',
+      );
+      buffer.writeln(_subtitleLines[i]);
+      buffer.writeln();
+    }
+    return buffer.toString();
   }
 }
 
@@ -72,7 +109,6 @@ class PlayerDemoPage extends StatefulWidget {
 class _PlayerDemoPageState extends State<PlayerDemoPage> {
   String? _previewVttUri;
   CommonVideoController? _controller;
-  bool _gsyFeaturesApplied = false;
 
   @override
   void initState() {
@@ -88,13 +124,6 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
   void dispose() {
     _controller?.dispose();
     super.dispose();
-  }
-
-  Future<void> _applyGsyDemoFeatures(GSYVideoControllerImpl gsy) async {
-    if (_gsyFeaturesApplied) return;
-    _gsyFeaturesApplied = true;
-    await gsy.gsySetRenderType(GsyRenderType.glSurface);
-    await gsy.gsySetEffectFilter('sepia');
   }
 
   @override
@@ -123,9 +152,6 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                       if (!identical(_controller, controller)) {
                         setState(() => _controller = controller);
                       }
-                      if (controller is GSYVideoControllerImpl) {
-                        _applyGsyDemoFeatures(controller);
-                      }
                     },
                   ),
                 ),
@@ -153,12 +179,28 @@ class _ControlPanelState extends State<_ControlPanel> {
       ValueNotifier(Duration.zero);
 
   List<String> _filters = const ['none', 'sepia', 'gaussianBlur', 'greyScale'];
-  String _selectedFilter = 'sepia';
+  String _selectedFilter = 'none';
+  String? _subtitleVttUri;
+  bool _subtitlesEnabled = true;
+  final TextEditingController _subtitleTextController = TextEditingController(
+    text: 'Hello from Flutter — gsySetEmbeddedSubtitleText',
+  );
 
   @override
   void initState() {
     super.initState();
     _loadFilters();
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      _DemoMedia.prepareSubtitleVttUri().then((uri) {
+        if (mounted) setState(() => _subtitleVttUri = uri);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _subtitleTextController.dispose();
+    super.dispose();
   }
 
   @override
@@ -187,8 +229,45 @@ class _ControlPanelState extends State<_ControlPanel> {
     final gsy = widget.controller;
     if (gsy is! GSYVideoControllerImpl) return;
     setState(() => _selectedFilter = value);
-    await gsy.gsySetRenderType(GsyRenderType.glSurface);
-    await gsy.gsySetEffectFilter(value);
+    if (value == 'none') {
+      await gsy.gsySetEffectFilter('none');
+      await gsy.gsySetRenderType(GsyRenderType.texture);
+    } else {
+      await gsy.gsySetRenderType(GsyRenderType.glSurface);
+      await gsy.gsySetEffectFilter(value);
+    }
+  }
+
+  Future<void> _loadWebVttSubtitles(GSYVideoControllerImpl gsy) async {
+    final uri = _subtitleVttUri ?? await _DemoMedia.prepareSubtitleVttUri();
+    if (!mounted) return;
+    setState(() => _subtitleVttUri = uri);
+    await gsy.gsySetSubtitleUrl(uri, mimeType: 'text/vtt');
+    await gsy.gsySetSubtitleEnabled(enabled: true);
+    if (mounted) setState(() => _subtitlesEnabled = true);
+  }
+
+  Future<void> _sendEmbeddedSubtitle(GSYVideoControllerImpl gsy) async {
+    final text = _subtitleTextController.text.trim();
+    if (text.isEmpty) {
+      await gsy.gsySetEmbeddedSubtitleText(null);
+    } else {
+      await gsy.gsySetEmbeddedSubtitleText(text);
+    }
+    await gsy.gsySetSubtitleEnabled(enabled: true);
+    if (mounted) setState(() => _subtitlesEnabled = true);
+  }
+
+  Future<void> _clearSubtitles(GSYVideoControllerImpl gsy) async {
+    await gsy.gsySetEmbeddedSubtitleText(null);
+    await gsy.gsySetSubtitleEnabled(enabled: false);
+    if (mounted) setState(() => _subtitlesEnabled = false);
+  }
+
+  Future<void> _toggleSubtitles(GSYVideoControllerImpl gsy) async {
+    final enabled = !_subtitlesEnabled;
+    await gsy.gsySetSubtitleEnabled(enabled: enabled);
+    if (mounted) setState(() => _subtitlesEnabled = enabled);
   }
 
   @override
@@ -215,7 +294,7 @@ class _ControlPanelState extends State<_ControlPanel> {
           if (isAndroidGsy) ...[
             const SizedBox(height: 8),
             const Text(
-              '进度条预览：先点视频唤出控制栏，再拖动进度条。',
+              '播放中点击画面可唤出暂停按钮；GL 滤镜需从下拉框手动开启。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 4),
@@ -237,6 +316,53 @@ class _ControlPanelState extends State<_ControlPanel> {
                   ),
                 ),
               ],
+            ),
+          ],
+          if (isAndroidGsy) ...[
+            const SizedBox(height: 12),
+            const Text(
+              '字幕',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _subtitleTextController,
+              decoration: const InputDecoration(
+                labelText: '推送字幕文本',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: _subtitleVttUri == null
+                      ? null
+                      : () => _loadWebVttSubtitles(active),
+                  child: const Text('加载 WebVTT'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _sendEmbeddedSubtitle(active),
+                  child: const Text('发送字幕'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _clearSubtitles(active),
+                  child: const Text('清除字幕'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _toggleSubtitles(active),
+                  child: Text(_subtitlesEnabled ? '关闭显示' : '开启显示'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '「加载 WebVTT」使用外挂轨道；「发送字幕」通过 gsySetEmbeddedSubtitleText 即时显示。',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
           const SizedBox(height: 8),

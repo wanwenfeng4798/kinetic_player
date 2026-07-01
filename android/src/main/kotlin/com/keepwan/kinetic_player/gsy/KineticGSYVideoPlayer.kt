@@ -3,6 +3,7 @@ package com.keepwan.kinetic_player.gsy
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
+import android.opengl.GLSurfaceView
 import android.util.AttributeSet
 import android.view.View
 import com.shuyu.gsyvideoplayer.utils.CommonUtil
@@ -72,6 +73,52 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         }
         titleTextView?.text = config.videoTitle
         applyEmbeddedChrome()
+        fixControlOverlayLayering()
+    }
+
+    /** Keep play/pause chrome above GLSurfaceView and let taps reach GSY controls. */
+    fun fixControlOverlayLayering() {
+        val renderView = renderProxy?.showView
+        if (renderView is GLSurfaceView) {
+            renderView.setZOrderMediaOverlay(true)
+            // GL surface otherwise intercepts taps so play/pause never toggles.
+            renderView.isClickable = false
+            renderView.isFocusable = false
+            renderView.isFocusableInTouchMode = false
+        }
+        mTopContainer?.bringToFront()
+        mBottomContainer?.bringToFront()
+        mStartButton?.bringToFront()
+        mLockScreen?.bringToFront()
+        mLoadingProgressBar?.bringToFront()
+    }
+
+    override fun onLayout(
+        changed: Boolean,
+        left: Int,
+        top: Int,
+        right: Int,
+        bottom: Int,
+    ) {
+        super.onLayout(changed, left, top, right, bottom)
+        if (renderProxy?.showView is GLSurfaceView) {
+            post { fixControlOverlayLayering() }
+        }
+    }
+
+    override fun changeUiToPlayingShow() {
+        super.changeUiToPlayingShow()
+        fixControlOverlayLayering()
+    }
+
+    override fun changeUiToPauseShow() {
+        super.changeUiToPauseShow()
+        fixControlOverlayLayering()
+    }
+
+    override fun changeUiToCompleteShow() {
+        super.changeUiToCompleteShow()
+        fixControlOverlayLayering()
     }
 
     fun toggleWindowFullscreen() {
