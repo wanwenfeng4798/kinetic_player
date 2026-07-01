@@ -9,6 +9,7 @@ class GsyUiConfig {
     this.previewVttUrl,
     this.showFullscreenButton = true,
     this.showLockButton = true,
+    this.showVolumeToolbar = true,
     this.rotateViewAuto = true,
     this.rotateWithSystem = true,
     this.lockLand = false,
@@ -42,6 +43,7 @@ class GsyUiConfig {
   final String? previewVttUrl;
   final bool showFullscreenButton;
   final bool showLockButton;
+  final bool showVolumeToolbar;
   final bool rotateViewAuto;
   final bool rotateWithSystem;
   final bool lockLand;
@@ -72,6 +74,7 @@ class GsyUiConfig {
           if (previewVttUrl != null) 'previewVttUrl': previewVttUrl,
           'showFullscreenButton': showFullscreenButton,
           'showLockButton': showLockButton,
+          'showVolumeToolbar': showVolumeToolbar,
           'rotateViewAuto': rotateViewAuto,
           'rotateWithSystem': rotateWithSystem,
           'lockLand': lockLand,

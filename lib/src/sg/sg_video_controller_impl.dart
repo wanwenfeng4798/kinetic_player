@@ -4,12 +4,21 @@ import 'package:flutter/services.dart';
 import '../common/common_player_state.dart';
 import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
+import '../common/common_video_controller_bridge.dart';
 import '../common/platform_guard.dart';
 
-class SGVideoControllerImpl implements CommonVideoController {
+class SGVideoControllerImpl
+    with CommonVideoControllerBridge
+    implements CommonVideoController {
   final int viewId;
   late MethodChannel _channel;
   bool _isDisposed = false;
+
+  @override
+  MethodChannel get bridgeChannel => _channel;
+
+  @override
+  bool get bridgeDisposed => _isDisposed;
 
   @override
   final ValueNotifier<CommonPlayerState> playerState =

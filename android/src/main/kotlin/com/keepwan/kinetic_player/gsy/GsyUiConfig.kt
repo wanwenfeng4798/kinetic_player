@@ -11,6 +11,7 @@ data class GsyUiConfig(
     val previewVttUrl: String? = null,
     val showFullscreenButton: Boolean = true,
     val showLockButton: Boolean = true,
+    val showVolumeToolbar: Boolean = true,
     val rotateViewAuto: Boolean = true,
     val rotateWithSystem: Boolean = true,
     val lockLand: Boolean = false,
@@ -45,6 +46,9 @@ data class GsyUiConfig(
                 previewVttUrl = ui["previewVttUrl"] as? String,
                 showFullscreenButton = ui["showFullscreenButton"] as? Boolean ?: true,
                 showLockButton = ui["showLockButton"] as? Boolean ?: true,
+                showVolumeToolbar =
+                    ui["showVolumeToolbar"] as? Boolean
+                        ?: params?.get("showVolumeToolbar") as? Boolean ?: true,
                 rotateViewAuto = ui["rotateViewAuto"] as? Boolean ?: true,
                 rotateWithSystem = ui["rotateWithSystem"] as? Boolean ?: true,
                 lockLand = ui["lockLand"] as? Boolean ?: false,

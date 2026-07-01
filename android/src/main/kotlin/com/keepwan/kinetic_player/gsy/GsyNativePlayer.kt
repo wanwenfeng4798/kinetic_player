@@ -71,6 +71,8 @@ class GsyNativePlayer(
     private var renderRotation = 0
     private var mirrorHorizontal = false
     private var activeRenderType: Int? = null
+    private var savedVolume = 1f
+    private var muted = false
 
     private val progressReporter = ThrottledProgressReporter { positionMs, durationMs ->
         callbacks.onPositionChanged(positionMs, durationMs)
@@ -137,6 +139,9 @@ class GsyNativePlayer(
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ),
         )
+        playerView.onVolumeChanged = { setVolume(it) }
+        playerView.onMuteToggle = { setMute(it) }
+        playerView.syncVolumeToolbar(savedVolume, muted)
         mainHandler.post(progressRunnable)
         GsyPlayerLifecycleRegistry.register(this)
     }
@@ -263,6 +268,66 @@ class GsyNativePlayer(
         isPlaying = false
         emitMappedState(GSYVideoView.CURRENT_STATE_PAUSE)
     }
+
+    fun stop() {
+        isPlaying = false
+        playerView.onVideoReset()
+        danmakuController.onPlaybackComplete()
+        callbacks.onPlayerStateChanged(CommonPlayerState.IDLE)
+        reportProgress(force = true)
+    }
+
+    fun setVolume(volume: Float) {
+        val clamped = volume.coerceIn(0f, 1f)
+        if (clamped > 0f && muted) {
+            muted = false
+            GSYVideoManager.instance().curPlayerManager?.setNeedMute(false)
+        }
+        savedVolume = clamped
+        GSYVideoManager.instance().curPlayerManager?.setVolume(clamped, clamped)
+        playerView.syncVolumeToolbar(clamped, muted)
+    }
+
+    fun setMute(muted: Boolean) {
+        this.muted = muted
+        if (muted) {
+            GSYVideoManager.instance().curPlayerManager?.setNeedMute(true)
+        } else {
+            GSYVideoManager.instance().curPlayerManager?.setNeedMute(false)
+            setVolume(savedVolume)
+            return
+        }
+        playerView.syncVolumeToolbar(savedVolume, muted)
+    }
+
+    fun switchVideoSource(
+        url: String,
+        autoPlay: Boolean,
+    ) {
+        setUrl(url)
+        if (autoPlay) {
+            startPlayLogic()
+        }
+    }
+
+    fun getVideoSize(): Map<String, Int>? {
+        val width = GSYVideoManager.instance().currentVideoWidth
+        val height = GSYVideoManager.instance().currentVideoHeight
+        if (width <= 0 || height <= 0) return null
+        return mapOf("width" to width, "height" to height)
+    }
+
+    fun listAudioTracks(): List<Map<String, Any?>> =
+        GsyAudioTrackHelper.listAudioTracks().map {
+            mapOf(
+                "index" to it.index,
+                "label" to it.label,
+                "language" to it.language,
+                "selected" to it.selected,
+            )
+        }
+
+    fun selectAudioTrack(index: Int): Boolean = GsyAudioTrackHelper.selectAudioTrack(index)
 
     fun seekTo(positionMs: Int) {
         GSYVideoManager.instance().seekTo(positionMs.toLong())
@@ -430,10 +495,6 @@ class GsyNativePlayer(
         } else {
             playerView.saveFrame(output, high, listener)
         }
-    }
-
-    fun captureFirstFrame(callback: (String?) -> Unit) {
-        takeScreenshot(withView = false, high = true, callback = callback)
     }
 
     fun startGifRecording() {

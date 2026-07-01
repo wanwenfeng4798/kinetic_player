@@ -25,9 +25,9 @@ Android 侧基于 **GSYVideoPlayer 13.0.0**（`io.github.carguo:gsyvideoplayer-*
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 视频帧截图 | ✅ | `gsyTakeScreenshot()` / `gsySaveScreenshot()` |
-| 播放器 UI 组合截图 | ✅ | `gsyTakeScreenshot(withView: true)` |
-| 第一帧 | ✅ | `gsyCaptureFirstFrame()` |
+| 视频帧截图 | ✅ | `captureFrame()` |
+| 播放器 UI 组合截图 | ✅ | `captureFrame(includeOverlay: true)` |
+| 保存截图到文件 | ✅ | `gsySaveScreenshot()`（Android GSY 专属） |
 | 生成 GIF | ✅ | `gsyStartGifRecording()` → `gsyStopGifRecording()` |
 
 ---
@@ -40,7 +40,7 @@ Android 侧基于 **GSYVideoPlayer 13.0.0**（`io.github.carguo:gsyvideoplayer-*
 | 重力 / 手动旋转 | ✅ | `GsyUiConfig.rotateViewAuto` + Activity `configChanges` 转发 |
 | 视频 rotation 元数据 | ✅ | GSY 内核自动应用 |
 | 手动旋转 0/90/180/270 | ✅ | `gsySetRenderRotation(degrees)` |
-| 快播 / 慢播 | ✅ | `gsySetSpeed()` |
+| 快播 / 慢播 | ✅ | `setRate()` 或 `GsyUiConfig.speed` |
 | 网络加载速度 | ✅ | `gsyGetNetSpeed()` |
 
 ---
@@ -135,7 +135,7 @@ if (controller is GSYVideoControllerImpl) {
   await controller.gsySetEffectFilter('gaussianBlur');
   await controller.gsySetGsyShowType(GsyShowType.ratio16x9);
   await controller.gsySetSubtitleUrl('https://example.com/subs.vtt');
-  final path = await controller.gsyTakeScreenshot(withView: true);
+  final path = await controller.captureFrame(includeOverlay: true);
   await controller.gsySetPlaylist(['url1', 'url2']);
   await controller.gsySetDanmakuUrl('https://example.com/danmaku.xml');
   await controller.gsyToggleDanmaku(enabled: true);

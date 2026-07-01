@@ -49,7 +49,7 @@ class GsyVideoPlatformView(
         player.applyUiConfig(uiConfig)
         val url = creationParams?.get("url") as? String
         if (!url.isNullOrEmpty()) {
-            player.setUrl(url)
+            player.switchVideoSource(url, autoPlay = false)
         }
         @Suppress("UNCHECKED_CAST")
         val playlist = creationParams?.get("playlist") as? List<String>
@@ -70,6 +70,10 @@ class GsyVideoPlatformView(
                 player.onVideoPause()
                 result.success(null)
             }
+            "stop" -> {
+                player.stop()
+                result.success(null)
+            }
             "seekTo" -> {
                 player.seekTo(call.argument<Int>("position") ?: 0)
                 result.success(null)
@@ -78,9 +82,42 @@ class GsyVideoPlatformView(
                 player.setScaleMode(call.argument<Int>("mode") ?: 0)
                 result.success(null)
             }
-            "setUrl" -> {
-                player.setUrl(call.argument<String>("url") ?: "")
+            "setRate" -> {
+                player.setSpeed(call.argument<Double>("rate")?.toFloat() ?: 1f)
                 result.success(null)
+            }
+            "setVolume" -> {
+                player.setVolume(call.argument<Double>("volume")?.toFloat() ?: 1f)
+                result.success(null)
+            }
+            "setMute" -> {
+                player.setMute(call.argument<Boolean>("muted") ?: false)
+                result.success(null)
+            }
+            "switchVideoSource" -> {
+                player.switchVideoSource(
+                    call.argument<String>("url") ?: "",
+                    call.argument<Boolean>("autoPlay") ?: true,
+                )
+                result.success(null)
+            }
+            "getAudioTracks" -> result.success(player.listAudioTracks())
+            "selectAudioTrack" -> {
+                val ok = player.selectAudioTrack(call.argument<Int>("index") ?: 0)
+                if (ok) result.success(null) else result.error("TRACK", "Audio track not found", null)
+            }
+            "getVideoSize" -> result.success(player.getVideoSize())
+            "setLooping" -> {
+                player.setLooping(call.argument<Boolean>("looping") ?: false)
+                result.success(null)
+            }
+            "captureFrame" -> {
+                val high = call.argument<Boolean>("highQuality") ?: true
+                val withView = call.argument<Boolean>("includeOverlay") ?: false
+                player.takeScreenshot(
+                    withView = withView,
+                    high = high,
+                ) { path -> result.success(path) }
             }
             "gsySwitchRenderCore" -> {
                 val ok = player.changeRenderCore(call.argument<Int>("core") ?: 0)
@@ -102,14 +139,6 @@ class GsyVideoPlatformView(
                 @Suppress("UNCHECKED_CAST")
                 val ui = call.argument<Map<String, Any?>>("gsyUi")
                 player.applyUiConfig(GsyUiConfig.fromCreationParams(mapOf("gsyUi" to ui)))
-                result.success(null)
-            }
-            "gsySetSpeed" -> {
-                player.setSpeed(call.argument<Double>("speed")?.toFloat() ?: 1f)
-                result.success(null)
-            }
-            "gsySetLooping" -> {
-                player.setLooping(call.argument<Boolean>("looping") ?: false)
                 result.success(null)
             }
             "gsySetGsyShowType" -> {
@@ -159,20 +188,11 @@ class GsyVideoPlatformView(
                 player.setEmbeddedSubtitleText(call.argument<String>("text"))
                 result.success(null)
             }
-            "gsyTakeScreenshot" -> {
-                player.takeScreenshot(
-                    withView = call.argument<Boolean>("withView") ?: false,
-                    high = call.argument<Boolean>("high") ?: false,
-                ) { path -> result.success(path) }
-            }
             "gsySaveScreenshot" -> {
                 player.saveScreenshot(
                     withView = call.argument<Boolean>("withView") ?: false,
                     high = call.argument<Boolean>("high") ?: false,
                 ) { path -> result.success(path) }
-            }
-            "gsyCaptureFirstFrame" -> {
-                player.captureFirstFrame { path -> result.success(path) }
             }
             "gsyStartGifRecording" -> {
                 player.startGifRecording()

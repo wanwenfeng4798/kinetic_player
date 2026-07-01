@@ -29,10 +29,6 @@ final class SgNativePlayer: NSObject {
 
     var view: UIView { bridge.view }
 
-    func setUrl(_ urlString: String) {
-        bridge.setUrl(urlString)
-    }
-
     func play() {
         bridge.play()
     }
@@ -41,8 +37,60 @@ final class SgNativePlayer: NSObject {
         bridge.pause()
     }
 
+    func stop() {
+        bridge.stop()
+    }
+
     func seek(positionMs: Int) {
         bridge.seek(toMs: positionMs)
+    }
+
+    func setRate(_ rate: Double) {
+        bridge.setRate(rate)
+    }
+
+    func setVolume(_ volume: Double) {
+        bridge.setVolume(volume)
+    }
+
+    func setMute(_ muted: Bool) {
+        bridge.setMuted(muted)
+    }
+
+    func switchVideoSource(_ urlString: String, autoPlay: Bool) {
+        bridge.switchVideoSource(urlString, autoPlay: autoPlay)
+    }
+
+    func getAudioTracks() -> [[String: Any]] {
+        bridge.getAudioTracks() as? [[String: Any]] ?? []
+    }
+
+    func selectAudioTrack(_ index: Int) -> Bool {
+        bridge.selectAudioTrack(index)
+    }
+
+    func getVideoSize() -> [String: Int]? {
+        guard let map = bridge.getVideoSize() as? [String: NSNumber] else { return nil }
+        let width = map["width"]?.intValue ?? 0
+        let height = map["height"]?.intValue ?? 0
+        guard width > 0, height > 0 else { return nil }
+        return ["width": width, "height": height]
+    }
+
+    func setLooping(_ looping: Bool) {
+        bridge.setLooping(looping)
+    }
+
+    func captureFrame() -> String? {
+        bridge.captureFrame()
+    }
+
+    func currentVolume() -> Double {
+        bridge.currentVolume()
+    }
+
+    func isMuted() -> Bool {
+        bridge.isMuted()
     }
 
     func setRenderMode(_ mode: Int) {

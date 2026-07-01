@@ -6,9 +6,12 @@ import 'gsy_video_features.dart';
 import '../common/common_player_state.dart';
 import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
+import '../common/common_video_controller_bridge.dart';
 import '../common/platform_guard.dart';
 
-class GSYVideoControllerImpl implements CommonVideoController {
+class GSYVideoControllerImpl
+    with CommonVideoControllerBridge
+    implements CommonVideoController {
   GSYVideoControllerImpl(this.viewId) {
     assertAndroidPlatform('GSYVideoControllerImpl');
     _channel = MethodChannel('com.example.player/gsy_$viewId');
@@ -18,6 +21,12 @@ class GSYVideoControllerImpl implements CommonVideoController {
   final int viewId;
   late MethodChannel _channel;
   bool _isDisposed = false;
+
+  @override
+  MethodChannel get bridgeChannel => _channel;
+
+  @override
+  bool get bridgeDisposed => _isDisposed;
 
   @override
   final ValueNotifier<CommonPlayerState> playerState =
@@ -54,8 +63,6 @@ class GSYVideoControllerImpl implements CommonVideoController {
   Future<void> setScaleMode(CommonScaleMode mode) =>
       _invoke('setScaleMode', {'mode': mode.index});
 
-  Future<void> setUrl(String url) => _invoke('setUrl', {'url': url});
-
   Future<void> gsySwitchRenderCore(GsyRenderCore core) =>
       _invoke('gsySwitchRenderCore', {'core': core.gsyIndex});
 
@@ -69,12 +76,6 @@ class GSYVideoControllerImpl implements CommonVideoController {
 
   Future<void> gsySetUiConfig(GsyUiConfig config) =>
       _invoke('gsySetUiConfig', config.toCreationParams());
-
-  Future<void> gsySetSpeed(double speed) =>
-      _invoke('gsySetSpeed', {'speed': speed});
-
-  Future<void> gsySetLooping({required bool looping}) =>
-      _invoke('gsySetLooping', {'looping': looping});
 
   Future<void> gsySetGsyShowType(
     GsyShowType type, {
@@ -125,16 +126,6 @@ class GSYVideoControllerImpl implements CommonVideoController {
   Future<void> gsySetEmbeddedSubtitleText(String? text) =>
       _invoke('gsySetEmbeddedSubtitleText', {'text': text});
 
-  Future<String?> gsyTakeScreenshot({
-    bool withView = false,
-    bool high = false,
-  }) async {
-    return _channel.invokeMethod<String>('gsyTakeScreenshot', {
-      'withView': withView,
-      'high': high,
-    });
-  }
-
   Future<String?> gsySaveScreenshot({
     bool withView = false,
     bool high = false,
@@ -144,9 +135,6 @@ class GSYVideoControllerImpl implements CommonVideoController {
       'high': high,
     });
   }
-
-  Future<String?> gsyCaptureFirstFrame() =>
-      _channel.invokeMethod<String>('gsyCaptureFirstFrame');
 
   Future<void> gsyStartGifRecording() => _invoke('gsyStartGifRecording');
 

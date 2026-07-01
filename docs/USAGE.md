@@ -145,7 +145,7 @@ if (controller is GSYVideoControllerImpl) {
 | 自动旋转 / 横屏全屏 | `rotateViewAuto`、`lockLand`、`needOrientationUtils` |
 | 进度条拖动时间文字 | `showDragProgressTextOnSeekBar` |
 | 进度条缩略图预览 | `previewVttUrl` / `gsySetPreviewVttUrl` |
-| 倍速 / 循环 | `gsySetSpeed` / `gsySetLooping` 或 `GsyUiConfig.speed` / `looping` |
+| 倍速 / 循环 | `setRate()` / `setLooping()` 或 `GsyUiConfig.speed` / `looping` |
 
 宿主 Activity 需在 `onBackPressed` 中调用 `KineticPlayerPlugin.handleBackPressed(this)`，全屏时系统返回键才能退出 GSY 窗口全屏（example 已配置）。
 

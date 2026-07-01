@@ -1,7 +1,9 @@
+export 'src/common/common_audio_track.dart';
 export 'src/common/native_sdk_versions.dart';
 export 'src/common/common_player_state.dart';
 export 'src/common/common_scale_mode.dart';
 export 'src/common/common_video_controller.dart';
+export 'src/common/common_video_size.dart';
 export 'src/common/common_video_player_factory.dart';
 export 'src/common/common_video_player_view.dart';
 export 'src/common/player_view_types.dart';

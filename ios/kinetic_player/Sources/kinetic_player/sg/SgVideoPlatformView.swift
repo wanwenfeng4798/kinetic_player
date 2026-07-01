@@ -5,6 +5,7 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
     private let container = UIView()
     private let player: SgNativePlayer
     private let channel: FlutterMethodChannel
+    private let volumeToolbar = SgVolumeToolbarView()
 
     init(
         frame: CGRect,
@@ -21,13 +22,47 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
         )
         super.init()
 
+        let params = args as? [String: Any]
+        let gsyUi = params?["gsyUi"] as? [String: Any]
+        let showVolumeToolbar =
+            params?["showVolumeToolbar"] as? Bool
+            ?? gsyUi?["showVolumeToolbar"] as? Bool
+            ?? true
+
         container.frame = frame
+        container.backgroundColor = .black
         player.view.frame = container.bounds
         player.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         container.addSubview(player.view)
 
-        if let params = args as? [String: Any], let url = params["url"] as? String {
-            player.setUrl(url)
+        volumeToolbar.translatesAutoresizingMaskIntoConstraints = false
+        volumeToolbar.isHidden = !showVolumeToolbar
+        container.addSubview(volumeToolbar)
+        NSLayoutConstraint.activate([
+            volumeToolbar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            volumeToolbar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            volumeToolbar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+
+        volumeToolbar.onVolumeChanged = { [weak self] volume in
+            guard let self else { return }
+            self.player.setVolume(volume)
+            self.volumeToolbar.sync(
+                volume: self.player.currentVolume(),
+                muted: self.player.isMuted(),
+            )
+        }
+        volumeToolbar.onMuteToggle = { [weak self] muted in
+            guard let self else { return }
+            self.player.setMute(muted)
+            self.volumeToolbar.sync(
+                volume: self.player.currentVolume(),
+                muted: self.player.isMuted(),
+            )
+        }
+
+        if let url = params?["url"] as? String {
+            player.switchVideoSource(url, autoPlay: false)
         }
 
         channel.setMethodCallHandler { [weak self] call, result in
@@ -45,6 +80,9 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
         case "pause":
             player.pause()
             result(nil)
+        case "stop":
+            player.stop()
+            result(nil)
         case "seekTo":
             let args = call.arguments as? [String: Any]
             let position = args?["position"] as? Int ?? 0
@@ -55,6 +93,48 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
             let mode = args?["mode"] as? Int ?? 0
             player.setRenderMode(mode)
             result(nil)
+        case "setRate":
+            let args = call.arguments as? [String: Any]
+            let rate = args?["rate"] as? Double ?? 1.0
+            player.setRate(rate)
+            result(nil)
+        case "setVolume":
+            let args = call.arguments as? [String: Any]
+            let volume = args?["volume"] as? Double ?? 1.0
+            player.setVolume(volume)
+            volumeToolbar.sync(volume: player.currentVolume(), muted: player.isMuted())
+            result(nil)
+        case "setMute":
+            let args = call.arguments as? [String: Any]
+            let muted = args?["muted"] as? Bool ?? false
+            player.setMute(muted)
+            volumeToolbar.sync(volume: player.currentVolume(), muted: player.isMuted())
+            result(nil)
+        case "switchVideoSource":
+            let args = call.arguments as? [String: Any]
+            let url = args?["url"] as? String ?? ""
+            let autoPlay = args?["autoPlay"] as? Bool ?? true
+            player.switchVideoSource(url, autoPlay: autoPlay)
+            result(nil)
+        case "getAudioTracks":
+            result(player.getAudioTracks())
+        case "selectAudioTrack":
+            let args = call.arguments as? [String: Any]
+            let index = args?["index"] as? Int ?? 0
+            if player.selectAudioTrack(index) {
+                result(nil)
+            } else {
+                result(FlutterError(code: "TRACK", message: "Audio track not found", details: nil))
+            }
+        case "getVideoSize":
+            result(player.getVideoSize())
+        case "setLooping":
+            let args = call.arguments as? [String: Any]
+            let looping = args?["looping"] as? Bool ?? false
+            player.setLooping(looping)
+            result(nil)
+        case "captureFrame":
+            result(player.captureFrame())
         case "sgSetVRMode":
             let args = call.arguments as? [String: Any]
             let enabled = args?["enabled"] as? Bool ?? false
@@ -65,8 +145,6 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView {
             let id = args?["id"] as? String ?? ""
             player.setSyncGroupId(id)
             result(nil)
-        case "gsySwitchRenderCore", "gsyToggleDanmaku":
-            result(FlutterMethodNotImplemented)
         case "dispose":
             channel.setMethodCallHandler(nil)
             player.release()

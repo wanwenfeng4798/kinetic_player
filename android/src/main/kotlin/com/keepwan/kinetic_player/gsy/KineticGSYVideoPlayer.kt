@@ -6,9 +6,12 @@ import android.content.res.Configuration
 import android.opengl.GLSurfaceView
 import android.util.AttributeSet
 import android.view.View
+import android.widget.ImageView
+import android.widget.SeekBar
 import com.shuyu.gsyvideoplayer.utils.CommonUtil
 import com.shuyu.gsyvideoplayer.video.StandardGSYVideoPlayer
 import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer
+import com.keepwan.kinetic_player.R
 
 /**
  * [StandardGSYVideoPlayer] for Flutter PlatformView with native-default behavior.
@@ -28,6 +31,19 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     var onDanmakuPlaybackPause: (() -> Unit)? = null
     var onDanmakuPlaybackComplete: (() -> Unit)? = null
 
+    /** Invoked when the native volume toolbar changes volume (0.0–1.0). */
+    var onVolumeChanged: ((Float) -> Unit)? = null
+
+    /** Invoked when the native volume icon toggles mute. */
+    var onMuteToggle: ((Boolean) -> Unit)? = null
+
+    private var volumeToolbar: View? = null
+    private var volumeSeekBar: SeekBar? = null
+    private var volumeIcon: ImageView? = null
+    private var volumeUiSyncing = false
+    internal var volumeToolbarMuted = false
+    internal var volumeToolbarLevel = 1f
+
     var uiConfig: GsyUiConfig
         get() = storedUiConfig ?: DEFAULT_UI_CONFIG
         set(value) {
@@ -43,7 +59,69 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         }
         super.init(context)
         wireNativeControls()
+        wireVolumeToolbar()
         applyUiConfig()
+    }
+
+    private fun wireVolumeToolbar() {
+        volumeToolbar = findViewById(R.id.layout_volume_toolbar)
+        volumeSeekBar = findViewById(R.id.volume_progress)
+        volumeIcon = findViewById(R.id.volume_icon)
+        volumeSeekBar?.progress = (volumeToolbarLevel * 100).toInt()
+        updateVolumeIcon()
+        volumeSeekBar?.setOnSeekBarChangeListener(
+            object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(
+                    seekBar: SeekBar?,
+                    progress: Int,
+                    fromUser: Boolean,
+                ) {
+                    if (!fromUser || volumeUiSyncing) return
+                    volumeToolbarMuted = progress == 0
+                    volumeToolbarLevel = progress / 100f
+                    updateVolumeIcon()
+                    if (progress > 0 && volumeToolbarMuted) {
+                        volumeToolbarMuted = false
+                        onMuteToggle?.invoke(false)
+                    }
+                    onVolumeChanged?.invoke(volumeToolbarLevel)
+                }
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+
+                override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+            },
+        )
+        volumeIcon?.setOnClickListener {
+            onMuteToggle?.invoke(!volumeToolbarMuted)
+        }
+    }
+
+    fun syncVolumeToolbar(
+        volume: Float,
+        muted: Boolean,
+    ) {
+        volumeToolbarLevel = volume.coerceIn(0f, 1f)
+        volumeToolbarMuted = muted
+        volumeUiSyncing = true
+        volumeSeekBar?.progress =
+            if (muted) {
+                0
+            } else {
+                (volumeToolbarLevel * 100).toInt().coerceIn(0, 100)
+            }
+        updateVolumeIcon()
+        volumeUiSyncing = false
+    }
+
+    private fun updateVolumeIcon() {
+        val iconRes =
+            if (volumeToolbarMuted || (volumeSeekBar?.progress ?: 0) == 0) {
+                R.drawable.kinetic_ic_volume_off
+            } else {
+                R.drawable.kinetic_ic_volume_on
+            }
+        volumeIcon?.setImageResource(iconRes)
     }
 
     private fun wireNativeControls() {
@@ -77,6 +155,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             setSeekOnStart(config.seekOnStartMs)
         }
         titleTextView?.text = config.videoTitle
+        volumeToolbar?.visibility =
+            if (config.showVolumeToolbar) View.VISIBLE else View.GONE
         applyEmbeddedChrome()
         fixControlOverlayLayering()
     }
@@ -96,6 +176,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         mStartButton?.bringToFront()
         mLockScreen?.bringToFront()
         mLoadingProgressBar?.bringToFront()
+        volumeToolbar?.bringToFront()
     }
 
     override fun onLayout(
@@ -185,6 +266,9 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         val fromPlayer = from as? KineticGSYVideoPlayer ?: return
         val toPlayer = to as? KineticGSYVideoPlayer ?: return
         toPlayer.uiConfig = fromPlayer.uiConfig
+        toPlayer.onVolumeChanged = fromPlayer.onVolumeChanged
+        toPlayer.onMuteToggle = fromPlayer.onMuteToggle
+        toPlayer.syncVolumeToolbar(fromPlayer.volumeToolbarLevel, fromPlayer.volumeToolbarMuted)
     }
 
     override fun startWindowFullscreen(
