@@ -19,6 +19,7 @@ allprojects {
         google()
         mavenCentral()
         maven(url = uri("https://maven.aliyun.com/repository/public"))
+        maven(url = uri("https://jitpack.io"))
     }
 }
 
@@ -79,6 +80,7 @@ dependencies {
     implementation("io.github.carguo:gsyvideoplayer-java:$gsyVersion")
     implementation("io.github.carguo:gsyvideoplayer-exo2:$gsyVersion")
     implementation("io.github.carguo:gsyvideoplayer-arm64:$gsyVersion")
+    implementation("com.github.bilibili:DanmakuFlameMaster:0.9.25")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")

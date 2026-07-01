@@ -5,6 +5,7 @@ import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Build
 import android.os.Handler
@@ -12,6 +13,7 @@ import android.os.Looper
 import android.util.Rational
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.ImageView
 import com.keepwan.kinetic_player.CommonPlayerState
 import com.keepwan.kinetic_player.ThrottledProgressReporter
 import com.shuyu.gsyvideoplayer.GSYVideoManager
@@ -32,6 +34,8 @@ import tv.danmaku.ijk.media.exo2.Exo2PlayerManager
 import com.shuyu.gsyvideoplayer.video.base.GSYVideoView
 import java.io.File
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.UUID
 
 interface GsyPlayerCallbacks {
@@ -48,12 +52,15 @@ class GsyNativePlayer(
     private val appContext = context.applicationContext
     private val container = FrameLayout(context)
     private val playerView = KineticPreViewGSYVideoPlayer(context)
+    private val danmakuController = GsyDanmakuController(container, playerView)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val cacheDir = File(appContext.cacheDir, "kinetic_player").apply { mkdirs() }
 
     private var uiConfig = initialUiConfig
-    private var danmakuOverlay: View? = null
     private var danmakuVisible = false
+    private var danmakuUrl: String? = null
+    private var watermarkView: ImageView? = null
+    private val midRollQueue = mutableListOf<Pair<Long, String>>()
     private var isPlaying = false
     private var currentUrl: String? = null
     private var playlist: List<String> = emptyList()
@@ -109,6 +116,8 @@ class GsyNativePlayer(
             override fun onPrepared(url: String?, vararg objects: Any?) {
                 callbacks.onPlayerStateChanged(CommonPlayerState.READY)
                 applyRenderTransform()
+                danmakuController.onPrepared()
+                danmakuUrl?.let { danmakuController.loadFromUrl(it) }
                 reportProgress(force = true)
             }
         }
@@ -239,6 +248,7 @@ class GsyNativePlayer(
     fun startPlayLogic() {
         playerView.startPlayLogic()
         isPlaying = true
+        danmakuController.onResume()
         emitMappedState(GSYVideoView.CURRENT_STATE_PLAYING)
         reportProgress(force = true)
     }
@@ -246,11 +256,13 @@ class GsyNativePlayer(
     fun onVideoPause() {
         playerView.onVideoPause()
         isPlaying = false
+        danmakuController.onPause()
         emitMappedState(GSYVideoView.CURRENT_STATE_PAUSE)
     }
 
     fun seekTo(positionMs: Int) {
         GSYVideoManager.instance().seekTo(positionMs.toLong())
+        danmakuController.onSeek(positionMs.toLong())
         reportProgress(force = true)
     }
 
@@ -454,19 +466,74 @@ class GsyNativePlayer(
 
     fun toggleDanmaku(enabled: Boolean) {
         danmakuVisible = enabled
-        if (enabled && danmakuOverlay == null) {
-            danmakuOverlay =
-                FrameLayout(appContext).apply {
-                    tag = "gsy_danmaku"
+        danmakuController.attachIfNeeded()
+        danmakuController.setVisible(enabled)
+    }
+
+    fun setDanmakuUrl(url: String?) {
+        danmakuUrl = url
+        if (!url.isNullOrEmpty()) {
+            danmakuController.attachIfNeeded()
+            danmakuController.loadFromUrl(url)
+            danmakuController.setVisible(danmakuVisible)
+        }
+    }
+
+    fun setMidRollAds(ads: List<Map<String, Any>>) {
+        midRollQueue.clear()
+        for (ad in ads) {
+            val atMs = (ad["atMs"] as? Number)?.toLong() ?: continue
+            val url = ad["url"] as? String ?: continue
+            midRollQueue.add(atMs to url)
+        }
+        midRollQueue.sortBy { it.first }
+    }
+
+    fun listExoVideoTracks(): List<Map<String, Any>> =
+        GsyExoTrackHelper.listVideoTracks().map {
+            mapOf(
+                "index" to it.index,
+                "label" to it.label,
+                "width" to it.width,
+                "height" to it.height,
+                "bitrate" to it.bitrate,
+                "selected" to it.selected,
+            )
+        }
+
+    fun selectExoVideoTrack(index: Int): Boolean = GsyExoTrackHelper.selectVideoTrack(index)
+
+    fun setWatermarkUrl(url: String?) {
+        if (url.isNullOrEmpty()) {
+            watermarkView?.visibility = View.GONE
+            return
+        }
+        if (watermarkView == null) {
+            watermarkView =
+                ImageView(appContext).apply {
                     layoutParams =
                         FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                        )
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                        ).apply {
+                            gravity = android.view.Gravity.TOP or android.view.Gravity.END
+                            topMargin = CommonUtil.dip2px(appContext, 8f)
+                            rightMargin = CommonUtil.dip2px(appContext, 8f)
+                        }
                 }
-            container.addView(danmakuOverlay)
+            container.addView(watermarkView)
         }
-        danmakuOverlay?.visibility = if (enabled) View.VISIBLE else View.GONE
+        watermarkView?.visibility = View.VISIBLE
+        Thread {
+            try {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.connect()
+                val bitmap = BitmapFactory.decodeStream(connection.inputStream)
+                mainHandler.post { watermarkView?.setImageBitmap(bitmap) }
+            } catch (_: Exception) {
+                // ignore
+            }
+        }.start()
     }
 
     fun enterPictureInPicture(): Boolean {
@@ -500,13 +567,25 @@ class GsyNativePlayer(
     private fun reportProgress(force: Boolean = false) {
         val positionMs = GSYVideoManager.instance().currentPosition
         val durationMs = playerView.duration.coerceAtLeast(0L)
+        checkMidRoll(positionMs)
         progressReporter.report(positionMs, durationMs, force)
+    }
+
+    private fun checkMidRoll(positionMs: Long) {
+        if (midRollQueue.isEmpty() || pendingContentUrl != null) return
+        val next = midRollQueue.first()
+        if (positionMs >= next.first) {
+            midRollQueue.removeAt(0)
+            val content = currentUrl ?: return
+            playWithPreRollAd(next.second, content)
+        }
     }
 
     fun release() {
         isPlaying = false
         mainHandler.removeCallbacks(progressRunnable)
         stopGifRecordingInternal(save = false)
+        danmakuController.release()
         GsyPlayerLifecycleRegistry.unregister(this)
         playerView.release()
         progressReporter.reset()

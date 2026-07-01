@@ -15,7 +15,6 @@ import com.keepwan.kinetic_player.R
 import com.shuyu.gsyvideoplayer.preview.GSYVideoPreviewFrame
 import com.shuyu.gsyvideoplayer.preview.GSYVideoPreviewProvider
 import com.shuyu.gsyvideoplayer.preview.GSYVideoPreviewVttParser
-import com.shuyu.gsyvideoplayer.utils.CommonUtil
 import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -26,8 +25,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
- * Progress-bar thumbnail preview (WebVTT), ported from GSY demo PreViewGSYVideoPlayer.
- * Uses BitmapFactory instead of Glide to avoid extra dependencies.
+ * WebVTT seek preview using GSY demo layout [R.layout.kinetic_video_layout_preview].
  */
 class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
 
@@ -48,42 +46,14 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
     private var previewLoadId = 0
     private var previewImageRequestId = 0
 
+    override fun getLayoutId(): Int = R.layout.kinetic_video_layout_preview
+
     override fun init(context: Context) {
         super.init(context)
-        initPreviewOverlay(context)
+        previewLayout = findViewById(R.id.preview_layout)
+        previewImage = findViewById(R.id.preview_image)
+        previewImage?.scaleType = ImageView.ScaleType.CENTER_CROP
         uiConfig.previewVttUrl?.let { setPreviewVttUrl(it) }
-    }
-
-    private fun initPreviewOverlay(context: Context) {
-        val previewWidth = CommonUtil.dip2px(context, PREVIEW_WIDTH_DP.toFloat())
-        val previewHeight = CommonUtil.dip2px(context, PREVIEW_HEIGHT_DP.toFloat())
-
-        val image =
-            ImageView(context).apply {
-                id = R.id.kinetic_preview_image
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                layoutParams =
-                    RelativeLayout.LayoutParams(previewWidth, previewHeight)
-            }
-
-        val layout =
-            RelativeLayout(context).apply {
-                id = R.id.kinetic_preview_layout
-                visibility = View.GONE
-                layoutParams =
-                    RelativeLayout.LayoutParams(
-                        RelativeLayout.LayoutParams.WRAP_CONTENT,
-                        RelativeLayout.LayoutParams.WRAP_CONTENT,
-                    ).apply {
-                        addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
-                        bottomMargin = CommonUtil.dip2px(context, 50f)
-                    }
-                addView(image)
-            }
-
-        addView(layout)
-        previewLayout = layout
-        previewImage = image
     }
 
     override fun onProgressChanged(
@@ -96,8 +66,8 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
 
         val width = seekBar.width
         val time = progress.toLong() * duration / 100
-        val halfPreview = CommonUtil.dip2px(context, PREVIEW_WIDTH_DP / 2f)
-        val offset = (width - halfPreview) / 100 * progress
+        val halfPreview = resources.getDimension(R.dimen.seek_bar_image) / 2f
+        val offset = ((width - halfPreview) / 100 * progress).toInt()
         showPreview(time)
 
         val layoutParams = previewLayout?.layoutParams as? RelativeLayout.LayoutParams ?: return
@@ -145,7 +115,7 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
         toPreview.previewVttUrl = fromPreview.previewVttUrl
         toPreview.previewProvider = fromPreview.previewProvider
         if (toPreview.previewProvider == null && !toPreview.previewVttUrl.isNullOrEmpty()) {
-            toPreview.loadPreviewVtt(toPreview.previewVttUrl!!)
+            toPreview.setPreviewVttUrl(toPreview.previewVttUrl)
         }
     }
 
@@ -197,20 +167,10 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
     private fun loadPreviewBitmap(frame: GSYVideoPreviewFrame): Bitmap? {
         val source = loadBitmap(frame.imageUrl) ?: return null
         return if (frame.hasCrop()) {
-            cropBitmap(
-                source,
-                frame.cropX,
-                frame.cropY,
-                frame.cropWidth,
-                frame.cropHeight,
-            )
+            cropBitmap(source, frame.cropX, frame.cropY, frame.cropWidth, frame.cropHeight)
         } else {
             source
         }
-    }
-
-    private fun loadPreviewVtt(url: String) {
-        loadPreviewVtt(url, ++previewLoadId)
     }
 
     private fun loadPreviewVtt(
@@ -254,10 +214,9 @@ class KineticPreViewGSYVideoPlayer : KineticGSYVideoPlayer {
     }
 
     companion object {
-        private const val PREVIEW_WIDTH_DP = 150
-        private const val PREVIEW_HEIGHT_DP = 100
         private val PREVIEW_EXECUTOR: ExecutorService = Executors.newSingleThreadExecutor()
-        private val BITMAP_CACHE = LruCache<String, Bitmap>((Runtime.getRuntime().maxMemory() / 1024 / 8).toInt())
+        private val BITMAP_CACHE =
+            LruCache<String, Bitmap>((Runtime.getRuntime().maxMemory() / 1024 / 8).toInt())
 
         private fun loadBitmap(url: String): Bitmap? {
             BITMAP_CACHE.get(url)?.let { return it }

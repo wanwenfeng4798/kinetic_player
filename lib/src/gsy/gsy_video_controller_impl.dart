@@ -186,6 +186,27 @@ class GSYVideoControllerImpl implements CommonVideoController {
 
   Future<void> gsyReleaseAllVideos() => _invoke('gsyReleaseAllVideos');
 
+  Future<void> gsySetDanmakuUrl(String? url) =>
+      _invoke('gsySetDanmakuUrl', {'url': url});
+
+  Future<void> gsySetMidRollAds(List<Map<String, dynamic>> ads) =>
+      _invoke('gsySetMidRollAds', {'ads': ads});
+
+  Future<List<Map<String, dynamic>>> gsyListExoVideoTracks() async {
+    final result =
+        await _channel.invokeMethod<List<Object?>>('gsyListExoVideoTracks');
+    return result?.cast<Map<String, dynamic>>() ?? const [];
+  }
+
+  Future<bool> gsySelectExoVideoTrack(int index) async {
+    final result =
+        await _channel.invokeMethod<bool>('gsySelectExoVideoTrack', {'index': index});
+    return result ?? false;
+  }
+
+  Future<void> gsySetWatermarkUrl(String? url) =>
+      _invoke('gsySetWatermarkUrl', {'url': url});
+
   @override
   Future<void> dispose() async {
     if (_isDisposed) return;

@@ -16,6 +16,9 @@ class GsyVideoPlatformView(
 ) : PlatformView, MethodChannel.MethodCallHandler {
     private val channel = MethodChannel(messenger, PlayerConstants.gsyChannelName(viewId))
     private val uiConfig = GsyUiConfig.fromCreationParams(creationParams)
+    private val playTag =
+        (creationParams?.get("playTag") as? String)?.takeIf { it.isNotEmpty() }
+            ?: "kinetic_$viewId"
     private val player =
         GsyNativePlayer(
             context,
@@ -38,7 +41,7 @@ class GsyVideoPlatformView(
                 }
             },
             initialUiConfig = uiConfig,
-            playTag = "kinetic_$viewId",
+            playTag = playTag,
         )
 
     init {
@@ -199,6 +202,25 @@ class GsyVideoPlatformView(
             "gsyEnterPictureInPicture" -> result.success(player.enterPictureInPicture())
             "gsyReleaseAllVideos" -> {
                 player.releaseAllVideos()
+                result.success(null)
+            }
+            "gsySetDanmakuUrl" -> {
+                player.setDanmakuUrl(call.argument<String>("url"))
+                result.success(null)
+            }
+            "gsySetMidRollAds" -> {
+                @Suppress("UNCHECKED_CAST")
+                val ads = call.argument<List<Map<String, Any>>>("ads") ?: emptyList()
+                player.setMidRollAds(ads)
+                result.success(null)
+            }
+            "gsyListExoVideoTracks" -> result.success(player.listExoVideoTracks())
+            "gsySelectExoVideoTrack" -> {
+                val ok = player.selectExoVideoTrack(call.argument<Int>("index") ?: 0)
+                result.success(ok)
+            }
+            "gsySetWatermarkUrl" -> {
+                player.setWatermarkUrl(call.argument<String>("url"))
                 result.success(null)
             }
             "sgSetVRMode", "sgSetSyncGroupId" -> result.notImplemented()

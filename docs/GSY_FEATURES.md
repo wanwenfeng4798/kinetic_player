@@ -17,7 +17,7 @@ Android 侧基于 **GSYVideoPlayer 13.0.0**（`io.github.carguo:gsyvideoplayer-*
 | 能力 | 状态 | API |
 |------|------|-----|
 | 26 种 GL 滤镜（马赛克、黑白、高斯模糊等） | ✅ | `gsySetRenderType(GsyRenderType.glSurface)` + `gsySetEffectFilter(name)` + `gsyListEffectFilters()` |
-| 水印 / 画面多重播放 | ❌ | GSY Demo 层自定义布局，非 Standard 播放器内置 |
+| 水印 / 画面多重播放 | ⚠️ | `gsySetWatermarkUrl(url)` 右上角图片 overlay；多重同播需自定义布局 |
 
 ---
 
@@ -64,7 +64,7 @@ Android 侧基于 **GSYVideoPlayer 13.0.0**（`io.github.carguo:gsyvideoplayer-*
 | AliPlayer | ❌ | Maven 13.0.0 无 `gsyvideoplayer-ali` 模块 |
 | 自定义内核 | ⚠️ | 需 fork 插件注册 `PlayerFactory.setPlayManager` |
 
-Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道需 Exo `TrackSelector`（未暴露 UI，可后续扩展）。
+Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 `gsyListExoVideoTracks` / `gsySelectExoVideoTrack`。
 
 ---
 
@@ -74,7 +74,7 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道需 
 |------|------|-----|
 | 全屏 / 非全屏两套布局 | ✅ | 原生 `startWindowFullscreen` + `GsyUiConfig` |
 | 无控件纯播放 | ✅ | `gsySetPurePlayMode(enabled: true)` |
-| 弹幕 | ⚠️ | `gsyToggleDanmaku` 创建 overlay 层；完整 DanmakuFlameMaster 需额外集成 |
+| 弹幕 | ✅ | `gsySetDanmakuUrl(url)` + `gsyToggleDanmaku(enabled)`（DanmakuFlameMaster + B 站 XML） |
 | 继承自定义布局 | ⚠️ | fork `KineticGSYVideoPlayer` 并重写 `getLayoutId()` |
 
 ---
@@ -85,8 +85,8 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道需 
 |------|------|------|
 | 单例播放 | ✅ | `gsyReleaseAllVideos()` |
 | 多实例同时播放 | ✅ | 每 PlatformView 独立 `playTag` |
-| 列表滑动自动播放 | ⚠️ | Flutter 层 `ScrollController` + 可见性检测后 `play()` |
-| 详情页无缝切换 | ⚠️ | Flutter 层 Hero / 共享 `playTag` 模式，需业务编排 |
+| 列表滑动自动播放 | ⚠️ | `GsyAutoPlayVideoList` / `GsyAutoPlayCoordinator`（可见性检测，非 GSY ListGSYVideoPlayer） |
+| 详情页无缝切换 | ⚠️ | `creationParams['playTag']` + `gsySeamlessHandoffParams()` 共享同一 playTag |
 
 ---
 
@@ -104,7 +104,7 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道需 
 | 能力 | 状态 | API |
 |------|------|-----|
 | 片头广告 + 跳过 | ⚠️ | `gsyPlayWithPreRollAd(adUrl, contentUrl)`（广告播完自动切正片） |
-| 中间插入广告 | ❌ | 需 `GSYADVideoPlayer` 双播放器编排（未完整移植） |
+| 中间插入广告 | ⚠️ | `gsySetMidRollAds([{positionMs, adUrl, contentUrl}])` 进度触发片头广告逻辑；完整 `GSYADVideoPlayer` UI 未移植 |
 
 ---
 
@@ -123,7 +123,7 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道需 
 | 能力 | 状态 | 说明 |
 |------|------|------|
 | Exo DASH 播放 | ✅ | 使用 Exo 内核 + DASH URL 即可 |
-| HLS/DASH 轨道切换 UI | ❌ | GSY Demo 级能力，需 Exo TrackSelector API 扩展 |
+| HLS/DASH 轨道切换 UI | ⚠️ | `gsyListExoVideoTracks()` / `gsySelectExoVideoTrack(index)`（无 Demo 级 UI） |
 
 ---
 
@@ -137,5 +137,9 @@ if (controller is GSYVideoControllerImpl) {
   await controller.gsySetSubtitleUrl('https://example.com/subs.vtt');
   final path = await controller.gsyTakeScreenshot(withView: true);
   await controller.gsySetPlaylist(['url1', 'url2']);
+  await controller.gsySetDanmakuUrl('https://example.com/danmaku.xml');
+  await controller.gsyToggleDanmaku(enabled: true);
+  final tracks = await controller.gsyListExoVideoTracks();
+  if (tracks.isNotEmpty) await controller.gsySelectExoVideoTrack(0);
 }
 ```
