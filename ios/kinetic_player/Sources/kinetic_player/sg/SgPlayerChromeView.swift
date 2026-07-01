@@ -85,6 +85,8 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         let updates = {
             self.bottomPanel.alpha = alpha
             self.centerPlayButton.alpha = alpha
+            self.bottomPanel.isUserInteractionEnabled = visible
+            self.centerPlayButton.isUserInteractionEnabled = visible
             if !visible {
                 self.hideAudioPanel()
                 self.hideSettingsPanel()
@@ -165,6 +167,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
         audioPanel.translatesAutoresizingMaskIntoConstraints = false
         audioPanel.isHidden = true
+        audioPanel.isUserInteractionEnabled = false
         audioPanel.onVolumeChanged = { [weak self] volume in
             guard let self else { return }
             self.volumeLevel = volume
@@ -177,6 +180,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
         settingsPanel.translatesAutoresizingMaskIntoConstraints = false
         settingsPanel.isHidden = true
+        settingsPanel.isUserInteractionEnabled = false
         settingsPanel.onSelectTrack = { [weak self] index in
             guard let self else { return }
             self.delegate?.chromeDidSelectAudioTrack(index: index)
@@ -237,6 +241,8 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         if !config.showSettingsButton {
             hideSettingsPanel()
         }
+        bottomPanel.isUserInteractionEnabled = controlsVisible
+        centerPlayButton.isUserInteractionEnabled = controlsVisible
     }
 
     private func updateCenterPlayIcon() {
@@ -269,6 +275,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func showAudioPanel() {
         audioPanel.isHidden = false
+        audioPanel.isUserInteractionEnabled = true
         audioPanelVisible = true
         bringSubviewToFront(audioPanel)
         hideTimer?.invalidate()
@@ -276,6 +283,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func hideAudioPanel() {
         audioPanel.isHidden = true
+        audioPanel.isUserInteractionEnabled = false
         audioPanelVisible = false
         scheduleAutoHide()
     }
@@ -283,6 +291,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private func showSettingsPanel() {
         reloadSettingsTracks()
         settingsPanel.isHidden = false
+        settingsPanel.isUserInteractionEnabled = true
         settingsPanelVisible = true
         bringSubviewToFront(settingsPanel)
         hideTimer?.invalidate()
@@ -290,6 +299,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func hideSettingsPanel() {
         settingsPanel.isHidden = true
+        settingsPanel.isUserInteractionEnabled = false
         settingsPanelVisible = false
         scheduleAutoHide()
     }
@@ -324,16 +334,36 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         let point = touch.location(in: self)
-        if audioPanel.frame.contains(point) || settingsPanel.frame.contains(point) {
+        if audioPanelVisible, audioPanel.frame.contains(point) {
             return false
         }
-        if bottomPanel.frame.contains(point) {
+        if settingsPanelVisible, settingsPanel.frame.contains(point) {
             return false
         }
-        if centerPlayButton.frame.contains(point) {
-            return false
+        if controlsVisible {
+            if centerPlayButton.frame.contains(point) {
+                return false
+            }
+            if touchHitsInteractiveControl(at: point) {
+                return false
+            }
         }
         return true
+    }
+
+    private func touchHitsInteractiveControl(at point: CGPoint) -> Bool {
+        for control in [
+            progressSlider,
+            settingsButton,
+            volumeButton,
+            fullscreenButton,
+        ] {
+            let frame = control.convert(control.bounds, to: self)
+            if frame.contains(point) {
+                return true
+            }
+        }
+        return false
     }
 
     @objc private func centerPlayTapped() {

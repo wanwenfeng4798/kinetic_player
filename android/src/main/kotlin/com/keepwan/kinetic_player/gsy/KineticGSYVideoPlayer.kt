@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import android.opengl.GLSurfaceView
 import android.util.AttributeSet
 import android.graphics.Color
+import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -289,6 +290,28 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (settingsPanelVisible) {
             settingsPanel?.bringToFront()
         }
+        syncBottomChromeTouchPassthrough()
+    }
+
+    /**
+     * GSY keeps the bottom bar INVISIBLE when controls hide, but it still intercepts touches
+     * on the lower-right region. Forward those taps to [onClickUiToggle].
+     */
+    private fun syncBottomChromeTouchPassthrough() {
+        val bottom = mBottomContainer ?: return
+        val controlsVisible = bottom.visibility == View.VISIBLE
+        if (controlsVisible) {
+            bottom.setOnTouchListener(null)
+            bottom.isClickable = true
+            return
+        }
+        bottom.isClickable = false
+        bottom.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_UP) {
+                onClickUiToggle()
+            }
+            true
+        }
     }
 
     override fun onLayout(
@@ -313,6 +336,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         hideAudioPanel()
         hideSettingsPanel()
         super.changeUiToPlayingClear()
+        syncBottomChromeTouchPassthrough()
     }
 
     override fun changeUiToPauseShow() {
@@ -324,6 +348,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         hideAudioPanel()
         hideSettingsPanel()
         super.changeUiToPauseClear()
+        syncBottomChromeTouchPassthrough()
     }
 
     override fun changeUiToCompleteShow() {
