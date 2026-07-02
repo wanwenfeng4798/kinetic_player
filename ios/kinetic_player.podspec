@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.version          = '0.0.1'
   s.summary          = 'Dual-core video player: SGPlayer on iOS.'
   s.description      = <<-DESC
-Flutter video player plugin. iOS uses libobjc/SGPlayer master; Android uses GSYVideoPlayer 13.0.0.
+Flutter video player plugin. iOS uses libobjc/SGPlayer master; Android uses GSYVideoPlayer 13.1.0.
 SGPlayer.xcframework is built on first `pod install` or `bash ios/scripts/build_sgplayer.sh` (30-60 min first run).
 Shared artifact supports CocoaPods (vendored_frameworks) and Swift Package Manager (binaryTarget).
                        DESC

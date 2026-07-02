@@ -1,6 +1,6 @@
 # GSY 高级能力对照表
 
-Android 侧基于 **GSYVideoPlayer 13.0.0**（`io.github.carguo:gsyvideoplayer-*`）。iOS 仍为 SGPlayer，不含下列 GSY 能力。
+Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*`）。iOS 仍为 SGPlayer，不含下列 GSY 能力。
 
 ## 图例
 
@@ -61,7 +61,7 @@ Android 侧基于 **GSYVideoPlayer 13.0.0**（`io.github.carguo:gsyvideoplayer-*
 | IJKPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.ijk)` |
 | Media3 (Exo2) | ✅ | `gsySwitchRenderCore(GsyRenderCore.exo)` |
 | MediaPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.system)` |
-| AliPlayer | ❌ | Maven 13.0.0 无 `gsyvideoplayer-ali` 模块 |
+| AliPlayer | ❌ | Maven 13.1.0 无 `gsyvideoplayer-ali` 模块 |
 | 自定义内核 | ⚠️ | 需 fork 插件注册 `PlayerFactory.setPlayManager` |
 
 Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 `gsyListExoVideoTracks` / `gsySelectExoVideoTrack`。

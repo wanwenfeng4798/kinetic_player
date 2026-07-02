@@ -1,6 +1,6 @@
 # kinetic_player
 
-双核 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.0.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS** 使用 [libobjc/SGPlayer](https://github.com/libobjc/SGPlayer)（master）。
+双核 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS** 使用 [libobjc/SGPlayer](https://github.com/libobjc/SGPlayer)（master）。
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
@@ -83,7 +83,7 @@ CommonVideoPlayerViewBuilder(
 
 | 平台 | 内核 | 真机 | 模拟器 | 画中画 |
 |------|------|------|--------|--------|
-| Android | GSYVideoPlayer 13.0.0 | ✅ | ✅ | ✅ 默认开启 |
+| Android | GSYVideoPlayer 13.1.0 | ✅ | ✅ | ✅ 默认开启 |
 | iOS | SGPlayer master | ✅ | ❌（FFmpeg 预编译仅 arm64 真机） | ❌ |
 
 ## 许可证

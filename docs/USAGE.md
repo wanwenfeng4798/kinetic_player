@@ -40,9 +40,9 @@ flutter:
 
 无需额外步骤。GSYVideoPlayer 通过 Gradle Maven 依赖自动拉取：
 
-- `io.github.carguo:gsyvideoplayer-java:13.0.0`
-- `io.github.carguo:gsyvideoplayer-exo2:13.0.0`
-- `io.github.carguo:gsyvideoplayer-arm64:13.0.0`
+- `io.github.carguo:gsyvideoplayer-java:13.1.0`
+- `io.github.carguo:gsyvideoplayer-exo2:13.1.0`
+- `io.github.carguo:gsyvideoplayer-arm64:13.1.0`
 
 **画中画（PiP）** 需在宿主 Activity 的 `AndroidManifest.xml` 中声明：
 

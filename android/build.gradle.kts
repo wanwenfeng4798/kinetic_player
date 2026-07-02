@@ -2,14 +2,14 @@ group = "com.keepwan.kinetic_player"
 version = "1.0-SNAPSHOT"
 
 buildscript {
-    val kotlinVersion = "2.3.20"
+    val kotlinVersion = "2.4.0"
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:9.0.1")
+        classpath("com.android.tools.build:gradle:9.2.1")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
@@ -74,9 +74,9 @@ kotlin {
 }
 
 dependencies {
-    val gsyVersion = "13.0.0"
+    val gsyVersion = "13.1.0"
 
-    // Android-only: GSYVideoPlayer v13.0.0 (Maven Central, recommended).
+    // Android-only: GSYVideoPlayer v13.1.0 (Maven Central, recommended).
     implementation("io.github.carguo:gsyvideoplayer-java:$gsyVersion")
     implementation("io.github.carguo:gsyvideoplayer-exo2:$gsyVersion")
     implementation("io.github.carguo:gsyvideoplayer-arm64:$gsyVersion")
