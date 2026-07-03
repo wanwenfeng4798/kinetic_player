@@ -59,6 +59,7 @@
   }
   [self emitState:0];
   [_player replaceWithURL:url];
+  [self applySavedVolume];
   if (autoPlay) {
     [_player play];
   }
@@ -71,6 +72,7 @@
     return;
   }
   [_player play];
+  [self applySavedVolume];
 }
 
 - (void)pause {
@@ -96,16 +98,16 @@
     _muted = NO;
   }
   _savedVolume = clamped;
-  _player.audioRenderer.volume = _muted ? 0.0 : clamped;
+  [self applySavedVolume];
 }
 
 - (void)setMuted:(BOOL)muted {
   _muted = muted;
-  if (muted) {
-    _player.audioRenderer.volume = 0.0;
-  } else {
-    _player.audioRenderer.volume = _savedVolume;
-  }
+  [self applySavedVolume];
+}
+
+- (void)applySavedVolume {
+  _player.audioRenderer.volume = _muted ? 0.0 : _savedVolume;
 }
 
 - (NSArray<NSDictionary *> *)getAudioTracks {
@@ -209,6 +211,7 @@
                     return;
                   }
                   [weakSelf.player play];
+                  [weakSelf applySavedVolume];
                 }];
 }
 
@@ -232,7 +235,7 @@
 }
 
 - (double)currentVolume {
-  return _muted ? _savedVolume : _player.audioRenderer.volume;
+  return _savedVolume;
 }
 
 - (BOOL)isMuted {
@@ -282,6 +285,9 @@
 
   if (action & SGInfoActionState) {
     [self emitState:[self mapCommonState:stateInfo]];
+    if (stateInfo.playback & SGPlaybackStatePlaying) {
+      [self applySavedVolume];
+    }
     if ((stateInfo.playback & SGPlaybackStateFinished) && self.looping) {
       [self replayFromBeginning];
     }

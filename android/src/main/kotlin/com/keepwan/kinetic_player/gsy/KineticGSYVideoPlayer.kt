@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.text.TextUtils
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
@@ -55,10 +56,12 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     private var volumeTrigger: ImageView? = null
     private var settingsTrigger: ImageView? = null
     private var audioPanelVolumeSeekBar: SeekBar? = null
+    private var audioPanelVolumeValue: TextView? = null
     private var settingsPanelTrackList: LinearLayout? = null
     private var audioPanelVisible = false
     private var settingsPanelVisible = false
     private var volumeUiSyncing = false
+    private var volumeDragging = false
     internal var volumeToolbarMuted = false
     internal var volumeToolbarLevel = 1f
 
@@ -93,8 +96,29 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         audioPanel = findViewById(R.id.audio_panel)
         volumeTrigger = findViewById(R.id.volume_trigger)
         audioPanelVolumeSeekBar = findViewById(R.id.audio_panel_volume)
+        audioPanelVolumeValue = findViewById(R.id.audio_panel_volume_value)
         audioPanelVolumeSeekBar?.progress = (volumeToolbarLevel * 100).toInt()
         updateVolumeIcon()
+        (audioPanel as? ViewGroup)?.apply {
+            clipChildren = false
+            clipToPadding = false
+        }
+        audioPanel?.setOnTouchListener { view, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN ||
+                event.actionMasked == MotionEvent.ACTION_MOVE
+            ) {
+                view.parent?.requestDisallowInterceptTouchEvent(true)
+            }
+            false
+        }
+        audioPanelVolumeSeekBar?.setOnTouchListener { view, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN ||
+                event.actionMasked == MotionEvent.ACTION_MOVE
+            ) {
+                view.parent?.requestDisallowInterceptTouchEvent(true)
+            }
+            false
+        }
         audioPanelVolumeSeekBar?.setOnSeekBarChangeListener(
             object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(
@@ -106,6 +130,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     volumeToolbarMuted = progress == 0
                     volumeToolbarLevel = progress / 100f
                     updateVolumeIcon()
+                    updateVolumeValueLabel(progress)
                     if (progress > 0 && volumeToolbarMuted) {
                         volumeToolbarMuted = false
                         onMuteToggle?.invoke(false)
@@ -113,9 +138,16 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     onVolumeChanged?.invoke(volumeToolbarLevel)
                 }
 
-                override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                    volumeDragging = true
+                    val progress = seekBar?.progress ?: 0
+                    showVolumeValueLabel(progress)
+                }
 
-                override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    volumeDragging = false
+                    hideVolumeValueLabel()
+                }
             },
         )
         volumeTrigger?.setOnClickListener { toggleAudioPanel() }
@@ -153,6 +185,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     fun hideAudioPanel() {
         audioPanel?.visibility = View.GONE
         audioPanelVisible = false
+        volumeDragging = false
+        hideVolumeValueLabel()
     }
 
     private fun showSettingsPanel() {
@@ -227,6 +261,13 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             }
         updateVolumeIcon()
         volumeUiSyncing = false
+        if (volumeDragging) {
+            updateVolumeValueLabel(
+                audioPanelVolumeSeekBar?.progress ?: (volumeToolbarLevel * 100).toInt(),
+            )
+        } else {
+            hideVolumeValueLabel()
+        }
     }
 
     private fun updateVolumeIcon() {
@@ -239,7 +280,29 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         volumeTrigger?.setImageResource(iconRes)
     }
 
+    private fun showVolumeValueLabel(progress: Int) {
+        audioPanelVolumeValue?.apply {
+            text = formatVolumePercent(progress)
+            visibility = View.VISIBLE
+        }
+    }
+
+    private fun updateVolumeValueLabel(progress: Int) {
+        if (audioPanelVolumeValue?.visibility != View.VISIBLE) return
+        audioPanelVolumeValue?.text = formatVolumePercent(progress)
+    }
+
+    private fun hideVolumeValueLabel() {
+        audioPanelVolumeValue?.visibility = View.GONE
+    }
+
+    private fun formatVolumePercent(progress: Int): String =
+        "${progress.coerceIn(0, 100)}%"
+
     private fun wireNativeControls() {
+        setEnlargeImageRes(R.drawable.kinetic_ic_fullscreen)
+        setShrinkImageRes(R.drawable.kinetic_ic_fullscreen_exit)
+        fullscreenButton?.scaleType = ImageView.ScaleType.CENTER_INSIDE
         fullscreenButton?.setOnClickListener {
             toggleWindowFullscreen()
         }
@@ -279,6 +342,9 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         }
         if (!config.showSettingsButton) {
             hideSettingsPanel()
+        }
+        if (config.showVolumeToolbar) {
+            dismissVolumeDialog()
         }
         applyEmbeddedChrome()
         fixControlOverlayLayering()
@@ -476,6 +542,20 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         super.onAutoCompletion()
         onDanmakuPlaybackComplete?.invoke()
     }
+
+    override fun touchSurfaceMoveFullLogic(absDeltaX: Float, absDeltaY: Float) {
+        super.touchSurfaceMoveFullLogic(absDeltaX, absDeltaY)
+        if (shouldUseCustomVolumeToolbar()) {
+            mChangeVolume = false
+        }
+    }
+
+    override fun showVolumeDialog(deltaY: Float, volumePercent: Int) {
+        if (shouldUseCustomVolumeToolbar()) return
+        super.showVolumeDialog(deltaY, volumePercent)
+    }
+
+    private fun shouldUseCustomVolumeToolbar(): Boolean = uiConfig.showVolumeToolbar
 
     fun toggleWindowFullscreen() {
         val activity = CommonUtil.scanForActivity(context) as? Activity ?: return

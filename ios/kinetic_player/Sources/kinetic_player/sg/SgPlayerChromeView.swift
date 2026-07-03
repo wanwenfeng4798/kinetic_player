@@ -14,6 +14,13 @@ protocol SgPlayerChromeDelegate: AnyObject {
 final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     weak var delegate: SgPlayerChromeDelegate?
 
+    private static let toolbarIconPointSize: CGFloat = 17
+    private static let toolbarButtonSize: CGFloat = 28
+    private static let toolbarSymbolConfig = UIImage.SymbolConfiguration(
+        pointSize: toolbarIconPointSize,
+        weight: .medium,
+    )
+
     private let config: SgUiConfig
     private let bottomPanel = UIView()
     private let progressRow = UIStackView()
@@ -40,6 +47,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     init(config: SgUiConfig) {
         self.config = config
         super.init(frame: .zero)
+        clipsToBounds = false
         isUserInteractionEnabled = true
         setupViews()
         applyConfig()
@@ -110,7 +118,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     func updateFullscreenIcon(isFullscreen: Bool) {
         let symbol = isFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right"
-        fullscreenButton.setImage(UIImage(systemName: symbol), for: .normal)
+        setToolbarSymbol(fullscreenButton, systemName: symbol)
     }
 
     private func setupViews() {
@@ -143,18 +151,15 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         progressSlider.addTarget(self, action: #selector(sliderChanged), for: .valueChanged)
         progressSlider.addTarget(self, action: #selector(sliderTouchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
 
-        settingsButton.tintColor = .white
-        settingsButton.setImage(UIImage(systemName: "gearshape.fill"), for: .normal)
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
-        settingsButton.setContentHuggingPriority(.required, for: .horizontal)
+        styleToolbarButton(settingsButton)
+        setToolbarSymbol(settingsButton, systemName: "gearshape.fill")
 
-        volumeButton.tintColor = .white
         volumeButton.addTarget(self, action: #selector(volumeTapped), for: .touchUpInside)
-        volumeButton.setContentHuggingPriority(.required, for: .horizontal)
+        styleToolbarButton(volumeButton)
 
-        fullscreenButton.tintColor = .white
         fullscreenButton.addTarget(self, action: #selector(fullscreenTapped), for: .touchUpInside)
-        fullscreenButton.setContentHuggingPriority(.required, for: .horizontal)
+        styleToolbarButton(fullscreenButton)
 
         progressRow.addArrangedSubview(currentTimeLabel)
         progressRow.addArrangedSubview(progressSlider)
@@ -252,7 +257,22 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func updateVolumeIcon() {
         let symbolName = muted || volumeLevel <= 0.001 ? "speaker.slash.fill" : "speaker.wave.2.fill"
-        volumeButton.setImage(UIImage(systemName: symbolName), for: .normal)
+        setToolbarSymbol(volumeButton, systemName: symbolName)
+    }
+
+    private func styleToolbarButton(_ button: UIButton) {
+        button.tintColor = .white
+        button.setContentHuggingPriority(.required, for: .horizontal)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: Self.toolbarButtonSize),
+            button.heightAnchor.constraint(equalToConstant: Self.toolbarButtonSize),
+        ])
+    }
+
+    private func setToolbarSymbol(_ button: UIButton, systemName: String) {
+        let image = UIImage(systemName: systemName, withConfiguration: Self.toolbarSymbolConfig)
+        button.setImage(image, for: .normal)
     }
 
     private func toggleAudioPanel() {

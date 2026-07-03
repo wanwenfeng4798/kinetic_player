@@ -121,6 +121,7 @@ class GsyNativePlayer(
             override fun onPrepared(url: String?, vararg objects: Any?) {
                 callbacks.onPlayerStateChanged(CommonPlayerState.READY)
                 applyRenderTransform()
+                applySavedVolume()
                 playerView.fixControlOverlayLayering()
                 danmakuController.onPrepared()
                 danmakuUrl?.let { danmakuController.loadFromUrl(it) }
@@ -131,7 +132,10 @@ class GsyNativePlayer(
 
     init {
         playerView.uiConfig = initialUiConfig
-        playerView.onDanmakuPlaybackStart = { danmakuController.onPlaybackStart() }
+        playerView.onDanmakuPlaybackStart = {
+            danmakuController.onPlaybackStart()
+            applySavedVolume()
+        }
         playerView.onDanmakuPlaybackPause = { danmakuController.onPause() }
         playerView.onDanmakuPlaybackComplete = { danmakuController.onPlaybackComplete() }
         container.addView(
@@ -267,6 +271,7 @@ class GsyNativePlayer(
         }
         playerView.startPlayLogic()
         isPlaying = true
+        applySavedVolume()
         emitMappedState(GSYVideoView.CURRENT_STATE_PLAYING)
         reportProgress(force = true)
         syncPictureInPictureParams()
@@ -292,21 +297,23 @@ class GsyNativePlayer(
         val clamped = volume.coerceIn(0f, 1f)
         if (clamped > 0f && muted) {
             muted = false
-            GSYVideoManager.instance().curPlayerManager?.setNeedMute(false)
         }
         savedVolume = clamped
-        GSYVideoManager.instance().curPlayerManager?.setVolume(clamped, clamped)
-        playerView.syncVolumeToolbar(clamped, muted)
+        applySavedVolume()
     }
 
     fun setMute(muted: Boolean) {
         this.muted = muted
+        applySavedVolume()
+    }
+
+    private fun applySavedVolume() {
+        val manager = GSYVideoManager.instance().curPlayerManager
         if (muted) {
-            GSYVideoManager.instance().curPlayerManager?.setNeedMute(true)
+            manager?.setNeedMute(true)
         } else {
-            GSYVideoManager.instance().curPlayerManager?.setNeedMute(false)
-            setVolume(savedVolume)
-            return
+            manager?.setNeedMute(false)
+            manager?.setVolume(savedVolume, savedVolume)
         }
         playerView.syncVolumeToolbar(savedVolume, muted)
     }

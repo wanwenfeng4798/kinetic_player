@@ -69,6 +69,9 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
     func onPlayerStateChanged(_ state: CommonPlayerState) {
         isPlaying = state == .playing
         chrome.updatePlayState(isPlaying: isPlaying)
+        if state == .playing {
+            chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
+        }
         if state == .paused || state == .completed || state == .idle {
             chrome.setControlsVisible(true, animated: true)
         }
