@@ -62,6 +62,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     private var settingsPanelVisible = false
     private var volumeUiSyncing = false
     private var volumeDragging = false
+    private var gestureDownPlayerVolume = 1f
     internal var volumeToolbarMuted = false
     internal var volumeToolbarLevel = 1f
 
@@ -180,6 +181,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             panelWidthRes = R.dimen.kinetic_audio_panel_width,
         )
         audioPanel?.bringToFront()
+        syncGestureVolumeDuringPanelInteraction()
     }
 
     fun hideAudioPanel() {
@@ -187,6 +189,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         audioPanelVisible = false
         volumeDragging = false
         hideVolumeValueLabel()
+        syncGestureVolumeDuringPanelInteraction()
     }
 
     private fun showSettingsPanel() {
@@ -343,9 +346,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (!config.showSettingsButton) {
             hideSettingsPanel()
         }
-        if (config.showVolumeToolbar) {
-            dismissVolumeDialog()
-        }
+        syncGestureVolumeDuringPanelInteraction()
         applyEmbeddedChrome()
         fixControlOverlayLayering()
     }
@@ -544,18 +545,76 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     }
 
     override fun touchSurfaceMoveFullLogic(absDeltaX: Float, absDeltaY: Float) {
+        val wasChangingVolume = mChangeVolume
         super.touchSurfaceMoveFullLogic(absDeltaX, absDeltaY)
-        if (shouldUseCustomVolumeToolbar()) {
+        if (shouldBlockGestureVolume()) {
             mChangeVolume = false
+            dismissVolumeDialog()
+            return
+        }
+        if (isCustomVolumeToolbarEnabled() && mChangeVolume && !wasChangingVolume) {
+            gestureDownPlayerVolume =
+                if (volumeToolbarMuted) {
+                    0f
+                } else {
+                    volumeToolbarLevel
+                }
         }
     }
 
-    override fun showVolumeDialog(deltaY: Float, volumePercent: Int) {
-        if (shouldUseCustomVolumeToolbar()) return
-        super.showVolumeDialog(deltaY, volumePercent)
+    override fun touchSurfaceMove(
+        deltaX: Float,
+        deltaY: Float,
+        y: Float,
+    ) {
+        if (shouldBlockGestureVolume()) {
+            if (mChangeVolume) {
+                mChangeVolume = false
+                dismissVolumeDialog()
+            }
+            super.touchSurfaceMove(deltaX, deltaY, y)
+            return
+        }
+        if (isCustomVolumeToolbarEnabled() && mChangeVolume) {
+            applyPlayerVolumeGesture(deltaY)
+            return
+        }
+        super.touchSurfaceMove(deltaX, deltaY, y)
     }
 
-    private fun shouldUseCustomVolumeToolbar(): Boolean = uiConfig.showVolumeToolbar
+    /**
+     * Custom volume toolbar uses player volume; map swipe gestures to the same path
+     * instead of system [android.media.AudioManager] volume.
+     */
+    private fun applyPlayerVolumeGesture(deltaY: Float) {
+        val curHeight =
+            if (getActivityContext() != null) {
+                val activity = getActivityContext() as Activity
+                if (CommonUtil.getCurrentScreenLand(activity)) mScreenWidth else mScreenHeight
+            } else {
+                mScreenHeight
+            }
+        if (curHeight <= 0) return
+        val adjustedDeltaY = -deltaY
+        val volumePercent =
+            (
+                gestureDownPlayerVolume * 100 + adjustedDeltaY * 3 * 100 / curHeight
+            ).toInt().coerceIn(0, 100)
+        onVolumeChanged?.invoke(volumePercent / 100f)
+        showVolumeDialog(-adjustedDeltaY, volumePercent)
+    }
+
+    /** Block swipe volume only while the vertical volume popup is open or being dragged. */
+    private fun shouldBlockGestureVolume(): Boolean = audioPanelVisible || volumeDragging
+
+    private fun isCustomVolumeToolbarEnabled(): Boolean = uiConfig.showVolumeToolbar
+
+    private fun syncGestureVolumeDuringPanelInteraction() {
+        if (shouldBlockGestureVolume()) {
+            mChangeVolume = false
+            dismissVolumeDialog()
+        }
+    }
 
     fun toggleWindowFullscreen() {
         val activity = CommonUtil.scanForActivity(context) as? Activity ?: return

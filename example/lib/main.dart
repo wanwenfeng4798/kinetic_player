@@ -415,11 +415,11 @@ class _ControlPanelState extends State<_ControlPanel> {
         children: [
           ValueListenableBuilder<CommonPlayerState>(
             valueListenable: active?.playerState ?? _idleState,
-            builder: (_, state, _) => Text('State: $state'),
+            builder: (_, state, widget) => Text('State: $state'),
           ),
           ValueListenableBuilder<Duration>(
             valueListenable: active?.position ?? _zeroDuration,
-            builder: (_, position, _) {
+            builder: (_, position, widget) {
               final duration = active?.duration.value ?? Duration.zero;
               return Text('${_format(position)} / ${_format(duration)}');
             },
