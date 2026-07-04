@@ -1,36 +1,46 @@
+## 0.0.2
+
+### Fixes & Optimizations
+
+- **Audio Track & Gesture Fixes**: Fixed an issue where audio track settings were reset upon replay, and resolved conflicts between audio track settings and gesture operations.
+- **Audio Control Fixes**: Fixed conflicts between the audio track bar and gesture-based volume adjustments.
+- **Example Optimization**: Optimized the example project to prevent the application from failing to open after enabling code obfuscation (ProGuard) on Android.
+
+---
+
 ## 0.0.1
 
-### 公共 API
+### Public API
 
-- 统一 `CommonVideoController`：`play` / `pause` / `stop` / `seekTo` / `setScaleMode` / `setRate` / `setVolume` / `setMute` / `switchVideoSource` / `getAudioTracks` / `selectAudioTrack` / `getDuration` / `getCurrentPosition` / `getVideoSize` / `setLooping` / `captureFrame` / `dispose`
-- 双端 MethodChannel 状态与进度回调（`onPlayerStateChanged` / `onPositionChanged`，约 250ms 节流）
+- Unified `CommonVideoController`: `play` / `pause` / `stop` / `seekTo` / `setScaleMode` / `setRate` / `setVolume` / `setMute` / `switchVideoSource` / `getAudioTracks` / `selectAudioTrack` / `getDuration` / `getCurrentPosition` / `getVideoSize` / `setLooping` / `captureFrame` / `dispose`
+- Dual-platform MethodChannel status and progress callbacks (`onPlayerStateChanged` / `onPositionChanged`, throttled at approx. 250ms)
 
-### 原生控制栏（Android GSY + iOS SGPlayer）
+### Native Control Bar (Android GSY + iOS SGPlayer)
 
-- B 站风格 UI：点击喇叭弹出**竖向**音量条；点击齿轮打开**设置面板**选择音轨
-- 进度条与音量条轨道色统一（`kinetic_seek_progress` / `KineticPlayerColors`）
-- 新增 `GsyUiConfig.showSettingsButton`（默认 `true`）
-- `showVolumeToolbar` 现为控制喇叭按钮（非底部常驻音量条）
-- 控制栏隐藏后底部区域不再拦截点击，右下角可正常唤出/隐藏控制栏
+- Bilibili-style UI: Click the speaker icon to pop up a **vertical** volume bar; click the gear icon to open the **settings panel** for audio track selection.
+- Unified track colors for the progress bar and volume bar (`kinetic_seek_progress` / `KineticPlayerColors`).
+- Added `GsyUiConfig.showSettingsButton` (defaults to `true`).
+- `showVolumeToolbar` now controls the speaker button (instead of a persistent bottom volume bar).
+- The bottom area no longer intercepts clicks after the control bar is hidden, allowing the bottom-right corner to normal toggle the control bar visibility.
 
-### 画中画（Android）
+### Picture-in-Picture (Android)
 
-- `GsyUiConfig.pictureInPictureEnabled` 默认 `true`
-- 播放中切后台（`onUserLeaveHint`）自动进入 PiP（API 26+）
-- Android 12+ 支持 `setAutoEnterEnabled`
-- 手动 API：`gsyEnterPictureInPicture()`
-- 宿主需配置 `supportsPictureInPicture`、`resizeableActivity`，并转发 `KineticPlayerPlugin.handleUserLeaveHint`
-- iOS：SGPlayer 自定义渲染，**不支持**系统 PiP
+- `GsyUiConfig.pictureInPictureEnabled` defaults to `true`.
+- Automatically enters PiP when switching to the background during playback (`onUserLeaveHint`, API 26+).
+- Supports `setAutoEnterEnabled` on Android 12+.
+- Manual API: `gsyEnterPictureInPicture()`.
+- Host app configuration required: `supportsPictureInPicture`, `resizeableActivity`, and forwarding `KineticPlayerPlugin.handleUserLeaveHint`.
+- iOS: SGPlayer custom rendering, **system PiP is not supported**.
 
-### 播放体验
+### Playback Experience
 
-- 修复播放完成后无法重播（Android 完成态先 seek(0)；iOS `replayFromBeginning`）
+- Fixed an issue where playback could not be replayed after completion (Android completion state now executes seek(0) first; iOS uses `replayFromBeginning`).
 
-### Android GSY 高级能力
+### Android GSY Advanced Capabilities
 
-- 滤镜、弹幕、字幕、截图/GIF、列表、Exo 轨道、水印等（见 [GSY_FEATURES.md](docs/GSY_FEATURES.md)）
+- Filters, danmaku (bullet comments), subtitles, screenshots/GIFs, lists, Exo tracks, watermarks, etc. (see [GSY_FEATURES.md](docs/GSY_FEATURES.md)).
 
 ### iOS SGPlayer
 
-- 原生控制栏、全屏、`sgSetVRMode` / `sgSetSyncGroupId`
-- 音轨 API 与 Android 公共层对齐
+- Native control bar, full screen, `sgSetVRMode` / `sgSetSyncGroupId`.
+- Audio track APIs aligned with the Android public layer.
