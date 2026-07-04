@@ -11,4 +11,4 @@ flutter pub get
 flutter run
 ```
 
-详细说明见 [../docs/EXAMPLE.md](../docs/EXAMPLE.md)。
+详细说明见 [../doc/EXAMPLE.md](../doc/EXAMPLE.md)。

@@ -18,10 +18,10 @@
 
 | 文档 | 说明 |
 |------|------|
-| [docs/USAGE.md](docs/USAGE.md) | 集成步骤、公共 API、原生 UI、平台差异、PiP 配置 |
-| [docs/GSY_FEATURES.md](docs/GSY_FEATURES.md) | Android GSY 高级能力对照表 |
-| [docs/EXAMPLE.md](docs/EXAMPLE.md) | Example 应用说明 |
-| [docs/IOS_SGPLAYER.md](docs/IOS_SGPLAYER.md) | SGPlayer 预编译产物、Release 发布、本地编译 |
+| [doc/USAGE.md](doc/USAGE.md) | 集成步骤、公共 API、原生 UI、平台差异、PiP 配置 |
+| [doc/GSY_FEATURES.md](doc/GSY_FEATURES.md) | Android GSY 高级能力对照表 |
+| [doc/EXAMPLE.md](doc/EXAMPLE.md) | Example 应用说明 |
+| [doc/IOS_SGPLAYER.md](doc/IOS_SGPLAYER.md) | SGPlayer 预编译产物、Release 发布、本地编译 |
 
 ## 快速开始
 
@@ -77,7 +77,7 @@ CommonVideoPlayerViewBuilder(
 );
 ```
 
-完整示例见 [docs/EXAMPLE.md](docs/EXAMPLE.md) 与 `example/` 目录。
+完整示例见 [doc/EXAMPLE.md](doc/EXAMPLE.md) 与 `example/` 目录。
 
 ## 平台支持
 

@@ -40,7 +40,7 @@
 
 ### Android GSY 高级能力
 
-- 滤镜、弹幕、字幕、截图/GIF、列表、Exo 轨道、水印等（见 [GSY_FEATURES.md](docs/GSY_FEATURES.md)）
+- 滤镜、弹幕、字幕、截图/GIF、列表、Exo 轨道、水印等（见 [GSY_FEATURES.md](doc/GSY_FEATURES.md)）
 
 ### iOS SGPlayer
 

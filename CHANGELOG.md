@@ -38,7 +38,7 @@
 
 ### Android GSY Advanced Capabilities
 
-- Filters, danmaku (bullet comments), subtitles, screenshots/GIFs, lists, Exo tracks, watermarks, etc. (see [GSY_FEATURES.md](docs/GSY_FEATURES.md)).
+- Filters, danmaku (bullet comments), subtitles, screenshots/GIFs, lists, Exo tracks, watermarks, etc. (see [GSY_FEATURES.md](doc/GSY_FEATURES.md)).
 
 ### iOS SGPlayer
 
