@@ -39,13 +39,20 @@ class _CommonVideoPlayerViewState extends State<CommonVideoPlayerView> {
 
     final creationParams = _creationParams;
 
+    final defaultGestures = widget.gestureRecognizers.isEmpty
+        ? const <Factory<OneSequenceGestureRecognizer>>{
+            Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
+          }
+        : widget.gestureRecognizers;
+
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return UiKitView(
         viewType: PlayerViewTypes.sg,
         layoutDirection: TextDirection.ltr,
         creationParams: creationParams,
         creationParamsCodec: const StandardMessageCodec(),
-        gestureRecognizers: widget.gestureRecognizers,
+        // Let SGPlayer chrome handle seek/volume/brightness pan gestures.
+        gestureRecognizers: defaultGestures,
         onPlatformViewCreated: widget.onPlatformViewCreated,
       );
     }
@@ -56,11 +63,7 @@ class _CommonVideoPlayerViewState extends State<CommonVideoPlayerView> {
       creationParams: creationParams.isEmpty ? null : creationParams,
       creationParamsCodec: const StandardMessageCodec(),
       // Let GSY handle progress/volume/brightness gestures inside PlatformView.
-      gestureRecognizers: widget.gestureRecognizers.isEmpty
-          ? const <Factory<OneSequenceGestureRecognizer>>{
-              Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
-            }
-          : widget.gestureRecognizers,
+      gestureRecognizers: defaultGestures,
       onPlatformViewCreated: widget.onPlatformViewCreated,
     );
   }

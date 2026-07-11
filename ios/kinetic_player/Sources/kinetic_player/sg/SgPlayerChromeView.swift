@@ -10,12 +10,21 @@ protocol SgPlayerChromeDelegate: AnyObject {
     func chromeDidSelectAudioTrack(index: Int)
 }
 
-/// Native playback chrome: play/pause, progress, settings (音轨), volume, fullscreen.
+/// Native playback chrome: play/pause, progress, settings (音轨), volume, fullscreen,
+/// plus GSY-style pan gestures (seek / volume / brightness).
 final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
+    private enum PanGestureKind {
+        case none
+        case seek
+        case volume
+        case brightness
+    }
+
     weak var delegate: SgPlayerChromeDelegate?
 
     private static let toolbarIconPointSize: CGFloat = 17
     private static let toolbarButtonSize: CGFloat = 28
+    private static let panActivationThreshold: CGFloat = 12
     private static let toolbarSymbolConfig = UIImage.SymbolConfiguration(
         pointSize: toolbarIconPointSize,
         weight: .medium,
@@ -33,6 +42,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private let centerPlayButton = UIButton(type: .system)
     private let audioPanel = SgAudioPanelView()
     private let settingsPanel = SgSettingsPanelView()
+    private let gestureOverlay = SgGestureOverlayView()
 
     private var hideTimer: Timer?
     private var controlsVisible = true
@@ -41,8 +51,19 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private var isSeeking = false
     private var isPlaying = false
     private var durationMs: Int64 = 0
+    private var positionMs: Int64 = 0
     private var volumeLevel: Double = 1
     private var muted = false
+
+    private var panKind: PanGestureKind = .none
+    private var panStartVolume: Double = 1
+    private var panStartBrightness: CGFloat = 0
+    private var panStartPositionMs: Int64 = 0
+    private var panPreviewPositionMs: Int64 = 0
+    private var brightnessBeforeSession: CGFloat?
+    private var didAdjustBrightness = false
+    /// Matches Android: block swipe-volume while the popup is open or its slider is dragged.
+    private var volumeSliderDragging = false
 
     init(config: SgUiConfig) {
         self.config = config
@@ -60,15 +81,25 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     deinit {
         hideTimer?.invalidate()
+        restoreBrightnessIfNeeded()
+    }
+
+    /// Restores system brightness if a brightness gesture changed it during this session.
+    func restoreBrightnessIfNeeded() {
+        guard didAdjustBrightness, let original = brightnessBeforeSession else { return }
+        UIScreen.main.brightness = original
+        didAdjustBrightness = false
+        brightnessBeforeSession = nil
     }
 
     func updateProgress(positionMs: Int64, durationMs: Int64) {
+        self.positionMs = max(0, positionMs)
         self.durationMs = max(0, durationMs)
-        if !isSeeking {
-            currentTimeLabel.text = Self.formatMs(positionMs)
-            totalTimeLabel.text = Self.formatMs(durationMs)
-            if durationMs > 0 {
-                progressSlider.value = Float(positionMs) / Float(durationMs)
+        if !isSeeking, panKind != .seek {
+            currentTimeLabel.text = Self.formatMs(self.positionMs)
+            totalTimeLabel.text = Self.formatMs(self.durationMs)
+            if self.durationMs > 0 {
+                progressSlider.value = Float(self.positionMs) / Float(self.durationMs)
             } else {
                 progressSlider.value = 0
             }
@@ -181,6 +212,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             self.delegate?.chromeDidChangeVolume(volume)
             self.scheduleAutoHide()
         }
+        audioPanel.onDraggingChanged = { [weak self] dragging in
+            self?.volumeSliderDragging = dragging
+        }
         addSubview(audioPanel)
 
         settingsPanel.translatesAutoresizingMaskIntoConstraints = false
@@ -200,6 +234,8 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         centerPlayButton.translatesAutoresizingMaskIntoConstraints = false
         centerPlayButton.addTarget(self, action: #selector(centerPlayTapped), for: .touchUpInside)
         addSubview(centerPlayButton)
+
+        addSubview(gestureOverlay)
 
         NSLayoutConstraint.activate([
             bottomPanel.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -222,6 +258,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             centerPlayButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             centerPlayButton.widthAnchor.constraint(equalToConstant: 60),
             centerPlayButton.heightAnchor.constraint(equalToConstant: 60),
+
+            gestureOverlay.centerXAnchor.constraint(equalTo: centerXAnchor),
+            gestureOverlay.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
 
         updateCenterPlayIcon()
@@ -231,6 +270,13 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleBackgroundTap))
         tap.delegate = self
         addGestureRecognizer(tap)
+
+        if config.enableGestureControls {
+            let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
+            pan.delegate = self
+            pan.maximumNumberOfTouches = 1
+            addGestureRecognizer(pan)
+        }
     }
 
     private func applyConfig() {
@@ -352,12 +398,141 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         toggleControlsVisibility()
     }
 
+    // MARK: - Pan gestures (seek / volume / brightness)
+
+    /// Same rule as Android `shouldBlockGestureVolume`: popup open or slider drag wins.
+    private var shouldBlockGestureVolume: Bool {
+        audioPanelVisible || volumeSliderDragging
+    }
+
+    @objc private func handlePanGesture(_ gesture: UIPanGestureRecognizer) {
+        guard config.enableGestureControls else { return }
+
+        switch gesture.state {
+        case .began:
+            hideTimer?.invalidate()
+            // Do not close the volume popup here — matches Android (panel stays open;
+            // only swipe-volume is blocked while it is visible / being dragged).
+            panKind = .none
+            panStartVolume = volumeLevel
+            panStartBrightness = UIScreen.main.brightness
+            panStartPositionMs = positionMs
+            panPreviewPositionMs = positionMs
+
+        case .changed:
+            let translation = gesture.translation(in: self)
+            if panKind == .none {
+                let absX = abs(translation.x)
+                let absY = abs(translation.y)
+                guard max(absX, absY) >= Self.panActivationThreshold else { return }
+                if absX >= absY {
+                    panKind = .seek
+                    isSeeking = true
+                } else {
+                    let start = gesture.location(in: self)
+                    let preferBrightness = start.x < bounds.width * 0.5
+                    if preferBrightness {
+                        panKind = .brightness
+                        if brightnessBeforeSession == nil {
+                            brightnessBeforeSession = UIScreen.main.brightness
+                        }
+                    } else if shouldBlockGestureVolume {
+                        // Volume popup / slider owns volume control — ignore right-side swipe.
+                        return
+                    } else {
+                        panKind = .volume
+                    }
+                }
+            }
+            if panKind == .volume, shouldBlockGestureVolume {
+                return
+            }
+            applyPanChange(translation: translation)
+
+        case .ended, .cancelled, .failed:
+            finishPanGesture()
+
+        default:
+            break
+        }
+    }
+
+    private func applyPanChange(translation: CGPoint) {
+        let height = max(bounds.height, 1)
+        let width = max(bounds.width, 1)
+
+        switch panKind {
+        case .seek:
+            guard durationMs > 0 else { return }
+            // Full-width drag ≈ seek across entire duration (same as GSY / mSeekRatio=1).
+            let deltaMs = Int64((translation.x / width) * Double(durationMs))
+            let target = max(0, min(durationMs, panStartPositionMs + deltaMs))
+            panPreviewPositionMs = target
+            progressSlider.value = Float(target) / Float(durationMs)
+            currentTimeLabel.text = Self.formatMs(target)
+            let total = Self.formatMs(durationMs)
+            gestureOverlay.show(
+                symbolName: translation.x >= 0 ? "forward.fill" : "backward.fill",
+                text: "\(Self.formatMs(target)) / \(total)",
+            )
+            bringSubviewToFront(gestureOverlay)
+
+        case .volume:
+            // GSY uses ~3× vertical sensitivity for volume swipes.
+            let delta = -Double(translation.y) * 3.0 / Double(height)
+            let level = max(0, min(1, panStartVolume + delta))
+            volumeLevel = level
+            muted = level <= 0.001
+            updateVolumeIcon()
+            audioPanel.syncVolume(volume: level, muted: muted)
+            delegate?.chromeDidChangeVolume(level)
+            let percent = Int((level * 100).rounded())
+            let symbol = percent == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill"
+            gestureOverlay.show(symbolName: symbol, text: "\(percent)%")
+            bringSubviewToFront(gestureOverlay)
+
+        case .brightness:
+            let delta = -translation.y / height
+            let level = max(0, min(1, panStartBrightness + delta))
+            UIScreen.main.brightness = level
+            didAdjustBrightness = true
+            let percent = Int((level * 100).rounded())
+            let symbol = percent < 30 ? "sun.min.fill" : "sun.max.fill"
+            gestureOverlay.show(symbolName: symbol, text: "\(percent)%")
+            bringSubviewToFront(gestureOverlay)
+
+        case .none:
+            break
+        }
+    }
+
+    private func finishPanGesture() {
+        let kind = panKind
+        panKind = .none
+        gestureOverlay.hide(animated: true)
+
+        switch kind {
+        case .seek:
+            if durationMs > 0 {
+                delegate?.chromeDidSeek(toMs: Int(panPreviewPositionMs))
+                positionMs = panPreviewPositionMs
+            }
+            isSeeking = false
+        case .volume, .brightness, .none:
+            break
+        }
+        scheduleAutoHide()
+    }
+
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         let point = touch.location(in: self)
         if audioPanelVisible, audioPanel.frame.contains(point) {
             return false
         }
         if settingsPanelVisible, settingsPanel.frame.contains(point) {
+            return false
+        }
+        if bottomPanel.frame.contains(point), bottomPanel.alpha > 0.01, controlsVisible {
             return false
         }
         if controlsVisible {
@@ -369,6 +544,13 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             }
         }
         return true
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer,
+    ) -> Bool {
+        false
     }
 
     private func touchHitsInteractiveControl(at point: CGPoint) -> Bool {
@@ -422,6 +604,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         }
         let positionMs = Int(max(0, Int64(progressSlider.value * Float(durationMs))))
         delegate?.chromeDidSeek(toMs: positionMs)
+        self.positionMs = Int64(positionMs)
         isSeeking = false
         scheduleAutoHide()
     }

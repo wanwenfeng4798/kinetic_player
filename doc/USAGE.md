@@ -178,11 +178,14 @@ Android（GSY）与 iOS（SGPlayer）均采用 B 站风格底部控制栏，进�
 | 进度条 + 时间 | ✅ | ✅ | 原生默认 |
 | 单击显隐控制栏 | ✅ | ✅ | 点击画面空白；播放中约 2.5s 自动隐藏 |
 | **音量** | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条；拖动时在滑轨**左侧**显示百分比（如 `50%`），松手后隐藏 |
+| **手势** | ✅ | ✅ | 横向滑动调进度；左半屏纵向调亮度；右半屏纵向调音量（iOS：`enableGestureControls`，默认开） |
 | **音轨** | ✅ | ✅ | 点击**齿轮（设置）**弹出面板选择；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
 | 全屏 | ✅ | ✅ | 全屏按钮（与设置/音量图标同尺寸 28dp）/ `gsyStartFullscreen()` / `sgStartFullscreen()` |
 | 画中画 PiP | ✅ 默认开启 | ❌ 不支持 | `pictureInPictureEnabled`（仅 Android） |
 
-> **音量（Android）**：开启 `showVolumeToolbar` 后，GSY 默认的**左侧边缘音量滑动手势**会被禁用，仅保留喇叭弹出的竖向音量条，避免画面左侧出现第二条音量条。
+> **音量（Android）**：开启 `showVolumeToolbar` 后，画面右侧滑动调节的是**播放器音量**（与喇叭弹窗同源），不再用系统音量条。音量弹窗打开或正在拖动滑轨时，右侧滑动调音量会被暂时禁用，避免与竖向滑轨冲突。
+
+> **音量（iOS）**：右侧滑动同样调节播放器音量（灵敏度与 Android GSY 一致，约 3×）；音量弹窗打开或拖动滑轨时，右侧滑动调音量同样被禁用。
 
 > **音量持久化**：通过滑轨或 `setVolume()` 设置的音量在暂停/恢复、播放完成重播、换源后会自动恢复，不会回到默认值。
 
@@ -221,6 +224,7 @@ if (controller is GSYVideoControllerImpl) {
 | `showLockButton` | `true` | 全屏锁屏按钮 |
 | `showVolumeToolbar` | `true` | 喇叭按钮 + 竖向音量弹窗 |
 | `showSettingsButton` | `true` | 齿轮按钮 + 设置面板（音轨） |
+| `enableGestureControls` | `true` | iOS：画面滑动调进度/音量/亮度（Android 仍用 `enableNativeControls`） |
 | `pictureInPictureEnabled` | `true` | Android 播放中切后台自动 PiP（API 26+） |
 | `showDragProgressTextOnSeekBar` | `false` | 拖动进度时间文字 |
 | `previewVttUrl` | — | 进度条缩略图 WebVTT |
@@ -242,7 +246,7 @@ if (controller is SGVideoControllerImpl) {
 }
 ```
 
-`creationParams` / `gsyUi` 兼容字段：`showNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（iOS 读取但不生效）。
+`creationParams` / `gsyUi` 兼容字段：`showNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`、`enableGestureControls`（iOS 手势；`pictureInPictureEnabled` 在 iOS 读取但不生效）。
 
 ## 平台差异速查
 
@@ -255,6 +259,7 @@ if (controller is SGVideoControllerImpl) {
 | 画中画 | 默认开启，需 Manifest + `onUserLeaveHint`；播放中（含自动播放）切后台进入 | 不支持 |
 | 音轨 UI | 齿轮设置面板 | 齿轮设置面板 |
 | 音量 UI | 喇叭竖向弹窗；拖动显示百分比；禁用 GSY 左侧音量手势 | 喇叭竖向弹窗 |
+| 手势调节 | `enableNativeControls`：进度/音量/亮度 | `enableGestureControls`：横向进度、左亮度、右音量 |
 
 ## 监听状态
 

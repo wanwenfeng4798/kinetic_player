@@ -3,6 +3,7 @@ import UIKit
 /// Bilibili-style vertical volume popup (volume only).
 final class SgAudioPanelView: UIView {
     var onVolumeChanged: ((Double) -> Void)?
+    var onDraggingChanged: ((Bool) -> Void)?
 
     private let volumeSliderContainer = UIView()
     private let volumeValueLabel = UILabel()
@@ -100,12 +101,14 @@ final class SgAudioPanelView: UIView {
 
     @objc private func volumeTouchUp() {
         isDragging = false
+        onDraggingChanged?(false)
         volumeValueLabel.isHidden = true
     }
 
     private func beginDragging() {
         if isDragging { return }
         isDragging = true
+        onDraggingChanged?(true)
         updateVolumeValueLabel(level: volumeSlider.value)
         volumeValueLabel.isHidden = false
     }

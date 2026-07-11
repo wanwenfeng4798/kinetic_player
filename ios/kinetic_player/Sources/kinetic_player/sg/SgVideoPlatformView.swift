@@ -206,6 +206,7 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
             if fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.exitFullscreen()
             }
+            chrome.restoreBrightnessIfNeeded()
             channel.setMethodCallHandler(nil)
             player.release()
             result(nil)

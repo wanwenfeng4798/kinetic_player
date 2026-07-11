@@ -12,6 +12,7 @@ class GsyUiConfig {
     this.showVolumeToolbar = true,
     this.showSettingsButton = true,
     this.pictureInPictureEnabled = true,
+    this.enableGestureControls = true,
     this.rotateViewAuto = true,
     this.rotateWithSystem = true,
     this.lockLand = false,
@@ -35,10 +36,10 @@ class GsyUiConfig {
     this.fullHideStatusBar = true,
   });
 
-  /// Non-fullscreen progress/volume/brightness gestures.
+  /// Non-fullscreen progress/volume/brightness gestures (Android GSY).
   final bool enableNativeControls;
 
-  /// Fullscreen progress/volume/brightness gestures.
+  /// Fullscreen progress/volume/brightness gestures (Android GSY).
   final bool enableNativeControlsFullscreen;
 
   final String videoTitle;
@@ -48,6 +49,11 @@ class GsyUiConfig {
   final bool showVolumeToolbar;
   final bool showSettingsButton;
   final bool pictureInPictureEnabled;
+
+  /// iOS SGPlayer: pan gestures for seek (horizontal), brightness (left vertical),
+  /// volume (right vertical). Defaults to `true`; also enabled when
+  /// [enableNativeControls] is true via native `SgUiConfig`.
+  final bool enableGestureControls;
   final bool rotateViewAuto;
   final bool rotateWithSystem;
   final bool lockLand;
@@ -81,6 +87,7 @@ class GsyUiConfig {
           'showVolumeToolbar': showVolumeToolbar,
           'showSettingsButton': showSettingsButton,
           'pictureInPictureEnabled': pictureInPictureEnabled,
+          'enableGestureControls': enableGestureControls,
           'rotateViewAuto': rotateViewAuto,
           'rotateWithSystem': rotateWithSystem,
           'lockLand': lockLand,

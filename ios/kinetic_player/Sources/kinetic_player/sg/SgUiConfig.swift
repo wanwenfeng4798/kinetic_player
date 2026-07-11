@@ -7,17 +7,20 @@ struct SgUiConfig {
     let pictureInPictureEnabled: Bool
     let showFullscreenButton: Bool
     let dismissControlTimeMs: Int
+    /// Horizontal seek + left brightness + right volume pan gestures (GSY-style).
+    let enableGestureControls: Bool
 
     /// SGPlayer uses a custom video renderer; system PiP (AVPictureInPictureController) is unavailable.
     static var isPictureInPictureSupported: Bool { false }
 
     static func fromCreationParams(_ params: [String: Any]?) -> SgUiConfig {
         let gsyUi = params?["gsyUi"] as? [String: Any]
+        let showNativeControls =
+            params?["showNativeControls"] as? Bool
+            ?? gsyUi?["enableNativeControls"] as? Bool
+            ?? true
         return SgUiConfig(
-            showNativeControls:
-                params?["showNativeControls"] as? Bool
-                ?? gsyUi?["enableNativeControls"] as? Bool
-                ?? true,
+            showNativeControls: showNativeControls,
             showVolumeToolbar:
                 params?["showVolumeToolbar"] as? Bool
                 ?? gsyUi?["showVolumeToolbar"] as? Bool
@@ -38,6 +41,10 @@ struct SgUiConfig {
                 params?["dismissControlTime"] as? Int
                 ?? gsyUi?["dismissControlTime"] as? Int
                 ?? 2500,
+            enableGestureControls:
+                params?["enableGestureControls"] as? Bool
+                ?? gsyUi?["enableGestureControls"] as? Bool
+                ?? showNativeControls,
         )
     }
 }
