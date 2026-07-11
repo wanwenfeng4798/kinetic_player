@@ -1,10 +1,21 @@
 ## 0.0.2
 
-### Fixes & Optimizations
+### Fixes
 
-- **Audio Track & Gesture Fixes**: Fixed an issue where audio track settings were reset upon replay, and resolved conflicts between audio track settings and gesture operations.
-- **Audio Control Fixes**: Fixed conflicts between the audio track bar and gesture-based volume adjustments.
-- **Example Optimization**: Optimized the example project to prevent the application from failing to open after enabling code obfuscation (ProGuard) on Android.
+- **Volume persistence**: Fixed volume level and slider position resetting after pause/resume, replay after completion, or switching video source. Android re-applies saved volume on `onPrepared` / playback start; iOS uses `applySavedVolume` on play/replay and returns `_savedVolume` from `currentVolume()`.
+- **Picture-in-Picture (Android)**: Fixed auto PiP not triggering when playback started via GSY auto-play or native play button (`isPlaying` was only set from Flutter `play()`). Playback state now syncs with native GSY events; PiP eligibility uses actual player state (`isPlaybackActive()`).
+- **Volume gesture conflict (Android)**: When `showVolumeToolbar` is enabled, GSY’s built-in left-edge volume slider gesture is disabled so only the Bilibili-style volume popup is shown.
+- **Volume drag label**: Fixed percentage label (`50%`) flickering or disappearing while dragging the volume slider.
+- **Toolbar icons**: Unified fullscreen button size with settings/volume icons (28dp); replaced GSY default enlarge icon with matching vector assets.
+
+### Enhancements
+
+- **Volume UI**: Dragging the vertical volume slider shows a percentage label to the left of the track; the label hides on release. Panel background width reduced to 44dp (label floats outside the panel).
+- **Example**: Explicitly enables `pictureInPictureEnabled: true`; added PiP usage hint in the control panel.
+
+### Other
+
+- **Example / ProGuard**: Optimized the example project to avoid launch failures when Android code obfuscation (ProGuard) is enabled.
 
 ---
 

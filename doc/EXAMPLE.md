@@ -32,11 +32,11 @@ Android 可直接 `flutter run`。
 | 交互 | 说明 |
 |------|------|
 | 点击画面 | 显隐控制栏与中央播放按钮 |
-| 喇叭 | 弹出竖向音量条（B 站风格） |
+| 喇叭 | 弹出竖向音量条（B 站风格）；**拖动时在滑轨左侧显示百分比** |
 | 齿轮 | 弹出设置面板，选择音轨 |
-| 全屏 | 窗口级全屏 |
+| 全屏 | 窗口级全屏（图标与设置/音量同尺寸） |
 
-Android 播放中按 Home 键可进入画中画（需 `MainActivity` 已配置 PiP，example 已配置）。
+**画中画（Android）**：播放中（含自动播放或原生播放按钮）按 **Home** 或切到其他 App 会自动进入 PiP。Example 已在 `MainActivity` 与 `AndroidManifest` 中配置；`GsyUiConfig(pictureInPictureEnabled: true)` 已显式开启。
 
 ## 核心代码
 

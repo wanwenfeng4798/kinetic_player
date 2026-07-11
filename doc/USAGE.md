@@ -76,6 +76,16 @@ override fun onUserLeaveHint() {
 }
 ```
 
+**PiP 触发条件**（0.0.2+）：
+
+- 视频处于**实际播放中**（含 GSY 自动播放 `startAfterPrepared`、原生播放按钮，不限于 Flutter `play()`）
+- `pictureInPictureEnabled: true`（默认）
+- 设备 API 26+ 且支持 PiP
+- Android 8–11：依赖 `onUserLeaveHint` 主动进入 PiP
+- Android 12+：额外通过 `PictureInPictureParams.setAutoEnterEnabled` 在用户离开 Activity 时系统自动进入
+
+按 **Home** 或切换到其他 App 即可验证；暂停状态下不会进入 PiP。
+
 ### iOS
 
 1. **准备 SGPlayer 二进制**（三选一，见 [IOS_SGPLAYER.md](IOS_SGPLAYER.md)）：
@@ -167,10 +177,14 @@ Android（GSY）与 iOS（SGPlayer）均采用 B 站风格底部控制栏，进�
 | 中央播放/暂停 | ✅ | ✅ | `enableNativeControls` |
 | 进度条 + 时间 | ✅ | ✅ | 原生默认 |
 | 单击显隐控制栏 | ✅ | ✅ | 点击画面空白；播放中约 2.5s 自动隐藏 |
-| **音量** | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条（非底部常驻条） |
+| **音量** | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条；拖动时在滑轨**左侧**显示百分比（如 `50%`），松手后隐藏 |
 | **音轨** | ✅ | ✅ | 点击**齿轮（设置）**弹出面板选择；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
-| 全屏 | ✅ | ✅ | 全屏按钮 / `gsyStartFullscreen()` / `sgStartFullscreen()` |
+| 全屏 | ✅ | ✅ | 全屏按钮（与设置/音量图标同尺寸 28dp）/ `gsyStartFullscreen()` / `sgStartFullscreen()` |
 | 画中画 PiP | ✅ 默认开启 | ❌ 不支持 | `pictureInPictureEnabled`（仅 Android） |
+
+> **音量（Android）**：开启 `showVolumeToolbar` 后，GSY 默认的**左侧边缘音量滑动手势**会被禁用，仅保留喇叭弹出的竖向音量条，避免画面左侧出现第二条音量条。
+
+> **音量持久化**：通过滑轨或 `setVolume()` 设置的音量在暂停/恢复、播放完成重播、换源后会自动恢复，不会回到默认值。
 
 > **音轨**：不在音量弹窗内选择，请在设置面板（齿轮）或 Flutter 层调用 `selectAudioTrack`。
 
@@ -238,9 +252,9 @@ if (controller is SGVideoControllerImpl) {
 | 截图 overlay | `captureFrame(includeOverlay: true)` 含 UI | `includeOverlay` 无效 |
 | 换源 | 重建播放器 | `replaceWithURL` |
 | 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()` |
-| 画中画 | 默认开启，需 Manifest + `onUserLeaveHint` | 不支持 |
+| 画中画 | 默认开启，需 Manifest + `onUserLeaveHint`；播放中（含自动播放）切后台进入 | 不支持 |
 | 音轨 UI | 齿轮设置面板 | 齿轮设置面板 |
-| 音量 UI | 喇叭竖向弹窗 | 喇叭竖向弹窗 |
+| 音量 UI | 喇叭竖向弹窗；拖动显示百分比；禁用 GSY 左侧音量手势 | 喇叭竖向弹窗 |
 
 ## 监听状态
 

@@ -34,9 +34,12 @@ object GsyPlayerLifecycleRegistry {
 
     fun onUserLeaveHint(activity: Activity) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && activity.isInPictureInPictureMode) {
+            return
+        }
         activePlayers()
-            .firstOrNull { it.shouldAutoEnterPictureInPicture() }
-            ?.enterPictureInPicture()
+            .firstOrNull { it.isHostedBy(activity) && it.shouldAutoEnterPictureInPicture() }
+            ?.enterPictureInPicture(activity)
     }
 
     private fun activePlayers(): List<GsyNativePlayer> {

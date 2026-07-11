@@ -202,6 +202,7 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                             enableNativeControls: true,
                             showFullscreenButton: true,
                             showDragProgressTextOnSeekBar: true,
+                            pictureInPictureEnabled: true,
                             videoTitle: 'GSY Demo',
                             previewVttUrl: _previewVttUri,
                           ).toCreationParams()
@@ -477,7 +478,8 @@ class _ControlPanelState extends State<_ControlPanel> {
           if (isAndroidGsy) ...[
             const SizedBox(height: 8),
             const Text(
-              '播放中点击画面可唤出暂停按钮；GL 滤镜需从下拉框手动开启。',
+              '播放中点击画面可唤出暂停按钮；GL 滤镜需从下拉框手动开启。'
+              '播放时按 Home 或切到后台会自动进入画中画（API 26+）。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 4),

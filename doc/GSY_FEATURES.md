@@ -77,7 +77,7 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 
 | 全屏 / 非全屏两套布局 | ✅ | 原生 `startWindowFullscreen` + `GsyUiConfig` |
 | 无控件纯播放 | ✅ | `gsySetPurePlayMode(enabled: true)` |
 | 弹幕 | ✅ | `gsySetDanmakuUrl(url)` + `gsyToggleDanmaku(enabled)`（DanmakuFlameMaster + B 站 XML） |
-| B 站风格控制栏 | ✅ | 竖向音量弹窗 + 设置面板音轨；见 `GsyUiConfig` |
+| B 站风格控制栏 | ✅ | 竖向音量弹窗（拖动显示百分比）+ 设置面板音轨；`showVolumeToolbar` 时禁用 GSY 左侧音量手势；底栏图标统一 28dp |
 | 继承自定义布局 | ⚠️ | fork `KineticGSYVideoPlayer` 并重写 `getLayoutId()` |
 
 布局文件：`kinetic_video_layout_preview.xml`（进度条、`kinetic_seek_progress` 配色、喇叭/齿轮/全屏按钮）。
@@ -99,9 +99,9 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 
 
 | 能力 | 状态 | API / 说明 |
 |------|------|------------|
-| Android 画中画 | ✅ | **`pictureInPictureEnabled: true`（默认）**；播放中按 Home / 切后台自动进入 PiP |
+| Android 画中画 | ✅ | **`pictureInPictureEnabled: true`（默认）**；播放中（含 GSY 自动播放 / 原生播放）按 Home 或切后台自动进入 PiP |
 | 手动 PiP | ✅ | `gsyEnterPictureInPicture()` |
-| Android 12+ 系统自动 PiP | ✅ | 内部 `PictureInPictureParams.setAutoEnterEnabled` |
+| Android 12+ 系统自动 PiP | ✅ | 播放中通过 `PictureInPictureParams.setAutoEnterEnabled` 自动进入 |
 | 宿主 Manifest | ⚠️ | `supportsPictureInPicture="true"`、`resizeableActivity="true"` |
 | 宿主 Activity | ⚠️ | `KineticPlayerPlugin.handleUserLeaveHint(this)` |
 | iOS 画中画 | ❌ | SGPlayer 自定义渲染，无系统 PiP |

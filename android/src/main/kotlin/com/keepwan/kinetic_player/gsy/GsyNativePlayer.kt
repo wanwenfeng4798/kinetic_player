@@ -135,9 +135,16 @@ class GsyNativePlayer(
         playerView.onDanmakuPlaybackStart = {
             danmakuController.onPlaybackStart()
             applySavedVolume()
+            onPlaybackStarted()
         }
-        playerView.onDanmakuPlaybackPause = { danmakuController.onPause() }
-        playerView.onDanmakuPlaybackComplete = { danmakuController.onPlaybackComplete() }
+        playerView.onDanmakuPlaybackPause = {
+            danmakuController.onPause()
+            onPlaybackPaused()
+        }
+        playerView.onDanmakuPlaybackComplete = {
+            danmakuController.onPlaybackComplete()
+            onPlaybackPaused()
+        }
         container.addView(
             playerView,
             FrameLayout.LayoutParams(
@@ -270,18 +277,16 @@ class GsyNativePlayer(
             GSYVideoManager.instance().seekTo(0)
         }
         playerView.startPlayLogic()
-        isPlaying = true
+        onPlaybackStarted()
         applySavedVolume()
         emitMappedState(GSYVideoView.CURRENT_STATE_PLAYING)
         reportProgress(force = true)
-        syncPictureInPictureParams()
     }
 
     fun onVideoPause() {
         playerView.onVideoPause()
-        isPlaying = false
+        onPlaybackPaused()
         emitMappedState(GSYVideoView.CURRENT_STATE_PAUSE)
-        syncPictureInPictureParams()
     }
 
     fun stop() {
@@ -631,20 +636,30 @@ class GsyNativePlayer(
     }
 
     fun enterPictureInPicture(): Boolean {
+        val activity = CommonUtil.scanForActivity(playerView.context) as? Activity ?: return false
+        return enterPictureInPicture(activity)
+    }
+
+    fun enterPictureInPicture(activity: Activity): Boolean {
         if (!uiConfig.pictureInPictureEnabled || !isPictureInPictureSupported()) {
             return false
         }
-        val activity = CommonUtil.scanForActivity(playerView.context) as? Activity ?: return false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && activity.isInPictureInPictureMode) {
+            return true
+        }
         val params = buildPictureInPictureParams(autoEnter = false)
         return activity.enterPictureInPictureMode(params)
     }
 
+    fun isHostedBy(activity: Activity): Boolean =
+        CommonUtil.scanForActivity(playerView.context) === activity
+
     fun shouldAutoEnterPictureInPicture(): Boolean =
         uiConfig.pictureInPictureEnabled &&
             isPictureInPictureSupported() &&
-            isPlaying &&
-            !currentUrl.isNullOrEmpty()
+            !currentUrl.isNullOrEmpty() &&
+            isPlaybackActive()
 
     fun syncPictureInPictureParams() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -667,10 +682,30 @@ class GsyNativePlayer(
                 .setAspectRatio(aspectRatio)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setAutoEnterEnabled(
-                autoEnter && uiConfig.pictureInPictureEnabled && isPlaying,
+                autoEnter && uiConfig.pictureInPictureEnabled && isPlaybackActive(),
             )
         }
         return builder.build()
+    }
+
+    private fun onPlaybackStarted() {
+        isPlaying = true
+        syncPictureInPictureParams()
+    }
+
+    private fun onPlaybackPaused() {
+        isPlaying = false
+        syncPictureInPictureParams()
+    }
+
+    private fun isPlaybackActive(): Boolean {
+        if (isPlaying) return true
+        return when (playerView.currentState) {
+            GSYVideoView.CURRENT_STATE_PLAYING,
+            GSYVideoView.CURRENT_STATE_PLAYING_BUFFERING_START,
+            -> true
+            else -> false
+        }
     }
 
     private fun isPictureInPictureSupported(): Boolean {
