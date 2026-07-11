@@ -1,4 +1,4 @@
-## 0.0.2
+## 0.0.3
 
 ### Fixes
 
@@ -13,9 +13,15 @@
 - **Volume UI**: Dragging the vertical volume slider shows a percentage label to the left of the track; the label hides on release. Panel background width reduced to 44dp (label floats outside the panel).
 - **Example**: Explicitly enables `pictureInPictureEnabled: true`; added PiP usage hint in the control panel.
 
-### Other
+---
 
-- **Example / ProGuard**: Optimized the example project to avoid launch failures when Android code obfuscation (ProGuard) is enabled.
+## 0.0.2
+
+### Fixes & Optimizations
+
+- **Audio Track & Gesture Fixes**: Fixed an issue where audio track settings were reset upon replay, and resolved conflicts between audio track settings and gesture operations.
+- **Audio Control Fixes**: Fixed conflicts between the audio track bar and gesture-based volume adjustments.
+- **Example Optimization**: Optimized the example project to prevent the application from failing to open after enabling code obfuscation (ProGuard) on Android.
 
 ---
 

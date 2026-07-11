@@ -76,7 +76,7 @@ override fun onUserLeaveHint() {
 }
 ```
 
-**PiP 触发条件**（0.0.2+）：
+**PiP 触发条件**（0.0.3+）：
 
 - 视频处于**实际播放中**（含 GSY 自动播放 `startAfterPrepared`、原生播放按钮，不限于 Flutter `play()`）
 - `pictureInPictureEnabled: true`（默认）

@@ -3,7 +3,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'kinetic_player'
-  s.version          = '0.0.2'
+  s.version          = '0.0.3'
   s.summary          = 'Dual-core video player: SGPlayer on iOS.'
   s.description      = <<-DESC
 Flutter video player plugin. iOS uses libobjc/SGPlayer master; Android uses GSYVideoPlayer 13.1.0.
