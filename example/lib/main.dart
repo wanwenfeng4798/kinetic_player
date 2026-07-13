@@ -261,6 +261,7 @@ class _ControlPanelState extends State<_ControlPanel> {
   String? _lastCapturePath;
   int _renderRotation = 0;
   bool _mirrorHorizontal = false;
+  bool _mirrorVertical = false;
   bool _keepLastFrame = false;
   bool _coverEnabled = true;
   List<CommonAudioTrack> _audioTracks = const [];
@@ -300,6 +301,7 @@ class _ControlPanelState extends State<_ControlPanel> {
     if (oldWidget.controller != widget.controller) {
       _renderRotation = 0;
       _mirrorHorizontal = false;
+      _mirrorVertical = false;
       _keepLastFrame = false;
       _coverEnabled = true;
       _loadFilters();
@@ -435,7 +437,7 @@ class _ControlPanelState extends State<_ControlPanel> {
     if (mounted) setState(() => _renderRotation = normalized);
   }
 
-  Future<void> _toggleMirror() async {
+  Future<void> _toggleMirrorHorizontal() async {
     final next = !_mirrorHorizontal;
     final controller = widget.controller;
     if (controller is GSYVideoControllerImpl) {
@@ -446,6 +448,19 @@ class _ControlPanelState extends State<_ControlPanel> {
       return;
     }
     if (mounted) setState(() => _mirrorHorizontal = next);
+  }
+
+  Future<void> _toggleMirrorVertical() async {
+    final next = !_mirrorVertical;
+    final controller = widget.controller;
+    if (controller is GSYVideoControllerImpl) {
+      await controller.gsySetMirrorVertical(enabled: next);
+    } else if (controller is SGVideoControllerImpl) {
+      await controller.sgSetMirrorVertical(enabled: next);
+    } else {
+      return;
+    }
+    if (mounted) setState(() => _mirrorVertical = next);
   }
 
   Future<void> _toggleKeepLastFrame() async {
@@ -754,15 +769,19 @@ class _ControlPanelState extends State<_ControlPanel> {
                   child: const Text('复位 0°'),
                 ),
                 FilledButton.tonal(
-                  onPressed: _toggleMirror,
-                  child: Text(_mirrorHorizontal ? '镜像: 开' : '镜像: 关'),
+                  onPressed: _toggleMirrorHorizontal,
+                  child: Text(_mirrorHorizontal ? '左右镜像: 开' : '左右镜像: 关'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _toggleMirrorVertical,
+                  child: Text(_mirrorVertical ? '上下镜像: 开' : '上下镜像: 关'),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               '当前旋转 $_renderRotation°'
-              '${isAndroidGsy ? '（gsySetRenderRotation / gsySetMirrorHorizontal）' : '（sgSetRenderRotation / sgSetMirrorHorizontal）'}',
+              '${isAndroidGsy ? '（gsySetRenderRotation / MirrorH/V）' : '（sgSetRenderRotation / MirrorH/V）'}',
               style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],

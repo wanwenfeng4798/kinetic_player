@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Rational
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import com.keepwan.kinetic_player.CommonPlayerState
@@ -71,6 +72,8 @@ class GsyNativePlayer(
     private var gifResultCallback: ((String?) -> Unit)? = null
     private var renderRotation = 0
     private var mirrorHorizontal = false
+    private var mirrorVertical = false
+    private var renderTransformLayoutListenerAttached = false
     private var activeRenderType: Int? = null
     private var savedVolume = 1f
     private var muted = false
@@ -152,6 +155,7 @@ class GsyNativePlayer(
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ),
         )
+        ensureRenderTransformLayoutListener()
         playerView.onVolumeChanged = { setVolume(it) }
         playerView.onMuteToggle = { setMute(it) }
         playerView.onRequestAudioTracks = { listAudioTracks() }
@@ -421,24 +425,67 @@ class GsyNativePlayer(
         applyRenderTransform()
     }
 
+    fun setMirrorVertical(enabled: Boolean) {
+        mirrorVertical = enabled
+        applyRenderTransform()
+    }
+
+    private fun ensureRenderTransformLayoutListener() {
+        if (renderTransformLayoutListenerAttached) return
+        renderTransformLayoutListenerAttached = true
+        playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            // Only refresh pivot after size changes; avoid requestLayout loops.
+            val renderView = playerView.getRenderProxy()?.showView ?: return@addOnLayoutChangeListener
+            if (renderView.width <= 0 || renderView.height <= 0) return@addOnLayoutChangeListener
+            renderView.pivotX = renderView.width / 2f
+            renderView.pivotY = renderView.height / 2f
+            if (renderView.rotation != renderRotation.toFloat() ||
+                renderView.scaleX != (if (mirrorHorizontal) -1f else 1f) ||
+                renderView.scaleY != (if (mirrorVertical) -1f else 1f)
+            ) {
+                applyRenderTransform()
+            }
+        }
+    }
+
+    /**
+     * Rotate / mirror via the render [View] (GSY MeasureHelper reads [View.getRotation]).
+     * Avoid TextureView.setTransform with the outer player size — that mis-pivots and
+     * pushes frames off-screen (90°/270° flush to an edge, 180°/vertical-mirror blank).
+     */
     private fun applyRenderTransform() {
+        ensureRenderTransformLayoutListener()
         val proxy = playerView.getRenderProxy()
-        if (proxy == null) {
+        val renderView = proxy?.showView
+        if (proxy == null || renderView == null) {
             playerView.post { applyRenderTransform() }
             return
         }
-        val w = playerView.width
-        val h = playerView.height
-        if (w <= 0 || h <= 0) {
+        if (renderView.width <= 0 || renderView.height <= 0) {
             playerView.post { applyRenderTransform() }
             return
         }
-        val matrix = Matrix()
-        matrix.postRotate(renderRotation.toFloat(), w / 2f, h / 2f)
-        if (mirrorHorizontal) {
-            matrix.postScale(-1f, 1f, w / 2f, h / 2f)
+
+        // Clear any leftover TextureView content matrix.
+        proxy.setTransform(Matrix())
+
+        val targetRotation = renderRotation.toFloat()
+        val targetScaleX = if (mirrorHorizontal) -1f else 1f
+        val targetScaleY = if (mirrorVertical) -1f else 1f
+        val rotationChanged = renderView.rotation != targetRotation
+
+        renderView.pivotX = renderView.width / 2f
+        renderView.pivotY = renderView.height / 2f
+        // MeasureHelper.prepareMeasure(..., getRotation()) re-layouts for 90/270.
+        proxy.setRotation(targetRotation)
+        renderView.scaleX = targetScaleX
+        renderView.scaleY = targetScaleY
+        if (rotationChanged) {
+            renderView.requestLayout()
         }
-        proxy.setTransform(matrix)
+
+        (renderView.parent as? ViewGroup)?.clipChildren = true
+        playerView.clipChildren = true
     }
 
     fun getNetSpeedBytesPerSecond(): Long = playerView.getNetSpeed()

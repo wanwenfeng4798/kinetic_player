@@ -14,6 +14,8 @@
 - **iOS gesture controls**: Added GSY-style pan gestures — horizontal seek, left-half brightness, right-half volume — with a center HUD overlay. Controlled by the shared `enableNativeControls` flag (same as Android). System brightness is restored when the player is disposed. Swipe-volume is blocked while the volume popup is open or its slider is being dragged (same as Android), and volume sensitivity matches GSY (~3×).
 - **Render rotate / mirror**: Android already exposed `gsySetRenderRotation` / `gsySetMirrorHorizontal`; iOS adds matching `sgSetRenderRotation` / `sgSetMirrorHorizontal` via `CGAffineTransform` on the video view. Example app includes rotate/mirror controls for both platforms.
 - **Cover / keep last frame**: Android uses GSY `setThumbImageView` + KeepLastFrameVideo-style `onAutoCompletion`; iOS uses a cover overlay and hides it when keeping the last frame. Config: `GsyUiConfig.coverUrl` / `keepLastFrameWhenComplete`; runtime: `gsySetCoverUrl` / `gsySetKeepLastFrameWhenComplete` (iOS: `sgSet*`).
+- **Rotate fill + vertical mirror**: 90°/270° rotation now scales to center-fill the player; added `gsySetMirrorVertical` / `sgSetMirrorVertical`.
+- **Rotate / mirror positioning fix**: Android now uses GSY `View.setRotation` + `scaleX`/`scaleY` (MeasureHelper remeasure) instead of a mis-pivoted TextureView matrix; iOS applies transforms on a host view so the Metal render target stays upright.
 - **Example**: Explicitly enables `pictureInPictureEnabled: true`; added PiP usage hint in the control panel.
 
 ---

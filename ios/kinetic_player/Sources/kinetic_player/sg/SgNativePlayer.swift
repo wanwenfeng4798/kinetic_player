@@ -10,8 +10,13 @@ protocol SgPlayerCallbacks: AnyObject {
 final class SgNativePlayer: NSObject {
     private let bridge: SgNativePlayerBridge
     private weak var callbacks: SgPlayerCallbacks?
+    /// Host that receives rotate/mirror transforms. The SGPlayer render target
+    /// stays untransformed inside so Metal drawing is not distorted.
+    private let transformHost = UIView()
     private var renderRotationDegrees = 0
     private var mirrorHorizontal = false
+    private var mirrorVertical = false
+    private var boundsObservation: NSKeyValueObservation?
 
     init(callbacks: SgPlayerCallbacks) {
         self.callbacks = callbacks
@@ -27,9 +32,25 @@ final class SgNativePlayer: NSObject {
             },
         )
         super.init()
+
+        transformHost.backgroundColor = .black
+        transformHost.clipsToBounds = true
+        let renderView = bridge.view
+        renderView.translatesAutoresizingMaskIntoConstraints = false
+        transformHost.addSubview(renderView)
+        NSLayoutConstraint.activate([
+            renderView.leadingAnchor.constraint(equalTo: transformHost.leadingAnchor),
+            renderView.trailingAnchor.constraint(equalTo: transformHost.trailingAnchor),
+            renderView.topAnchor.constraint(equalTo: transformHost.topAnchor),
+            renderView.bottomAnchor.constraint(equalTo: transformHost.bottomAnchor),
+        ])
+
+        boundsObservation = transformHost.observe(\.bounds, options: [.new]) { [weak self] _, _ in
+            self?.applyRenderTransform()
+        }
     }
 
-    var view: UIView { bridge.view }
+    var view: UIView { transformHost }
 
     func play() {
         bridge.play()
@@ -114,25 +135,47 @@ final class SgNativePlayer: NSObject {
         applyRenderTransform()
     }
 
-    /// Horizontal mirror of the rendered video (GSY-style).
+    /// Horizontal (left-right) mirror of the rendered video.
     func setMirrorHorizontal(enabled: Bool) {
         mirrorHorizontal = enabled
         applyRenderTransform()
     }
 
+    /// Vertical (up-down) mirror of the rendered video.
+    func setMirrorVertical(enabled: Bool) {
+        mirrorVertical = enabled
+        applyRenderTransform()
+    }
+
     func applyRenderTransform() {
-        var transform = CGAffineTransform.identity
+        let bounds = transformHost.bounds
+        let w = bounds.width
+        let h = bounds.height
+        guard w > 1, h > 1 else {
+            transformHost.transform = .identity
+            return
+        }
+
+        // Build around the view center (UIView.transform default anchor).
+        let sx: CGFloat = mirrorHorizontal ? -1 : 1
+        let sy: CGFloat = mirrorVertical ? -1 : 1
+        var transform = CGAffineTransform(scaleX: sx, y: sy)
         if renderRotationDegrees != 0 {
             let radians = CGFloat(renderRotationDegrees) * .pi / 180
             transform = transform.rotated(by: radians)
         }
-        if mirrorHorizontal {
-            transform = transform.scaledBy(x: -1, y: 1)
+        // 90/270: cover the host so the picture stays centered and fills.
+        if renderRotationDegrees % 180 != 0 {
+            let fillScale = max(w / h, h / w)
+            transform = transform.scaledBy(x: fillScale, y: fillScale)
         }
-        bridge.view.transform = transform
+        transformHost.transform = transform
     }
 
     func release() {
+        boundsObservation?.invalidate()
+        boundsObservation = nil
+        transformHost.transform = .identity
         bridge.releasePlayer()
     }
 }

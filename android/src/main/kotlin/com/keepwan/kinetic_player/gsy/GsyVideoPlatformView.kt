@@ -165,6 +165,10 @@ class GsyVideoPlatformView(
                 player.setMirrorHorizontal(call.argument<Boolean>("enabled") ?: false)
                 result.success(null)
             }
+            "gsySetMirrorVertical" -> {
+                player.setMirrorVertical(call.argument<Boolean>("enabled") ?: false)
+                result.success(null)
+            }
             "gsySetKeepLastFrameWhenComplete" -> {
                 player.setKeepLastFrameWhenComplete(
                     call.argument<Boolean>("enabled") ?: false,

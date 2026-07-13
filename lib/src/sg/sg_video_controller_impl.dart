@@ -90,9 +90,13 @@ class SGVideoControllerImpl
   Future<void> sgSetRenderRotation(int degrees) =>
       _invoke('sgSetRenderRotation', {'degrees': degrees});
 
-  /// SG unique: horizontal mirror of rendered video.
+  /// SG unique: horizontal (left-right) mirror of rendered video.
   Future<void> sgSetMirrorHorizontal({required bool enabled}) =>
       _invoke('sgSetMirrorHorizontal', {'enabled': enabled});
+
+  /// SG unique: vertical (up-down) mirror of rendered video.
+  Future<void> sgSetMirrorVertical({required bool enabled}) =>
+      _invoke('sgSetMirrorVertical', {'enabled': enabled});
 
   /// Keep the last rendered frame when playback completes (hide cover overlay).
   Future<void> sgSetKeepLastFrameWhenComplete({required bool enabled}) =>

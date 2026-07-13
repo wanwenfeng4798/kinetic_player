@@ -14,6 +14,8 @@
 - **iOS 手势调节**：新增与 GSY 对齐的滑动手势——横向调进度、左半屏调亮度、右半屏调音量，并显示中央 HUD。与 Android 共用 `enableNativeControls`。播放器销毁时恢复系统亮度。音量弹窗打开或拖动滑轨时禁用右侧滑动调音量（与 Android 一致），音量灵敏度对齐 GSY（约 3×）。
 - **画面旋转 / 镜像**：Android 已有 `gsySetRenderRotation` / `gsySetMirrorHorizontal`；iOS 新增对应的 `sgSetRenderRotation` / `sgSetMirrorHorizontal`（对视频视图施加 `CGAffineTransform`）。Example 增加双端旋转/镜像控制。
 - **封面 / 保留最后一帧**：Android 使用 GSY `setThumbImageView` + KeepLastFrameVideo 风格完成态；iOS 用封面层，开启保留最后一帧时隐藏封面露出画面。配置项 `GsyUiConfig.coverUrl` / `keepLastFrameWhenComplete`；运行时 `gsySetCoverUrl` / `gsySetKeepLastFrameWhenComplete`（iOS 为 `sgSet*`）。
+- **旋转铺满 + 上下镜像**：90°/270° 旋转后按比例放大以居中铺满播放区域；新增 `gsySetMirrorVertical` / `sgSetMirrorVertical`。
+- **旋转 / 镜像偏位修复**：Android 改为 GSY `View.setRotation` + `scaleX`/`scaleY`（由 MeasureHelper 重新测布局），不再使用错误枢轴的 TextureView matrix；iOS 在宿主层变换，避免直接变换 Metal 渲染视图。
 - **Example**：显式开启 `pictureInPictureEnabled: true`；控制面板增加 PiP 使用说明。
 
 ---

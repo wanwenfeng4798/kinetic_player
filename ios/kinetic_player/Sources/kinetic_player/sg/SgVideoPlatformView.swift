@@ -36,6 +36,7 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
 
         container.frame = frame
         container.backgroundColor = .black
+        container.clipsToBounds = true
 
         player.view.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(player.view)
@@ -245,6 +246,11 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
             let args = call.arguments as? [String: Any]
             let enabled = args?["enabled"] as? Bool ?? false
             player.setMirrorHorizontal(enabled: enabled)
+            result(nil)
+        case "sgSetMirrorVertical":
+            let args = call.arguments as? [String: Any]
+            let enabled = args?["enabled"] as? Bool ?? false
+            player.setMirrorVertical(enabled: enabled)
             result(nil)
         case "sgSetKeepLastFrameWhenComplete":
             let args = call.arguments as? [String: Any]

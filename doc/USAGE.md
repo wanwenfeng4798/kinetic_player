@@ -213,6 +213,7 @@ if (controller is GSYVideoControllerImpl) {
   await controller.gsyEnterPictureInPicture(); // 手动进入 PiP
   await controller.gsySetRenderRotation(90);
   await controller.gsySetMirrorHorizontal(enabled: true);
+  await controller.gsySetMirrorVertical(enabled: true);
   await controller.gsySetCoverUrl('https://example.com/cover.jpg');
   await controller.gsySetKeepLastFrameWhenComplete(enabled: true);
 }
@@ -251,6 +252,7 @@ if (controller is SGVideoControllerImpl) {
   await controller.sgSetSyncGroupId('group-1');
   await controller.sgSetRenderRotation(90);
   await controller.sgSetMirrorHorizontal(enabled: true);
+  await controller.sgSetMirrorVertical(enabled: true);
   await controller.sgSetCoverUrl('https://example.com/cover.jpg');
   await controller.sgSetKeepLastFrameWhenComplete(enabled: true);
 }
@@ -270,7 +272,7 @@ if (controller is SGVideoControllerImpl) {
 | 音轨 UI | 齿轮设置面板 | 齿轮设置面板 |
 | 音量 UI | 喇叭竖向弹窗；拖动显示百分比；禁用 GSY 左侧音量手势 | 喇叭竖向弹窗 |
 | 手势调节 | `enableNativeControls`：横向进度、左亮度、右音量 | 同左（底栏显隐一并受控） |
-| 画面旋转 / 镜像 | `gsySetRenderRotation` / `gsySetMirrorHorizontal` | `sgSetRenderRotation` / `sgSetMirrorHorizontal` |
+| 画面旋转 / 镜像 | `gsySetRenderRotation` / `gsySetMirrorHorizontal` / `gsySetMirrorVertical` | `sgSetRenderRotation` / `sgSetMirrorHorizontal` / `sgSetMirrorVertical` |
 | 封面 | `gsySetCoverUrl` / `GsyUiConfig.coverUrl` | `sgSetCoverUrl` / `GsyUiConfig.coverUrl` |
 | 保留最后一帧 | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` |
 

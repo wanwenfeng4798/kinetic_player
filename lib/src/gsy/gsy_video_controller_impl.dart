@@ -103,6 +103,9 @@ class GSYVideoControllerImpl
   Future<void> gsySetMirrorHorizontal({required bool enabled}) =>
       _invoke('gsySetMirrorHorizontal', {'enabled': enabled});
 
+  Future<void> gsySetMirrorVertical({required bool enabled}) =>
+      _invoke('gsySetMirrorVertical', {'enabled': enabled});
+
   /// Keep the last rendered frame when playback completes.
   Future<void> gsySetKeepLastFrameWhenComplete({required bool enabled}) =>
       _invoke('gsySetKeepLastFrameWhenComplete', {'enabled': enabled});
