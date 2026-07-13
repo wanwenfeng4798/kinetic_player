@@ -257,7 +257,7 @@ class GsyVideoPlatformView(
                 player.setWatermarkUrl(call.argument<String>("url"))
                 result.success(null)
             }
-            "sgSetVRMode", "sgSetSyncGroupId" -> result.notImplemented()
+            "sgSetVRMode" -> result.notImplemented()
             "dispose" -> {
                 dispose()
                 result.success(null)

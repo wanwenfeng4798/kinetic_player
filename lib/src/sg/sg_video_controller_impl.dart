@@ -183,12 +183,6 @@ class SGVideoControllerImpl
     return result ?? false;
   }
 
-  /// Unsupported: SGPlayer has no public multi-device sync API.
-  @Deprecated('SGPlayer has no public sync-group API')
-  Future<void> sgSetSyncGroupId(String id) async {
-    throw UnsupportedError('SGPlayer has no public sync-group API');
-  }
-
   Future<void> sgStartFullscreen() => _invoke('sgStartFullscreen');
 
   Future<void> sgExitFullscreen() => _invoke('sgExitFullscreen');

@@ -16,7 +16,7 @@
 - **封面 / 保留最后一帧**：Android 使用 GSY `setThumbImageView` + KeepLastFrameVideo 风格完成态；iOS 用封面层，开启保留最后一帧时隐藏封面露出画面。配置项 `GsyUiConfig.coverUrl` / `keepLastFrameWhenComplete`；运行时 `gsySetCoverUrl` / `gsySetKeepLastFrameWhenComplete`（iOS 为 `sgSet*`）。
 - **旋转铺满 + 上下镜像**：90°/270° 旋转后按比例放大以居中铺满播放区域；新增 `gsySetMirrorVertical` / `sgSetMirrorVertical`。
 - **旋转 / 镜像偏位修复**：Android 改为 GSY `View.setRotation` + `scaleX`/`scaleY`（由 MeasureHelper 重新测布局），不再使用错误枢轴的 TextureView matrix；iOS 使用 `SgTransformHostView`（外层裁剪 + 内层 content 变换，避免 Auto Layout 与 transform 冲突，Metal 渲染视图保持 identity）。
-- **SGPlayer 深度 API**：缓冲进度与错误详情、音高、VR/VRBox + viewport、demuxer 选项（超时/UA/headers）、视频轨选择、多段 `SGMutableAsset`、后台播放策略；`sgSetSyncGroupId` 改为抛错（上游无此 API）。
+- **SGPlayer 深度 API**：缓冲进度与错误详情、音高、VR/VRBox + viewport、demuxer 选项（超时/UA/headers）、视频轨选择、多段 `SGMutableAsset`、后台播放策略。
 - **Example**：显式开启 `pictureInPictureEnabled: true`；控制面板增加 PiP 使用说明。
 
 ---
@@ -65,5 +65,5 @@
 
 ### iOS SGPlayer
 
-- 原生控制栏、全屏、`sgSetVRMode` / `sgSetSyncGroupId`
+- 原生控制栏、全屏、`sgSetVRMode`
 - 音轨 API 与 Android 公共层对齐

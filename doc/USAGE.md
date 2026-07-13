@@ -280,7 +280,6 @@ if (controller is SGVideoControllerImpl) {
 | `sgReplaceWithSegments` | 多段 `SGMutableAsset` |
 | `sgGetVideoTracks` / `sgSelectVideoTrack` | 视频轨 |
 | `sgSetBackgroundPlaybackPolicy` | 后台 / 中断策略 |
-| `sgSetSyncGroupId` | **已废弃**，抛 `UnsupportedError` |
 
 `creationParams` / `gsyUi` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（iOS 读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`。
 

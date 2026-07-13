@@ -304,14 +304,6 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
             ])
         case "sgIsSeekable":
             result(player.isSeekable())
-        case "sgSetSyncGroupId":
-            result(
-                FlutterError(
-                    code: "UNSUPPORTED",
-                    message: "SGPlayer has no public sync-group API",
-                    details: nil,
-                ),
-            )
         case "sgSetRenderRotation":
             let args = call.arguments as? [String: Any]
             let degrees = args?["degrees"] as? Int ?? 0
