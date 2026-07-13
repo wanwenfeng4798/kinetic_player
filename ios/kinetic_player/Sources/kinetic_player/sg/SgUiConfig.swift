@@ -2,7 +2,7 @@ import Foundation
 
 struct SgUiConfig {
     /// Native chrome + pan gestures (seek / volume / brightness).
-    /// Mapped from `enableNativeControls` / legacy `showNativeControls`.
+    /// Mapped from `enableNativeControls`.
     let enableNativeControls: Bool
     let showVolumeToolbar: Bool
     let showSettingsButton: Bool
@@ -19,13 +19,9 @@ struct SgUiConfig {
 
     static func fromCreationParams(_ params: [String: Any]?) -> SgUiConfig {
         let gsyUi = params?["gsyUi"] as? [String: Any]
-        // Prefer enableNativeControls; keep showNativeControls / enableGestureControls as aliases.
         let enableNativeControls =
             gsyUi?["enableNativeControls"] as? Bool
             ?? params?["enableNativeControls"] as? Bool
-            ?? params?["showNativeControls"] as? Bool
-            ?? gsyUi?["enableGestureControls"] as? Bool
-            ?? params?["enableGestureControls"] as? Bool
             ?? true
         return SgUiConfig(
             enableNativeControls: enableNativeControls,

@@ -11,7 +11,7 @@
 ### 增强
 
 - **音量 UI**：拖动竖向音量条时在滑轨左侧显示百分比，松手后隐藏；面板遮罩宽度收窄为 44dp（数值显示在遮罩外侧）。
-- **iOS 手势调节**：新增与 GSY 对齐的滑动手势——横向调进度、左半屏调亮度、右半屏调音量，并显示中央 HUD。与 Android 共用 `enableNativeControls`（已移除独立的 `enableGestureControls`）。播放器销毁时恢复系统亮度。音量弹窗打开或拖动滑轨时禁用右侧滑动调音量（与 Android 一致），音量灵敏度对齐 GSY（约 3×）。
+- **iOS 手势调节**：新增与 GSY 对齐的滑动手势——横向调进度、左半屏调亮度、右半屏调音量，并显示中央 HUD。与 Android 共用 `enableNativeControls`。播放器销毁时恢复系统亮度。音量弹窗打开或拖动滑轨时禁用右侧滑动调音量（与 Android 一致），音量灵敏度对齐 GSY（约 3×）。
 - **画面旋转 / 镜像**：Android 已有 `gsySetRenderRotation` / `gsySetMirrorHorizontal`；iOS 新增对应的 `sgSetRenderRotation` / `sgSetMirrorHorizontal`（对视频视图施加 `CGAffineTransform`）。Example 增加双端旋转/镜像控制。
 - **封面 / 保留最后一帧**：Android 使用 GSY `setThumbImageView` + KeepLastFrameVideo 风格完成态；iOS 用封面层，开启保留最后一帧时隐藏封面露出画面。配置项 `GsyUiConfig.coverUrl` / `keepLastFrameWhenComplete`；运行时 `gsySetCoverUrl` / `gsySetKeepLastFrameWhenComplete`（iOS 为 `sgSet*`）。
 - **Example**：显式开启 `pictureInPictureEnabled: true`；控制面板增加 PiP 使用说明。

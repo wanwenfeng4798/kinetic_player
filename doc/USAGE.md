@@ -256,7 +256,7 @@ if (controller is SGVideoControllerImpl) {
 }
 ```
 
-`creationParams` / `gsyUi` 兼容字段：`enableNativeControls`（亦兼容旧字段 `showNativeControls` / `enableGestureControls`）、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（iOS 读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`。
+`creationParams` / `gsyUi` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（iOS 读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`。
 
 ## 平台差异速查
 
