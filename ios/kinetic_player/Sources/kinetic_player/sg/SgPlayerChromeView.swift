@@ -271,7 +271,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         tap.delegate = self
         addGestureRecognizer(tap)
 
-        if config.enableGestureControls {
+        if config.enableNativeControls {
             let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
             pan.delegate = self
             pan.maximumNumberOfTouches = 1
@@ -280,9 +280,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     }
 
     private func applyConfig() {
-        isHidden = !config.showNativeControls
-        bottomPanel.isHidden = !config.showNativeControls
-        centerPlayButton.isHidden = !config.showNativeControls
+        isHidden = !config.enableNativeControls
+        bottomPanel.isHidden = !config.enableNativeControls
+        centerPlayButton.isHidden = !config.enableNativeControls
         volumeButton.isHidden = !config.showVolumeToolbar
         settingsButton.isHidden = !config.showSettingsButton
         fullscreenButton.isHidden = !config.showFullscreenButton
@@ -377,7 +377,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func scheduleAutoHide() {
         hideTimer?.invalidate()
-        guard config.showNativeControls, isPlaying, !audioPanelVisible, !settingsPanelVisible else { return }
+        guard config.enableNativeControls, isPlaying, !audioPanelVisible, !settingsPanelVisible else { return }
         hideTimer = Timer.scheduledTimer(
             withTimeInterval: TimeInterval(config.dismissControlTimeMs) / 1000.0,
             repeats: false,
@@ -406,7 +406,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     }
 
     @objc private func handlePanGesture(_ gesture: UIPanGestureRecognizer) {
-        guard config.enableGestureControls else { return }
+        guard config.enableNativeControls else { return }
 
         switch gesture.state {
         case .began:

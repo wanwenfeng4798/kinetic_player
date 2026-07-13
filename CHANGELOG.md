@@ -11,7 +11,7 @@
 ### Enhancements
 
 - **Volume UI**: Dragging the vertical volume slider shows a percentage label to the left of the track; the label hides on release. Panel background width reduced to 44dp (label floats outside the panel).
-- **iOS gesture controls**: Added GSY-style pan gestures — horizontal seek, left-half brightness, right-half volume — with a center HUD overlay. Configurable via `enableGestureControls` (default `true`). System brightness is restored when the player is disposed. Swipe-volume is blocked while the volume popup is open or its slider is being dragged (same as Android), and volume sensitivity matches GSY (~3×).
+- **iOS gesture controls**: Added GSY-style pan gestures — horizontal seek, left-half brightness, right-half volume — with a center HUD overlay. Controlled by the shared `enableNativeControls` flag (same as Android). System brightness is restored when the player is disposed. Swipe-volume is blocked while the volume popup is open or its slider is being dragged (same as Android), and volume sensitivity matches GSY (~3×).
 - **Example**: Explicitly enables `pictureInPictureEnabled: true`; added PiP usage hint in the control panel.
 
 ---

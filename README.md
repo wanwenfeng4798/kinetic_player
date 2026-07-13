@@ -9,7 +9,7 @@
 - 统一的 `CommonVideoController` API（播放 / 暂停 / 跳转 / 缩放 / 倍速 / 音量 / 音轨 / 循环 / 截图等）
 - 平台自动选型：Android → GSY，iOS → SGPlayer
 - B 站风格原生控制栏：竖向音量弹窗（拖动显示百分比）、设置面板选音轨、统一进度条与底栏图标尺寸
-- iOS 支持滑动手势调进度 / 音量 / 亮度（与 Android GSY 对齐，`enableGestureControls`）
+- iOS 支持滑动手势调进度 / 音量 / 亮度（与 Android 共用 `enableNativeControls`）
 - Android 画中画（PiP）**默认开启**（API 26+；播放中切后台自动进入，含 GSY 自动播放场景）
 - 独有功能通过显式向下转型调用（不污染公共接口）
 - iOS 支持 **CocoaPods** 与 **Swift Package Manager (SPM)** 双集成

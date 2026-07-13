@@ -178,7 +178,7 @@ Android（GSY）与 iOS（SGPlayer）均采用 B 站风格底部控制栏，进�
 | 进度条 + 时间 | ✅ | ✅ | 原生默认 |
 | 单击显隐控制栏 | ✅ | ✅ | 点击画面空白；播放中约 2.5s 自动隐藏 |
 | **音量** | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条；拖动时在滑轨**左侧**显示百分比（如 `50%`），松手后隐藏 |
-| **手势** | ✅ | ✅ | 横向滑动调进度；左半屏纵向调亮度；右半屏纵向调音量（iOS：`enableGestureControls`，默认开） |
+| **手势** | ✅ | ✅ | `enableNativeControls`：横向调进度；左半屏纵向调亮度；右半屏纵向调音量 |
 | **音轨** | ✅ | ✅ | 点击**齿轮（设置）**弹出面板选择；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
 | 全屏 | ✅ | ✅ | 全屏按钮（与设置/音量图标同尺寸 28dp）/ `gsyStartFullscreen()` / `sgStartFullscreen()` |
 | 画中画 PiP | ✅ 默认开启 | ❌ 不支持 | `pictureInPictureEnabled`（仅 Android） |
@@ -218,13 +218,12 @@ if (controller is GSYVideoControllerImpl) {
 
 | 字段 | 默认 | 说明 |
 |------|------|------|
-| `enableNativeControls` | `true` | 非全屏手势与控制栏 |
-| `enableNativeControlsFullscreen` | `true` | 全屏手势 |
+| `enableNativeControls` | `true` | 双端：滑动手势（进度/音量/亮度）；iOS 同时控制底栏显隐 |
+| `enableNativeControlsFullscreen` | `true` | Android 全屏手势；iOS 与 `enableNativeControls` 共用 |
 | `showFullscreenButton` | `true` | 全屏按钮 |
-| `showLockButton` | `true` | 全屏锁屏按钮 |
+| `showLockButton` | `true` | 全屏锁屏按钮（Android） |
 | `showVolumeToolbar` | `true` | 喇叭按钮 + 竖向音量弹窗 |
 | `showSettingsButton` | `true` | 齿轮按钮 + 设置面板（音轨） |
-| `enableGestureControls` | `true` | iOS：画面滑动调进度/音量/亮度（Android 仍用 `enableNativeControls`） |
 | `pictureInPictureEnabled` | `true` | Android 播放中切后台自动 PiP（API 26+） |
 | `showDragProgressTextOnSeekBar` | `false` | 拖动进度时间文字 |
 | `previewVttUrl` | — | 进度条缩略图 WebVTT |
@@ -246,7 +245,7 @@ if (controller is SGVideoControllerImpl) {
 }
 ```
 
-`creationParams` / `gsyUi` 兼容字段：`showNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`、`enableGestureControls`（iOS 手势；`pictureInPictureEnabled` 在 iOS 读取但不生效）。
+`creationParams` / `gsyUi` 兼容字段：`enableNativeControls`（亦兼容旧字段 `showNativeControls` / `enableGestureControls`）、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（iOS 读取但不生效）。
 
 ## 平台差异速查
 
@@ -259,7 +258,7 @@ if (controller is SGVideoControllerImpl) {
 | 画中画 | 默认开启，需 Manifest + `onUserLeaveHint`；播放中（含自动播放）切后台进入 | 不支持 |
 | 音轨 UI | 齿轮设置面板 | 齿轮设置面板 |
 | 音量 UI | 喇叭竖向弹窗；拖动显示百分比；禁用 GSY 左侧音量手势 | 喇叭竖向弹窗 |
-| 手势调节 | `enableNativeControls`：进度/音量/亮度 | `enableGestureControls`：横向进度、左亮度、右音量 |
+| 手势调节 | `enableNativeControls`：横向进度、左亮度、右音量 | 同左（底栏显隐一并受控） |
 
 ## 监听状态
 
