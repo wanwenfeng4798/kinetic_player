@@ -3,7 +3,8 @@ import SgNativePlayerBridge
 
 protocol SgPlayerCallbacks: AnyObject {
     func onPlayerStateChanged(_ state: CommonPlayerState)
-    func onPositionChanged(positionMs: Int64, durationMs: Int64)
+    func onPositionChanged(positionMs: Int64, durationMs: Int64, bufferedMs: Int64)
+    func onPlayerError(message: String?, code: Int)
 }
 
 /// SGPlayer master bridge (libobjc/SGPlayer).
@@ -24,8 +25,15 @@ final class SgNativePlayer: NSObject {
                       stateIndex < CommonPlayerState.allCases.count else { return }
                 callbacks.onPlayerStateChanged(CommonPlayerState.allCases[stateIndex])
             },
-            progressHandler: { [weak callbacks] positionMs, durationMs in
-                callbacks?.onPositionChanged(positionMs: positionMs, durationMs: durationMs)
+            progressHandler: { [weak callbacks] positionMs, durationMs, bufferedMs in
+                callbacks?.onPositionChanged(
+                    positionMs: positionMs,
+                    durationMs: durationMs,
+                    bufferedMs: bufferedMs,
+                )
+            },
+            errorHandler: { [weak callbacks] message, code in
+                callbacks?.onPlayerError(message: message, code: Int(code))
             },
         )
         super.init()
@@ -43,36 +51,23 @@ final class SgNativePlayer: NSObject {
 
     var view: UIView { transformHost }
 
-    func play() {
-        bridge.play()
-    }
-
-    func pause() {
-        bridge.pause()
-    }
-
-    func stop() {
-        bridge.stop()
-    }
-
-    func seek(positionMs: Int) {
-        bridge.seek(toMs: positionMs)
-    }
-
-    func setRate(_ rate: Double) {
-        bridge.setRate(rate)
-    }
-
-    func setVolume(_ volume: Double) {
-        bridge.setVolume(volume)
-    }
-
-    func setMute(_ muted: Bool) {
-        bridge.setMuted(muted)
-    }
+    func play() { bridge.play() }
+    func pause() { bridge.pause() }
+    func stop() { bridge.stop() }
+    func seek(positionMs: Int) { bridge.seek(toMs: positionMs) }
+    func setRate(_ rate: Double) { bridge.setRate(rate) }
+    func setVolume(_ volume: Double) { bridge.setVolume(volume) }
+    func setMute(_ muted: Bool) { bridge.setMuted(muted) }
+    func setPitch(_ pitch: Double) { bridge.setPitch(pitch) }
+    func currentPitch() -> Double { bridge.currentPitch() }
 
     func switchVideoSource(_ urlString: String, autoPlay: Bool) {
         bridge.switchVideoSource(urlString, autoPlay: autoPlay)
+    }
+
+    @discardableResult
+    func replaceWithSegments(_ segments: [[String: Any]], autoPlay: Bool) -> Bool {
+        bridge.replace(withSegments: segments, autoPlay: autoPlay)
     }
 
     func getAudioTracks() -> [[String: Any]] {
@@ -83,6 +78,14 @@ final class SgNativePlayer: NSObject {
         bridge.selectAudioTrack(index)
     }
 
+    func getVideoTracks() -> [[String: Any]] {
+        bridge.getVideoTracks() as? [[String: Any]] ?? []
+    }
+
+    func selectVideoTrack(_ index: Int) -> Bool {
+        bridge.selectVideoTrack(index)
+    }
+
     func getVideoSize() -> [String: Int]? {
         guard let map = bridge.getVideoSize() as? [String: NSNumber] else { return nil }
         let width = map["width"]?.intValue ?? 0
@@ -91,48 +94,53 @@ final class SgNativePlayer: NSObject {
         return ["width": width, "height": height]
     }
 
-    func setLooping(_ looping: Bool) {
-        bridge.setLooping(looping)
+    func setLooping(_ looping: Bool) { bridge.setLooping(looping) }
+    func captureFrame() -> String? { bridge.captureFrame() }
+    func currentVolume() -> Double { bridge.currentVolume() }
+    func isMuted() -> Bool { bridge.isMuted() }
+    func setRenderMode(_ mode: Int) { bridge.setRenderMode(mode) }
+
+    func setDisplayMode(_ mode: Int) { bridge.setDisplayMode(mode) }
+    func displayMode() -> Int { Int(bridge.displayMode()) }
+
+    func setSgVRMode(enabled: Bool) { bridge.setVrModeEnabled(enabled) }
+
+    func setVrViewport(_ viewport: [String: Any]) {
+        bridge.setVrViewport(viewport)
     }
 
-    func captureFrame() -> String? {
-        bridge.captureFrame()
+    func vrViewport() -> [String: Any] {
+        bridge.vrViewport() as? [String: Any] ?? [:]
     }
 
-    func currentVolume() -> Double {
-        bridge.currentVolume()
+    func setDemuxerOptions(_ options: [String: Any]) {
+        bridge.setDemuxerOptions(options)
     }
 
-    func isMuted() -> Bool {
-        bridge.isMuted()
+    func setBackgroundPlaybackPolicy(_ policy: [String: Any]) {
+        bridge.setBackgroundPlaybackPolicy(policy)
     }
 
-    func setRenderMode(_ mode: Int) {
-        bridge.setRenderMode(mode)
+    func backgroundPlaybackPolicy() -> [String: Any] {
+        bridge.backgroundPlaybackPolicy() as? [String: Any] ?? [:]
     }
 
-    func setSgVRMode(enabled: Bool) {
-        bridge.setVrModeEnabled(enabled)
-    }
+    func lastErrorMessage() -> String? { bridge.lastErrorMessage() }
+    func lastErrorCode() -> Int { Int(bridge.lastErrorCode()) }
+    func bufferedPositionMs() -> Int64 { bridge.bufferedPositionMs() }
+    func isSeekable() -> Bool { bridge.isSeekable() }
 
-    func setSyncGroupId(_ id: String) {
-        bridge.setSyncGroupId(id)
-    }
-
-    /// Rotate the rendered video (0 / 90 / 180 / 270). Chrome overlay is unaffected.
     func setRenderRotation(degrees: Int) {
         let normalized = ((degrees % 360) + 360) % 360
         renderRotationDegrees = normalized
         applyRenderTransform()
     }
 
-    /// Horizontal (left-right) mirror of the rendered video.
     func setMirrorHorizontal(enabled: Bool) {
         mirrorHorizontal = enabled
         applyRenderTransform()
     }
 
-    /// Vertical (up-down) mirror of the rendered video.
     func setMirrorVertical(enabled: Bool) {
         mirrorVertical = enabled
         applyRenderTransform()

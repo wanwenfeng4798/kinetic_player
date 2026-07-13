@@ -246,17 +246,41 @@ if (controller is GSYVideoControllerImpl) {
 ```dart
 if (controller is SGVideoControllerImpl) {
   await controller.sgStartFullscreen();
-  await controller.sgExitFullscreen();
-  final inFullscreen = await controller.sgIsFullscreen();
-  await controller.sgSetVRMode(enabled: true);
-  await controller.sgSetSyncGroupId('group-1');
-  await controller.sgSetRenderRotation(90);
-  await controller.sgSetMirrorHorizontal(enabled: true);
-  await controller.sgSetMirrorVertical(enabled: true);
-  await controller.sgSetCoverUrl('https://example.com/cover.jpg');
-  await controller.sgSetKeepLastFrameWhenComplete(enabled: true);
+  await controller.sgSetDisplayMode(SgDisplayMode.vrBox);
+  await controller.sgSetVrViewport(const SgVrViewport(degrees: 75, sensorEnable: true));
+  await controller.sgSetPitch(1.2);
+  await controller.sgSetDemuxerOptions(const SgDemuxerOptions(
+    timeout: Duration(seconds: 20),
+    reconnect: true,
+    userAgent: 'MyApp',
+    headers: {'Authorization': 'Bearer …'},
+  ));
+  await controller.sgReplaceWithSegments([
+    SgMediaSegment(url: 'https://example.com/a.mp4'),
+    SgMediaSegment(url: 'https://example.com/b.mp4'),
+  ]);
+  await controller.sgSetBackgroundPlaybackPolicy(
+    const SgBackgroundPlaybackPolicy(pausesWhenEnteredBackground: false),
+  );
+  final tracks = await controller.sgGetVideoTracks();
+  await controller.sgSelectVideoTrack(0);
+  // 缓冲 / 错误
+  controller.buffered;      // ValueNotifier<Duration>
+  controller.playerError;   // ValueNotifier<String?>
 }
 ```
+
+| API | 说明 |
+|-----|------|
+| `buffered` / `sgGetBufferedPosition` | 缓冲进度 |
+| `playerError` / `sgGetLastError` | 详细错误 |
+| `sgSetPitch` / `sgGetPitch` | 音高（约 0.5–2.0） |
+| `sgSetDisplayMode` / `sgSetVrViewport` | Plane / VR / VRBox + 视角 |
+| `sgSetDemuxerOptions` | FFmpeg 超时 / 重连 / UA / headers |
+| `sgReplaceWithSegments` | 多段 `SGMutableAsset` |
+| `sgGetVideoTracks` / `sgSelectVideoTrack` | 视频轨 |
+| `sgSetBackgroundPlaybackPolicy` | 后台 / 中断策略 |
+| `sgSetSyncGroupId` | **已废弃**，抛 `UnsupportedError` |
 
 `creationParams` / `gsyUi` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（iOS 读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`。
 
@@ -266,15 +290,17 @@ if (controller is SGVideoControllerImpl) {
 |------|---------------|----------------|
 | 循环 | 原生 `isLooping` | 结束时 `seek(0)+play` |
 | 截图 overlay | `captureFrame(includeOverlay: true)` 含 UI | `includeOverlay` 无效 |
-| 换源 | 重建播放器 | `replaceWithURL` |
+| 换源 | 重建播放器 | `replaceWithURL` / `sgReplaceWithSegments` |
 | 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()` |
 | 画中画 | 默认开启，需 Manifest + `onUserLeaveHint`；播放中（含自动播放）切后台进入 | 不支持 |
 | 音轨 UI | 齿轮设置面板 | 齿轮设置面板 |
 | 音量 UI | 喇叭竖向弹窗；拖动显示百分比；禁用 GSY 左侧音量手势 | 喇叭竖向弹窗 |
 | 手势调节 | `enableNativeControls`：横向进度、左亮度、右音量 | 同左（底栏显隐一并受控） |
-| 画面旋转 / 镜像 | `gsySetRenderRotation` / `gsySetMirrorHorizontal` / `gsySetMirrorVertical` | `sgSetRenderRotation` / `sgSetMirrorHorizontal` / `sgSetMirrorVertical` |
-| 封面 | `gsySetCoverUrl` / `GsyUiConfig.coverUrl` | `sgSetCoverUrl` / `GsyUiConfig.coverUrl` |
+| 画面旋转 / 镜像 | `gsySetRenderRotation` / MirrorH/V | `sgSetRenderRotation` / MirrorH/V |
+| 封面 | `gsySetCoverUrl` | `sgSetCoverUrl` |
 | 保留最后一帧 | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` |
+| 缓冲 / 错误详情 | — | `buffered` / `playerError` |
+| 音高 / VRBox / 多段 / demuxer | — | 见上表 |
 
 ## 监听状态
 

@@ -16,6 +16,7 @@
 - **Cover / keep last frame**: Android uses GSY `setThumbImageView` + KeepLastFrameVideo-style `onAutoCompletion`; iOS uses a cover overlay and hides it when keeping the last frame. Config: `GsyUiConfig.coverUrl` / `keepLastFrameWhenComplete`; runtime: `gsySetCoverUrl` / `gsySetKeepLastFrameWhenComplete` (iOS: `sgSet*`).
 - **Rotate fill + vertical mirror**: 90°/270° rotation now scales to center-fill the player; added `gsySetMirrorVertical` / `sgSetMirrorVertical`.
 - **Rotate / mirror positioning fix**: Android now uses GSY `View.setRotation` + `scaleX`/`scaleY` (MeasureHelper remeasure) instead of a mis-pivoted TextureView matrix; iOS uses `SgTransformHostView` (clipping host + inner content transform) so Auto Layout stays stable and the Metal render target stays identity.
+- **SGPlayer deep APIs**: buffered progress + error details, pitch, VR/VRBox + viewport, demuxer options (timeout/UA/headers), video track selection, multi-segment `SGMutableAsset`, background playback policy; `sgSetSyncGroupId` now throws (unsupported).
 - **Example**: Explicitly enables `pictureInPictureEnabled: true`; added PiP usage hint in the control panel.
 
 ---

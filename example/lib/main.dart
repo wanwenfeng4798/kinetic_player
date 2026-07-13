@@ -509,11 +509,36 @@ class _ControlPanelState extends State<_ControlPanel> {
           ),
           ValueListenableBuilder<Duration>(
             valueListenable: active?.position ?? _zeroDuration,
-            builder: (_, position, widget) {
+            builder: (_, position, __) {
               final duration = active?.duration.value ?? Duration.zero;
-              return Text('${_format(position)} / ${_format(duration)}');
+              if (active is! SGVideoControllerImpl) {
+                return Text('${_format(position)} / ${_format(duration)}');
+              }
+              return ValueListenableBuilder<Duration>(
+                valueListenable: active.buffered,
+                builder: (_, buffered, __) => Text(
+                  '${_format(position)} / ${_format(duration)}  缓冲 ${_format(buffered)}',
+                ),
+              );
             },
           ),
+          if (active is SGVideoControllerImpl) ...[
+            ValueListenableBuilder<String?>(
+              valueListenable: active.playerError,
+              builder: (_, err, __) {
+                if (err == null || err.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Error: $err',
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                  ),
+                );
+              },
+            ),
+          ],
           if (active != null) ...[
             const SizedBox(height: 12),
             const Text(
@@ -812,6 +837,73 @@ class _ControlPanelState extends State<_ControlPanel> {
                   ? '播完停留在最后一帧（不盖封面）。'
                   : '播完显示封面；关闭封面时 Android 清空画面，iOS 显示黑底。',
               style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+          if (active is SGVideoControllerImpl) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'SGPlayer 高级',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: () => active.sgSetPitch(1.25),
+                  child: const Text('音高 1.25'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.sgSetPitch(1.0),
+                  child: const Text('音高复位'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.sgSetDisplayMode(SgDisplayMode.vr),
+                  child: const Text('VR'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.sgSetDisplayMode(SgDisplayMode.vrBox),
+                  child: const Text('VRBox'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.sgSetDisplayMode(SgDisplayMode.plane),
+                  child: const Text('平面'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.sgSetBackgroundPlaybackPolicy(
+                    const SgBackgroundPlaybackPolicy(
+                      pausesWhenEnteredBackground: false,
+                    ),
+                  ),
+                  child: const Text('后台继续播'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.sgSetDemuxerOptions(
+                    const SgDemuxerOptions(
+                      timeout: Duration(seconds: 20),
+                      reconnect: true,
+                      userAgent: 'KineticPlayer-Example',
+                    ),
+                  ),
+                  child: const Text('Demuxer 选项'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    final tracks = await active.sgGetVideoTracks();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('视频轨 ${tracks.length} 条')),
+                    );
+                  },
+                  child: const Text('视频轨'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '缓冲/错误见上方；多段资源用 sgReplaceWithSegments。',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
           const SizedBox(height: 8),

@@ -6,33 +6,48 @@
 
 @property (nonatomic, copy) SgStateChangedBlock stateHandler;
 @property (nonatomic, copy) SgProgressChangedBlock progressHandler;
+@property (nonatomic, copy) SgErrorChangedBlock errorHandler;
 @property (nonatomic, strong) SGPlayer *player;
 @property (nonatomic, strong) UIView *containerView;
-@property (nonatomic, copy, nullable) NSString *syncGroupId;
-@property (nonatomic, assign) BOOL vrModeEnabled;
 @property (nonatomic, assign) BOOL looping;
 @property (nonatomic, assign) BOOL muted;
 @property (nonatomic, assign) Float64 savedVolume;
+@property (nonatomic, assign) Float64 savedPitch;
+@property (nonatomic, assign) int64_t lastBufferedMs;
+@property (nonatomic, copy, nullable) NSString *lastErrorMessage;
+@property (nonatomic, assign) NSInteger lastErrorCode;
+@property (nonatomic, copy, nullable) NSDictionary *pendingDemuxerOptions;
 
 @end
 
 @implementation SgNativePlayerBridge
 
 - (instancetype)initWithStateHandler:(SgStateChangedBlock)stateHandler
-                     progressHandler:(SgProgressChangedBlock)progressHandler {
+                     progressHandler:(SgProgressChangedBlock)progressHandler
+                        errorHandler:(SgErrorChangedBlock)errorHandler {
   self = [super init];
   if (self) {
     _stateHandler = [stateHandler copy];
     _progressHandler = [progressHandler copy];
+    _errorHandler = [errorHandler copy];
     _containerView = [[UIView alloc] init];
     _containerView.backgroundColor = UIColor.blackColor;
     _savedVolume = 1.0;
+    _savedPitch = 1.0;
 
     _player = [[SGPlayer alloc] init];
     _player.minimumTimeInfoInterval = 0.25;
     _player.videoRenderer.view = _containerView;
     _player.videoRenderer.scalingMode = SGScalingModeResizeAspect;
     _player.videoRenderer.displayMode = SGDisplayModePlane;
+    _player.audioRenderer.pitch = _savedPitch;
+
+    __weak typeof(self) weakSelf = self;
+    _player.readyHandler = ^(SGPlayer *player) {
+      (void)player;
+      [weakSelf applySavedVolume];
+      weakSelf.player.audioRenderer.pitch = weakSelf.savedPitch;
+    };
 
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleInfoChanged:)
@@ -51,18 +66,135 @@
   return _containerView;
 }
 
+- (void)applyPendingDemuxerOptions {
+  if (!self.pendingDemuxerOptions.count) {
+    return;
+  }
+  NSMutableDictionary *ffmpeg = [NSMutableDictionary dictionary];
+  NSDictionary *extra = self.pendingDemuxerOptions[@"options"];
+  if ([extra isKindOfClass:[NSDictionary class]]) {
+    [ffmpeg addEntriesFromDictionary:extra];
+  }
+  NSNumber *timeout = self.pendingDemuxerOptions[@"timeoutMicros"];
+  if ([timeout isKindOfClass:[NSNumber class]]) {
+    ffmpeg[@"timeout"] = timeout;
+  }
+  NSNumber *reconnect = self.pendingDemuxerOptions[@"reconnect"];
+  if ([reconnect isKindOfClass:[NSNumber class]]) {
+    ffmpeg[@"reconnect"] = reconnect;
+  }
+  NSString *userAgent = self.pendingDemuxerOptions[@"userAgent"];
+  if ([userAgent isKindOfClass:[NSString class]] && userAgent.length > 0) {
+    ffmpeg[@"user-agent"] = userAgent;
+  }
+  NSDictionary *headers = self.pendingDemuxerOptions[@"headers"];
+  if ([headers isKindOfClass:[NSDictionary class]] && headers.count > 0) {
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    [headers enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
+      [parts addObject:[NSString stringWithFormat:@"%@: %@", key, obj]];
+    }];
+    // FFmpeg expects headers separated by CRLF.
+    ffmpeg[@"headers"] = [[parts componentsJoinedByString:@"\r\n"] stringByAppendingString:@"\r\n"];
+  }
+  if (ffmpeg.count > 0) {
+    self.player.options.demuxer.options = ffmpeg;
+  }
+}
+
+- (void)clearError {
+  self.lastErrorMessage = nil;
+  self.lastErrorCode = 0;
+  if (self.errorHandler) {
+    self.errorHandler(nil, 0);
+  }
+}
+
+- (void)publishError:(NSError *)error {
+  if (!error) {
+    return;
+  }
+  self.lastErrorMessage = error.localizedDescription ?: error.domain;
+  self.lastErrorCode = error.code;
+  if (self.errorHandler) {
+    self.errorHandler(self.lastErrorMessage, self.lastErrorCode);
+  }
+}
+
 - (void)switchVideoSource:(NSString *)urlString autoPlay:(BOOL)autoPlay {
   NSURL *url = [NSURL URLWithString:urlString];
   if (!url) {
+    NSError *error = [NSError errorWithDomain:@"SgNativePlayer"
+                                         code:-1
+                                     userInfo:@{NSLocalizedDescriptionKey : @"Invalid URL"}];
+    [self publishError:error];
     [self emitState:6];
     return;
   }
+  [self clearError];
   [self emitState:0];
+  [self applyPendingDemuxerOptions];
   [_player replaceWithURL:url];
   [self applySavedVolume];
+  _player.audioRenderer.pitch = _savedPitch;
   if (autoPlay) {
     [_player play];
   }
+}
+
+- (BOOL)replaceWithSegments:(NSArray<NSDictionary *> *)segments autoPlay:(BOOL)autoPlay {
+  if (segments.count == 0) {
+    return NO;
+  }
+  [self clearError];
+  [self applyPendingDemuxerOptions];
+
+  SGMutableAsset *asset = [[SGMutableAsset alloc] init];
+  SGMutableTrack *videoTrack = [asset addTrack:SGMediaTypeVideo];
+  SGMutableTrack *audioTrack = [asset addTrack:SGMediaTypeAudio];
+
+  for (NSDictionary *seg in segments) {
+    NSString *urlString = seg[@"url"];
+    if (![urlString isKindOfClass:[NSString class]] || urlString.length == 0) {
+      continue;
+    }
+    NSURL *url = [NSURL URLWithString:urlString];
+    if (!url) {
+      continue;
+    }
+    NSInteger streamIndex = [seg[@"streamIndex"] respondsToSelector:@selector(integerValue)]
+                                ? [seg[@"streamIndex"] integerValue]
+                                : 0;
+    CMTimeRange range = kCMTimeRangeZero;
+    NSNumber *startMs = seg[@"startMs"];
+    NSNumber *endMs = seg[@"endMs"];
+    if ([startMs isKindOfClass:[NSNumber class]] || [endMs isKindOfClass:[NSNumber class]]) {
+      int64_t start = [startMs isKindOfClass:[NSNumber class]] ? startMs.longLongValue : 0;
+      CMTime startTime = CMTimeMake(start, 1000);
+      if ([endMs isKindOfClass:[NSNumber class]]) {
+        int64_t end = endMs.longLongValue;
+        CMTime duration = CMTimeMake(MAX(0, end - start), 1000);
+        range = CMTimeRangeMake(startTime, duration);
+      } else {
+        range = CMTimeRangeMake(startTime, kCMTimePositiveInfinity);
+      }
+    }
+    SGURLSegment *segment =
+        [[SGURLSegment alloc] initWithURL:url
+                                    index:streamIndex
+                                timeRange:range
+                                    scale:CMTimeMake(1, 1)];
+    [videoTrack appendSegment:segment];
+    [audioTrack appendSegment:segment];
+  }
+
+  [self emitState:0];
+  BOOL ok = [_player replaceWithAsset:asset];
+  [self applySavedVolume];
+  _player.audioRenderer.pitch = _savedPitch;
+  if (ok && autoPlay) {
+    [_player play];
+  }
+  return ok;
 }
 
 - (void)play {
@@ -73,6 +205,7 @@
   }
   [_player play];
   [self applySavedVolume];
+  _player.audioRenderer.pitch = _savedPitch;
 }
 
 - (void)pause {
@@ -84,7 +217,7 @@
   [_player seekToTime:kCMTimeZero];
   [self emitState:0];
   if (self.progressHandler) {
-    self.progressHandler(0, [self getDurationMs]);
+    self.progressHandler(0, [self getDurationMs], 0);
   }
 }
 
@@ -106,25 +239,36 @@
   [self applySavedVolume];
 }
 
+- (void)setPitch:(double)pitch {
+  // SGPlayer pitch is typically around 0.5–2.0; clamp gently.
+  Float64 clamped = fmax(0.5, fmin(pitch, 2.0));
+  _savedPitch = clamped;
+  _player.audioRenderer.pitch = clamped;
+}
+
+- (double)currentPitch {
+  return _savedPitch;
+}
+
 - (void)applySavedVolume {
   _player.audioRenderer.volume = _muted ? 0.0 : _savedVolume;
 }
 
-- (NSArray<NSDictionary *> *)getAudioTracks {
+- (NSArray<NSDictionary *> *)tracksOfType:(SGMediaType)type labelPrefix:(NSString *)prefix {
   SGPlayerItem *item = [_player currentItem];
   if (!item) {
     return @[];
   }
-  NSArray<SGTrack *> *audioTracks =
-      [SGTrack tracksWithTracks:item.tracks type:SGMediaTypeAudio];
-  SGTrackSelection *selection = item.audioSelection;
+  NSArray<SGTrack *> *tracks = [SGTrack tracksWithTracks:item.tracks type:type];
+  SGTrackSelection *selection =
+      (type == SGMediaTypeAudio) ? item.audioSelection : item.videoSelection;
   NSMutableArray<NSDictionary *> *result = [NSMutableArray array];
   NSInteger index = 0;
-  for (SGTrack *track in audioTracks) {
+  for (SGTrack *track in tracks) {
     BOOL selected = [selection.tracks containsObject:track];
     [result addObject:@{
       @"index" : @(index),
-      @"label" : [NSString stringWithFormat:@"音轨_%ld", (long)track.index],
+      @"label" : [NSString stringWithFormat:@"%@_%ld", prefix, (long)track.index],
       @"language" : [NSNull null],
       @"selected" : @(selected),
     }];
@@ -133,22 +277,41 @@
   return result;
 }
 
-- (BOOL)selectAudioTrack:(NSInteger)index {
+- (BOOL)selectTrackAtIndex:(NSInteger)index type:(SGMediaType)type {
   SGPlayerItem *item = [_player currentItem];
   if (!item) {
     return NO;
   }
-  NSArray<SGTrack *> *audioTracks =
-      [SGTrack tracksWithTracks:item.tracks type:SGMediaTypeAudio];
-  if (index < 0 || index >= (NSInteger)audioTracks.count) {
+  NSArray<SGTrack *> *tracks = [SGTrack tracksWithTracks:item.tracks type:type];
+  if (index < 0 || index >= (NSInteger)tracks.count) {
     return NO;
   }
-  SGTrack *track = audioTracks[(NSUInteger)index];
+  SGTrack *track = tracks[(NSUInteger)index];
   SGTrackSelection *selection = [[SGTrackSelection alloc] init];
   selection.tracks = @[ track ];
   selection.weights = @[ @(1.0) ];
-  [item setAudioSelection:selection action:SGTrackSelectionActionTracks];
+  if (type == SGMediaTypeAudio) {
+    [item setAudioSelection:selection action:SGTrackSelectionActionTracks];
+  } else {
+    [item setVideoSelection:selection action:SGTrackSelectionActionTracks];
+  }
   return YES;
+}
+
+- (NSArray<NSDictionary *> *)getAudioTracks {
+  return [self tracksOfType:SGMediaTypeAudio labelPrefix:@"音轨"];
+}
+
+- (BOOL)selectAudioTrack:(NSInteger)index {
+  return [self selectTrackAtIndex:index type:SGMediaTypeAudio];
+}
+
+- (NSArray<NSDictionary *> *)getVideoTracks {
+  return [self tracksOfType:SGMediaTypeVideo labelPrefix:@"视频轨"];
+}
+
+- (BOOL)selectVideoTrack:(NSInteger)index {
+  return [self selectTrackAtIndex:index type:SGMediaTypeVideo];
 }
 
 - (int64_t)getDurationMs {
@@ -163,26 +326,11 @@
   return 0;
 }
 
-- (int64_t)getCurrentPositionMs {
-  SGTimeInfo timeInfo = [_player timeInfo];
-  if (CMTIME_IS_NUMERIC(timeInfo.playback)) {
-    return (int64_t)(CMTimeGetSeconds(timeInfo.playback) * 1000.0);
-  }
-  return 0;
+- (int64_t)bufferedPositionMs {
+  return _lastBufferedMs;
 }
 
 - (NSDictionary *)getVideoSize {
-  SGPlayerItem *item = [_player currentItem];
-  if (!item) {
-    return nil;
-  }
-  NSArray<SGTrack *> *videoTracks =
-      [SGTrack tracksWithTracks:item.tracks type:SGMediaTypeVideo];
-  SGTrack *videoTrack = videoTracks.firstObject;
-  if (!videoTrack) {
-    return nil;
-  }
-  // SGTrack only exposes stream index; use renderer snapshot dimensions when available.
   SGPLFImage *image = [_player.videoRenderer currentImage];
   if (image && image.size.width > 0 && image.size.height > 0) {
     return @{
@@ -208,10 +356,12 @@
   [_player seekToTime:kCMTimeZero
                 result:^(CMTime time, NSError *error) {
                   if (error) {
+                    [weakSelf publishError:error];
                     return;
                   }
                   [weakSelf.player play];
                   [weakSelf applySavedVolume];
+                  weakSelf.player.audioRenderer.pitch = weakSelf.savedPitch;
                 }];
 }
 
@@ -247,6 +397,10 @@
   [_player seekToTime:time];
 }
 
+- (BOOL)isSeekable {
+  return [_player seekable];
+}
+
 - (void)setRenderMode:(NSInteger)mode {
   switch (mode) {
     case 0:
@@ -261,14 +415,116 @@
   }
 }
 
-- (void)setVrModeEnabled:(BOOL)enabled {
-  _vrModeEnabled = enabled;
-  _player.videoRenderer.displayMode = enabled ? SGDisplayModeVR : SGDisplayModePlane;
+- (void)setDisplayMode:(NSInteger)mode {
+  switch (mode) {
+    case 1:
+      _player.videoRenderer.displayMode = SGDisplayModeVR;
+      break;
+    case 2:
+      _player.videoRenderer.displayMode = SGDisplayModeVRBox;
+      break;
+    default:
+      _player.videoRenderer.displayMode = SGDisplayModePlane;
+      break;
+  }
 }
 
-- (void)setSyncGroupId:(NSString *)syncGroupId {
-  _syncGroupId = [syncGroupId copy];
-  // SGPlayer has no public sync-group API; stored for future SDK hookup.
+- (NSInteger)displayMode {
+  switch (_player.videoRenderer.displayMode) {
+    case SGDisplayModeVR:
+      return 1;
+    case SGDisplayModeVRBox:
+      return 2;
+    default:
+      return 0;
+  }
+}
+
+- (void)setVrModeEnabled:(BOOL)enabled {
+  [self setDisplayMode:enabled ? 1 : 0];
+}
+
+- (void)setVrViewport:(NSDictionary *)viewport {
+  SGVRViewport *vp = _player.videoRenderer.viewport;
+  if (!vp) {
+    return;
+  }
+  NSNumber *degrees = viewport[@"degrees"] ?: viewport[@"degress"];
+  if ([degrees isKindOfClass:[NSNumber class]]) {
+    vp.degress = degrees.doubleValue;
+  }
+  NSNumber *x = viewport[@"x"];
+  if ([x isKindOfClass:[NSNumber class]]) {
+    vp.x = x.doubleValue;
+  }
+  NSNumber *y = viewport[@"y"];
+  if ([y isKindOfClass:[NSNumber class]]) {
+    vp.y = y.doubleValue;
+  }
+  NSNumber *flipX = viewport[@"flipX"];
+  if ([flipX isKindOfClass:[NSNumber class]]) {
+    vp.flipX = flipX.boolValue;
+  }
+  NSNumber *flipY = viewport[@"flipY"];
+  if ([flipY isKindOfClass:[NSNumber class]]) {
+    vp.flipY = flipY.boolValue;
+  }
+  NSNumber *sensor = viewport[@"sensorEnable"];
+  if ([sensor isKindOfClass:[NSNumber class]]) {
+    vp.sensorEnable = sensor.boolValue;
+  }
+}
+
+- (NSDictionary *)vrViewport {
+  SGVRViewport *vp = _player.videoRenderer.viewport;
+  if (!vp) {
+    return @{};
+  }
+  return @{
+    @"degrees" : @(vp.degress),
+    @"x" : @(vp.x),
+    @"y" : @(vp.y),
+    @"flipX" : @(vp.flipX),
+    @"flipY" : @(vp.flipY),
+    @"sensorEnable" : @(vp.sensorEnable),
+  };
+}
+
+- (void)setDemuxerOptions:(NSDictionary *)options {
+  self.pendingDemuxerOptions = [options copy];
+  [self applyPendingDemuxerOptions];
+}
+
+- (void)setBackgroundPlaybackPolicy:(NSDictionary *)policy {
+#if TARGET_OS_IOS || TARGET_OS_TV
+  NSNumber *interrupted = policy[@"pausesWhenInterrupted"];
+  if ([interrupted isKindOfClass:[NSNumber class]]) {
+    _player.pausesWhenInterrupted = interrupted.boolValue;
+  }
+  NSNumber *bg = policy[@"pausesWhenEnteredBackground"];
+  if ([bg isKindOfClass:[NSNumber class]]) {
+    _player.pausesWhenEnteredBackground = bg.boolValue;
+  }
+  NSNumber *bgNoAudio = policy[@"pausesWhenEnteredBackgroundIfNoAudioTrack"];
+  if ([bgNoAudio isKindOfClass:[NSNumber class]]) {
+    _player.pausesWhenEnteredBackgroundIfNoAudioTrack = bgNoAudio.boolValue;
+  }
+#else
+  (void)policy;
+#endif
+}
+
+- (NSDictionary *)backgroundPlaybackPolicy {
+#if TARGET_OS_IOS || TARGET_OS_TV
+  return @{
+    @"pausesWhenInterrupted" : @(_player.pausesWhenInterrupted),
+    @"pausesWhenEnteredBackground" : @(_player.pausesWhenEnteredBackground),
+    @"pausesWhenEnteredBackgroundIfNoAudioTrack" :
+        @(_player.pausesWhenEnteredBackgroundIfNoAudioTrack),
+  };
+#else
+  return @{};
+#endif
 }
 
 - (void)releasePlayer {
@@ -284,9 +540,15 @@
   SGInfoAction action = [SGPlayer infoActionFromUserInfo:notification.userInfo];
 
   if (action & SGInfoActionState) {
-    [self emitState:[self mapCommonState:stateInfo]];
+    NSInteger mapped = [self mapCommonState:stateInfo];
+    [self emitState:mapped];
+    if (stateInfo.player == SGPlayerStateFailed) {
+      NSError *error = [_player error] ?: [_player currentItem].error;
+      [self publishError:error];
+    }
     if (stateInfo.playback & SGPlaybackStatePlaying) {
       [self applySavedVolume];
+      _player.audioRenderer.pitch = _savedPitch;
     }
     if ((stateInfo.playback & SGPlaybackStateFinished) && self.looping) {
       [self replayFromBeginning];
@@ -296,14 +558,20 @@
   if (action & SGInfoActionTime) {
     int64_t positionMs = 0;
     int64_t durationMs = 0;
+    int64_t bufferedMs = 0;
     if (CMTIME_IS_NUMERIC(timeInfo.playback)) {
       positionMs = (int64_t)(CMTimeGetSeconds(timeInfo.playback) * 1000.0);
     }
     if (CMTIME_IS_NUMERIC(timeInfo.duration)) {
       durationMs = (int64_t)(CMTimeGetSeconds(timeInfo.duration) * 1000.0);
     }
+    if (CMTIME_IS_NUMERIC(timeInfo.cached)) {
+      // SGTimeInfo.cached is the buffered timeline position / end.
+      bufferedMs = (int64_t)(CMTimeGetSeconds(timeInfo.cached) * 1000.0);
+    }
+    self.lastBufferedMs = MAX(0, bufferedMs);
     if (self.progressHandler) {
-      self.progressHandler(positionMs, durationMs);
+      self.progressHandler(positionMs, durationMs, self.lastBufferedMs);
     }
   }
 }

@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../common/common_audio_track.dart';
 import '../common/common_player_state.dart';
 import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
 import '../common/common_video_controller_bridge.dart';
 import '../common/platform_guard.dart';
+import 'sg_video_features.dart';
 
 class SGVideoControllerImpl
     with CommonVideoControllerBridge
@@ -28,6 +30,15 @@ class SGVideoControllerImpl
   @override
   final ValueNotifier<Duration> duration = ValueNotifier(Duration.zero);
 
+  /// Buffered end position from SGPlayer `SGTimeInfo.cached`.
+  final ValueNotifier<Duration> buffered = ValueNotifier(Duration.zero);
+
+  /// Last native error message (null when cleared / no error).
+  final ValueNotifier<String?> playerError = ValueNotifier<String?>(null);
+
+  /// Last native error code (0 when none).
+  final ValueNotifier<int> playerErrorCode = ValueNotifier(0);
+
   SGVideoControllerImpl(this.viewId) {
     assertIosPlatform('SGVideoControllerImpl');
     _channel = MethodChannel('com.example.player/sg_$viewId');
@@ -41,6 +52,10 @@ class SGVideoControllerImpl
         final args = call.arguments as Map;
         playerState.value =
             CommonPlayerState.values[args['state'] as int];
+        if (playerState.value != CommonPlayerState.error) {
+          playerError.value = null;
+          playerErrorCode.value = 0;
+        }
         break;
       case 'onPositionChanged':
         final args = call.arguments as Map;
@@ -48,6 +63,13 @@ class SGVideoControllerImpl
             Duration(milliseconds: args['position'] as int);
         duration.value =
             Duration(milliseconds: args['duration'] as int);
+        final bufferedMs = args['buffered'] as int? ?? 0;
+        buffered.value = Duration(milliseconds: bufferedMs);
+        break;
+      case 'onPlayerError':
+        final args = call.arguments as Map;
+        playerError.value = args['message'] as String?;
+        playerErrorCode.value = args['code'] as int? ?? 0;
         break;
     }
   }
@@ -66,19 +88,109 @@ class SGVideoControllerImpl
   Future<void> setScaleMode(CommonScaleMode mode) =>
       _invoke('setScaleMode', {'mode': mode.index});
 
-  /// SG unique: enable or disable VR rendering mode.
+  /// Enable classic VR (mono) rendering. Prefer [sgSetDisplayMode] for VRBox.
   Future<void> sgSetVRMode({required bool enabled}) =>
       _invoke('sgSetVRMode', {'enabled': enabled});
 
-  /// SG unique: assign sync group for multi-device playback.
-  /// No-op on SGPlayer (reserved hook).
-  Future<void> sgSetSyncGroupId(String id) =>
-      _invoke('sgSetSyncGroupId', {'id': id});
+  Future<void> sgSetDisplayMode(SgDisplayMode mode) =>
+      _invoke('sgSetDisplayMode', {'mode': mode.index});
 
-  /// SG unique: enter window-level fullscreen overlay.
+  Future<SgDisplayMode> sgGetDisplayMode() async {
+    final result = await _channel.invokeMethod<int>('sgGetDisplayMode');
+    final index = result ?? 0;
+    if (index < 0 || index >= SgDisplayMode.values.length) {
+      return SgDisplayMode.plane;
+    }
+    return SgDisplayMode.values[index];
+  }
+
+  Future<void> sgSetVrViewport(SgVrViewport viewport) =>
+      _invoke('sgSetVrViewport', viewport.toMap());
+
+  Future<SgVrViewport> sgGetVrViewport() async {
+    final result =
+        await _channel.invokeMethod<Map<Object?, Object?>>('sgGetVrViewport');
+    return SgVrViewport.fromMap(result ?? const {});
+  }
+
+  Future<void> sgSetPitch(double pitch) =>
+      _invoke('sgSetPitch', {'pitch': pitch});
+
+  Future<double> sgGetPitch() async {
+    final result = await _channel.invokeMethod<double>('sgGetPitch');
+    return result ?? 1;
+  }
+
+  Future<List<CommonAudioTrack>> sgGetVideoTracks() async {
+    final result =
+        await _channel.invokeMethod<List<Object?>>('sgGetVideoTracks');
+    return result
+            ?.map(
+              (item) =>
+                  CommonAudioTrack.fromMap(item! as Map<Object?, Object?>),
+            )
+            .toList() ??
+        const [];
+  }
+
+  Future<void> sgSelectVideoTrack(int index) =>
+      _invoke('sgSelectVideoTrack', {'index': index});
+
+  Future<void> sgSetDemuxerOptions(SgDemuxerOptions options) =>
+      _invoke('sgSetDemuxerOptions', options.toMap());
+
+  Future<bool> sgReplaceWithSegments(
+    List<SgMediaSegment> segments, {
+    bool autoPlay = true,
+  }) async {
+    final result = await _channel.invokeMethod<bool>(
+      'sgReplaceWithSegments',
+      {
+        'segments': segments.map((s) => s.toMap()).toList(),
+        'autoPlay': autoPlay,
+      },
+    );
+    return result ?? false;
+  }
+
+  Future<void> sgSetBackgroundPlaybackPolicy(
+    SgBackgroundPlaybackPolicy policy,
+  ) =>
+      _invoke('sgSetBackgroundPlaybackPolicy', policy.toMap());
+
+  Future<SgBackgroundPlaybackPolicy> sgGetBackgroundPlaybackPolicy() async {
+    final result = await _channel
+        .invokeMethod<Map<Object?, Object?>>('sgGetBackgroundPlaybackPolicy');
+    return SgBackgroundPlaybackPolicy.fromMap(result ?? const {});
+  }
+
+  Future<Duration> sgGetBufferedPosition() async {
+    final result = await _channel.invokeMethod<int>('sgGetBufferedPosition');
+    return Duration(milliseconds: result ?? 0);
+  }
+
+  Future<({String? message, int code})> sgGetLastError() async {
+    final result =
+        await _channel.invokeMethod<Map<Object?, Object?>>('sgGetLastError');
+    return (
+      message: result?['message'] as String?,
+      code: result?['code'] as int? ?? 0,
+    );
+  }
+
+  Future<bool> sgIsSeekable() async {
+    final result = await _channel.invokeMethod<bool>('sgIsSeekable');
+    return result ?? false;
+  }
+
+  /// Unsupported: SGPlayer has no public multi-device sync API.
+  @Deprecated('SGPlayer has no public sync-group API')
+  Future<void> sgSetSyncGroupId(String id) async {
+    throw UnsupportedError('SGPlayer has no public sync-group API');
+  }
+
   Future<void> sgStartFullscreen() => _invoke('sgStartFullscreen');
 
-  /// SG unique: exit window-level fullscreen overlay.
   Future<void> sgExitFullscreen() => _invoke('sgExitFullscreen');
 
   Future<bool> sgIsFullscreen() async {
@@ -86,23 +198,18 @@ class SGVideoControllerImpl
     return result ?? false;
   }
 
-  /// SG unique: rotate rendered video (0 / 90 / 180 / 270). Chrome stays upright.
   Future<void> sgSetRenderRotation(int degrees) =>
       _invoke('sgSetRenderRotation', {'degrees': degrees});
 
-  /// SG unique: horizontal (left-right) mirror of rendered video.
   Future<void> sgSetMirrorHorizontal({required bool enabled}) =>
       _invoke('sgSetMirrorHorizontal', {'enabled': enabled});
 
-  /// SG unique: vertical (up-down) mirror of rendered video.
   Future<void> sgSetMirrorVertical({required bool enabled}) =>
       _invoke('sgSetMirrorVertical', {'enabled': enabled});
 
-  /// Keep the last rendered frame when playback completes (hide cover overlay).
   Future<void> sgSetKeepLastFrameWhenComplete({required bool enabled}) =>
       _invoke('sgSetKeepLastFrameWhenComplete', {'enabled': enabled});
 
-  /// Set cover / poster image URL (null to clear).
   Future<void> sgSetCoverUrl(String? url) =>
       _invoke('sgSetCoverUrl', {'url': url});
 
@@ -115,6 +222,9 @@ class SGVideoControllerImpl
     playerState.dispose();
     position.dispose();
     duration.dispose();
+    buffered.dispose();
+    playerError.dispose();
+    playerErrorCode.dispose();
   }
 
   Future<void> _invoke(String method, [Object? arguments]) async {

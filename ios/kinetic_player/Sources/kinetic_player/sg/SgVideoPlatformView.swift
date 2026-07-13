@@ -79,8 +79,14 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
 
     func view() -> UIView { container }
 
-    func onProgressChanged(positionMs: Int64, durationMs: Int64) {
+    func onProgressChanged(positionMs: Int64, durationMs: Int64, bufferedMs: Int64) {
         chrome.updateProgress(positionMs: positionMs, durationMs: durationMs)
+        _ = bufferedMs
+    }
+
+    func onPlayerError(message: String?, code: Int) {
+        _ = message
+        _ = code
     }
 
     func onPlayerStateChanged(_ state: CommonPlayerState) {
@@ -241,11 +247,71 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
             let enabled = args?["enabled"] as? Bool ?? false
             player.setSgVRMode(enabled: enabled)
             result(nil)
-        case "sgSetSyncGroupId":
+        case "sgSetDisplayMode":
             let args = call.arguments as? [String: Any]
-            let id = args?["id"] as? String ?? ""
-            player.setSyncGroupId(id)
+            let mode = args?["mode"] as? Int ?? 0
+            player.setDisplayMode(mode)
             result(nil)
+        case "sgGetDisplayMode":
+            result(player.displayMode())
+        case "sgSetVrViewport":
+            let args = call.arguments as? [String: Any] ?? [:]
+            player.setVrViewport(args)
+            result(nil)
+        case "sgGetVrViewport":
+            result(player.vrViewport())
+        case "sgSetPitch":
+            let args = call.arguments as? [String: Any]
+            let pitch = args?["pitch"] as? Double ?? 1.0
+            player.setPitch(pitch)
+            result(nil)
+        case "sgGetPitch":
+            result(player.currentPitch())
+        case "sgGetVideoTracks":
+            result(player.getVideoTracks())
+        case "sgSelectVideoTrack":
+            let args = call.arguments as? [String: Any]
+            let index = args?["index"] as? Int ?? 0
+            if player.selectVideoTrack(index) {
+                result(nil)
+            } else {
+                result(FlutterError(code: "TRACK", message: "Video track not found", details: nil))
+            }
+        case "sgSetDemuxerOptions":
+            let args = call.arguments as? [String: Any] ?? [:]
+            player.setDemuxerOptions(args)
+            result(nil)
+        case "sgReplaceWithSegments":
+            let args = call.arguments as? [String: Any]
+            let segments = args?["segments"] as? [[String: Any]] ?? []
+            let autoPlay = args?["autoPlay"] as? Bool ?? true
+            let ok = player.replaceWithSegments(segments, autoPlay: autoPlay)
+            latestState = .idle
+            syncCoverVisibility()
+            result(ok)
+        case "sgSetBackgroundPlaybackPolicy":
+            let args = call.arguments as? [String: Any] ?? [:]
+            player.setBackgroundPlaybackPolicy(args)
+            result(nil)
+        case "sgGetBackgroundPlaybackPolicy":
+            result(player.backgroundPlaybackPolicy())
+        case "sgGetBufferedPosition":
+            result(player.bufferedPositionMs())
+        case "sgGetLastError":
+            result([
+                "message": player.lastErrorMessage() as Any,
+                "code": player.lastErrorCode(),
+            ])
+        case "sgIsSeekable":
+            result(player.isSeekable())
+        case "sgSetSyncGroupId":
+            result(
+                FlutterError(
+                    code: "UNSUPPORTED",
+                    message: "SGPlayer has no public sync-group API",
+                    details: nil,
+                ),
+            )
         case "sgSetRenderRotation":
             let args = call.arguments as? [String: Any]
             let degrees = args?["degrees"] as? Int ?? 0
@@ -302,13 +368,25 @@ private final class SgChannelCallbacks: SgPlayerCallbacks {
         channel.invokeMethod("onPlayerStateChanged", arguments: ["state": state.rawValue])
     }
 
-    func onPositionChanged(positionMs: Int64, durationMs: Int64) {
-        host?.onProgressChanged(positionMs: positionMs, durationMs: durationMs)
+    func onPositionChanged(positionMs: Int64, durationMs: Int64, bufferedMs: Int64) {
+        host?.onProgressChanged(positionMs: positionMs, durationMs: durationMs, bufferedMs: bufferedMs)
         channel.invokeMethod(
             "onPositionChanged",
             arguments: [
                 "position": positionMs,
                 "duration": durationMs,
+                "buffered": bufferedMs,
+            ],
+        )
+    }
+
+    func onPlayerError(message: String?, code: Int) {
+        host?.onPlayerError(message: message, code: code)
+        channel.invokeMethod(
+            "onPlayerError",
+            arguments: [
+                "message": message as Any,
+                "code": code,
             ],
         )
     }

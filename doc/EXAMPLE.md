@@ -38,6 +38,7 @@ Android 可直接 `flutter run`。
 | 滑动手势 | 横向调进度；左半屏纵向调亮度；右半屏纵向调音量（`enableNativeControls`） |
 | 旋转 / 镜像 | 左转/右转 90°、复位、左右镜像、上下镜像（Android / iOS） |
 | 封面 / 最后一帧 | 开关封面、播完保留最后一帧（Android / iOS） |
+| SG 高级（iOS） | 音高、VR/VRBox、后台播放、demuxer 选项、视频轨；缓冲与错误显示 |
 
 **画中画（Android）**：播放中（含自动播放或原生播放按钮）按 **Home** 或切到其他 App 会自动进入 PiP。Example 已在 `MainActivity` 与 `AndroidManifest` 中配置；`GsyUiConfig(pictureInPictureEnabled: true)` 已显式开启。
 

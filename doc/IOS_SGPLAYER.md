@@ -143,6 +143,18 @@ ios/Frameworks/SGPlayer.xcframework
 
 若未来需要模拟器 slice，需为 `iphonesimulator` 单独编译 FFmpeg（工作量大，见 `build_sgplayer.sh` 注释）。
 
+## 已暴露的 SGPlayer 高级能力
+
+见 [USAGE.md](USAGE.md) iOS 节与 `lib/src/sg/sg_video_features.dart`：
+
+- 缓冲进度 / 错误详情
+- 音高 pitch
+- VR / VRBox + viewport
+- demuxer 选项（timeout / reconnect / UA / headers）
+- 视频轨选择
+- 多段 `SGMutableAsset`（`sgReplaceWithSegments`）
+- 后台播放策略
+
 ## 第三方许可
 
 SGPlayer 源码与二进制遵循 [libobjc/SGPlayer](https://github.com/libobjc/SGPlayer) 项目自身许可证。
