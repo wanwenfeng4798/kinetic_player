@@ -22,12 +22,13 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     weak var delegate: SgPlayerChromeDelegate?
 
-    private static let toolbarIconPointSize: CGFloat = 17
+    /// Matches Android `kinetic_control_icon_size` (14dp) / GSY stock chrome.
+    private static let toolbarIconPointSize: CGFloat = 14
     private static let toolbarButtonSize: CGFloat = 28
     private static let panActivationThreshold: CGFloat = 12
     private static let toolbarSymbolConfig = UIImage.SymbolConfiguration(
         pointSize: toolbarIconPointSize,
-        weight: .medium,
+        weight: .regular,
     )
 
     private let config: SgUiConfig

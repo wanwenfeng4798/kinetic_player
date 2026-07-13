@@ -303,9 +303,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         "${progress.coerceIn(0, 100)}%"
 
     private fun wireNativeControls() {
-        setEnlargeImageRes(R.drawable.kinetic_ic_fullscreen)
-        setShrinkImageRes(R.drawable.kinetic_ic_fullscreen_exit)
-        fullscreenButton?.scaleType = ImageView.ScaleType.CENTER_INSIDE
+        // Keep GSY default video_enlarge / video_shrink so icon size matches stock chrome.
+        fullscreenButton?.scaleType = ImageView.ScaleType.CENTER
         fullscreenButton?.setOnClickListener {
             toggleWindowFullscreen()
         }
