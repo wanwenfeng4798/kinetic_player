@@ -33,9 +33,20 @@ print("" if value is None else str(value))
 PY
 }
 
+normalize_sha256() {
+  # Accept bare hex or GitHub-style "sha256:<hex>".
+  local value="$1"
+  value="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  if [[ "${value}" == sha256:* ]]; then
+    value="${value#sha256:}"
+  fi
+  printf '%s' "${value}"
+}
+
 verify_sha256() {
   local file="$1"
-  local expected="$2"
+  local expected
+  expected="$(normalize_sha256 "$2")"
   [[ -n "${expected}" ]] || return 0
 
   local actual
@@ -80,8 +91,18 @@ main() {
   local zip_path="${tmp_dir}/SGPlayer.xcframework.zip"
 
   log "Downloading ${download_url}"
-  if ! curl -fsSL "${download_url}" -o "${zip_path}"; then
+  # GitHub Release assets redirect to blob storage; HTTP/2 framing can fail on large
+  # downloads (curl 16). Prefer HTTP/1.1. Progress on stderr so pod install is not silent.
+  if ! curl -fL --http1.1 --retry 5 --retry-all-errors --retry-delay 2 \
+      --connect-timeout 30 --progress-bar \
+      "${download_url}" -o "${zip_path}"; then
     log "Download failed."
+    rm -rf "${tmp_dir}"
+    exit 1
+  fi
+
+  if [[ ! -s "${zip_path}" ]]; then
+    log "Downloaded file is empty."
     rm -rf "${tmp_dir}"
     exit 1
   fi
