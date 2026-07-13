@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="doc/logo.png" alt="Kinetic Player" width="280" />
+</p>
+
 # kinetic_player
 
 双核 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS** 使用 [libobjc/SGPlayer](https://github.com/libobjc/SGPlayer)（master）。
