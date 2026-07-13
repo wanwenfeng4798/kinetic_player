@@ -178,6 +178,16 @@ class GsyNativePlayer(
         syncPictureInPictureParams()
     }
 
+    fun setKeepLastFrameWhenComplete(enabled: Boolean) {
+        uiConfig = uiConfig.copy(keepLastFrameWhenComplete = enabled)
+        playerView.setKeepLastFrameWhenComplete(enabled)
+    }
+
+    fun setCoverUrl(url: String?) {
+        uiConfig = uiConfig.copy(coverUrl = url)
+        playerView.setCoverUrl(url)
+    }
+
     fun setPreviewVttUrl(url: String?) {
         uiConfig = uiConfig.copy(previewVttUrl = url)
         playerView.setPreviewVttUrl(url)
@@ -402,7 +412,7 @@ class GsyNativePlayer(
     }
 
     fun setRenderRotation(degrees: Int) {
-        renderRotation = degrees
+        renderRotation = ((degrees % 360) + 360) % 360
         applyRenderTransform()
     }
 
@@ -412,10 +422,18 @@ class GsyNativePlayer(
     }
 
     private fun applyRenderTransform() {
-        val proxy = playerView.getRenderProxy() ?: return
+        val proxy = playerView.getRenderProxy()
+        if (proxy == null) {
+            playerView.post { applyRenderTransform() }
+            return
+        }
+        val w = playerView.width
+        val h = playerView.height
+        if (w <= 0 || h <= 0) {
+            playerView.post { applyRenderTransform() }
+            return
+        }
         val matrix = Matrix()
-        val w = playerView.width.takeIf { it > 0 } ?: return
-        val h = playerView.height.takeIf { it > 0 } ?: return
         matrix.postRotate(renderRotation.toFloat(), w / 2f, h / 2f)
         if (mirrorHorizontal) {
             matrix.postScale(-1f, 1f, w / 2f, h / 2f)

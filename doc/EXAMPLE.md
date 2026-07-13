@@ -36,6 +36,8 @@ Android 可直接 `flutter run`。
 | 齿轮 | 弹出设置面板，选择音轨 |
 | 全屏 | 窗口级全屏（图标与设置/音量同尺寸） |
 | 滑动手势 | 横向调进度；左半屏纵向调亮度；右半屏纵向调音量（`enableNativeControls`） |
+| 旋转 / 镜像 | 左转/右转 90°、复位、水平镜像（Android / iOS） |
+| 封面 / 最后一帧 | 开关封面、播完保留最后一帧（Android / iOS） |
 
 **画中画（Android）**：播放中（含自动播放或原生播放按钮）按 **Home** 或切到其他 App 会自动进入 PiP。Example 已在 `MainActivity` 与 `AndroidManifest` 中配置；`GsyUiConfig(pictureInPictureEnabled: true)` 已显式开启。
 

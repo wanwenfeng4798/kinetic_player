@@ -165,6 +165,16 @@ class GsyVideoPlatformView(
                 player.setMirrorHorizontal(call.argument<Boolean>("enabled") ?: false)
                 result.success(null)
             }
+            "gsySetKeepLastFrameWhenComplete" -> {
+                player.setKeepLastFrameWhenComplete(
+                    call.argument<Boolean>("enabled") ?: false,
+                )
+                result.success(null)
+            }
+            "gsySetCoverUrl" -> {
+                player.setCoverUrl(call.argument<String>("url"))
+                result.success(null)
+            }
             "gsyGetNetSpeed" -> {
                 result.success(
                     mapOf(

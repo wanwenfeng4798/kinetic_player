@@ -30,6 +30,9 @@ class _DemoMedia {
   static const videoUrl =
       'https://www.w3schools.com/html/mov_bbb.mp4';
 
+  /// Demo cover / poster image.
+  static const coverUrl = 'https://www.gstatic.com/webp/gallery/1.jpg';
+
   /// Stable public JPEGs for demo seek-preview cues (avoid picsum 404/redirect).
   static const _previewImages = <String>[
     'https://www.gstatic.com/webp/gallery/1.jpg',
@@ -205,8 +208,14 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                             pictureInPictureEnabled: true,
                             videoTitle: 'GSY Demo',
                             previewVttUrl: _previewVttUri,
+                            coverUrl: _DemoMedia.coverUrl,
+                            keepLastFrameWhenComplete: false,
                           ).toCreationParams()
-                        : null,
+                        : GsyUiConfig(
+                            enableNativeControls: true,
+                            coverUrl: _DemoMedia.coverUrl,
+                            keepLastFrameWhenComplete: false,
+                          ).toCreationParams(),
                     builder: (controller) {
                       if (!identical(_controller, controller)) {
                         setState(() => _controller = controller);
@@ -250,6 +259,10 @@ class _ControlPanelState extends State<_ControlPanel> {
   bool _danmakuVisible = false;
   bool _loopingEnabled = false;
   String? _lastCapturePath;
+  int _renderRotation = 0;
+  bool _mirrorHorizontal = false;
+  bool _keepLastFrame = false;
+  bool _coverEnabled = true;
   List<CommonAudioTrack> _audioTracks = const [];
   int? _selectedAudioTrackIndex;
   final List<_DanmakuCue> _customDanmaku = [];
@@ -285,6 +298,10 @@ class _ControlPanelState extends State<_ControlPanel> {
   void didUpdateWidget(covariant _ControlPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
+      _renderRotation = 0;
+      _mirrorHorizontal = false;
+      _keepLastFrame = false;
+      _coverEnabled = true;
       _loadFilters();
       _loadAudioTracks();
     }
@@ -404,10 +421,67 @@ class _ControlPanelState extends State<_ControlPanel> {
     if (mounted) setState(() => _danmakuVisible = visible);
   }
 
+  Future<void> _rotateBy(int deltaDegrees) async {
+    final next = (_renderRotation + deltaDegrees) % 360;
+    final normalized = next < 0 ? next + 360 : next;
+    final controller = widget.controller;
+    if (controller is GSYVideoControllerImpl) {
+      await controller.gsySetRenderRotation(normalized);
+    } else if (controller is SGVideoControllerImpl) {
+      await controller.sgSetRenderRotation(normalized);
+    } else {
+      return;
+    }
+    if (mounted) setState(() => _renderRotation = normalized);
+  }
+
+  Future<void> _toggleMirror() async {
+    final next = !_mirrorHorizontal;
+    final controller = widget.controller;
+    if (controller is GSYVideoControllerImpl) {
+      await controller.gsySetMirrorHorizontal(enabled: next);
+    } else if (controller is SGVideoControllerImpl) {
+      await controller.sgSetMirrorHorizontal(enabled: next);
+    } else {
+      return;
+    }
+    if (mounted) setState(() => _mirrorHorizontal = next);
+  }
+
+  Future<void> _toggleKeepLastFrame() async {
+    final next = !_keepLastFrame;
+    final controller = widget.controller;
+    if (controller is GSYVideoControllerImpl) {
+      await controller.gsySetKeepLastFrameWhenComplete(enabled: next);
+    } else if (controller is SGVideoControllerImpl) {
+      await controller.sgSetKeepLastFrameWhenComplete(enabled: next);
+    } else {
+      return;
+    }
+    if (mounted) setState(() => _keepLastFrame = next);
+  }
+
+  Future<void> _toggleCover() async {
+    final next = !_coverEnabled;
+    final url = next ? _DemoMedia.coverUrl : null;
+    final controller = widget.controller;
+    if (controller is GSYVideoControllerImpl) {
+      await controller.gsySetCoverUrl(url);
+    } else if (controller is SGVideoControllerImpl) {
+      await controller.sgSetCoverUrl(url);
+    } else {
+      return;
+    }
+    if (mounted) setState(() => _coverEnabled = next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final active = widget.controller;
     final isAndroidGsy = active is GSYVideoControllerImpl;
+    final isIosSg = active is SGVideoControllerImpl;
+    final supportsTransform = isAndroidGsy || isIosSg;
+    final supportsCover = isAndroidGsy || isIosSg;
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -648,6 +722,79 @@ class _ControlPanelState extends State<_ControlPanel> {
                 : '循环在 iOS 播放结束时自动 seek(0)+play；截图保存到临时目录 PNG。',
             style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
+          if (supportsTransform) ...[
+            const SizedBox(height: 12),
+            const Text(
+              '旋转 / 镜像',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: () => _rotateBy(-90),
+                  child: const Text('左转 90°'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _rotateBy(90),
+                  child: const Text('右转 90°'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    final controller = widget.controller;
+                    if (controller is GSYVideoControllerImpl) {
+                      await controller.gsySetRenderRotation(0);
+                    } else if (controller is SGVideoControllerImpl) {
+                      await controller.sgSetRenderRotation(0);
+                    }
+                    if (mounted) setState(() => _renderRotation = 0);
+                  },
+                  child: const Text('复位 0°'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _toggleMirror,
+                  child: Text(_mirrorHorizontal ? '镜像: 开' : '镜像: 关'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '当前旋转 $_renderRotation°'
+              '${isAndroidGsy ? '（gsySetRenderRotation / gsySetMirrorHorizontal）' : '（sgSetRenderRotation / sgSetMirrorHorizontal）'}',
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+          if (supportsCover) ...[
+            const SizedBox(height: 12),
+            const Text(
+              '封面 / 最后一帧',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: _toggleCover,
+                  child: Text(_coverEnabled ? '封面: 开' : '封面: 关'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _toggleKeepLastFrame,
+                  child: Text(_keepLastFrame ? '保留最后一帧: 开' : '保留最后一帧: 关'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _keepLastFrame
+                  ? '播完停留在最后一帧（不盖封面）。'
+                  : '播完显示封面；关闭封面时 Android 清空画面，iOS 显示黑底。',
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,

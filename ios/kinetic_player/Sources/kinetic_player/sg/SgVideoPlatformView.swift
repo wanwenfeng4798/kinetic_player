@@ -6,9 +6,12 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
     private let player: SgNativePlayer
     private let channel: FlutterMethodChannel
     private let chrome: SgPlayerChromeView
+    private let coverOverlay = SgCoverOverlayView()
     private let fullscreenPresenter = SgFullscreenPresenter()
     private let channelCallbacks: SgChannelCallbacks
     private var isPlaying = false
+    private var keepLastFrameWhenComplete = false
+    private var latestState: CommonPlayerState = .idle
 
     init(
         frame: CGRect,
@@ -18,6 +21,7 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
     ) {
         let params = args as? [String: Any]
         let uiConfig = SgUiConfig.fromCreationParams(params)
+        keepLastFrameWhenComplete = uiConfig.keepLastFrameWhenComplete
 
         channel = FlutterMethodChannel(
             name: PlayerConstants.sgChannelName(viewId: Int(viewId)),
@@ -36,6 +40,10 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
         player.view.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(player.view)
 
+        coverOverlay.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(coverOverlay)
+        coverOverlay.setCoverUrl(uiConfig.coverUrl)
+
         chrome.translatesAutoresizingMaskIntoConstraints = false
         chrome.delegate = self
         container.addSubview(chrome)
@@ -45,6 +53,10 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
             player.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             player.view.topAnchor.constraint(equalTo: container.topAnchor),
             player.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            coverOverlay.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            coverOverlay.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            coverOverlay.topAnchor.constraint(equalTo: container.topAnchor),
+            coverOverlay.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             chrome.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             chrome.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             chrome.topAnchor.constraint(equalTo: container.topAnchor),
@@ -54,6 +66,7 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
         if let url = params?["url"] as? String {
             player.switchVideoSource(url, autoPlay: false)
         }
+        syncCoverVisibility()
 
         channel.setMethodCallHandler { [weak self] call, result in
             self?.handle(call, result: result)
@@ -67,6 +80,7 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
     }
 
     func onPlayerStateChanged(_ state: CommonPlayerState) {
+        latestState = state
         isPlaying = state == .playing
         chrome.updatePlayState(isPlaying: isPlaying)
         if state == .playing {
@@ -74,6 +88,24 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
         }
         if state == .paused || state == .completed || state == .idle {
             chrome.setControlsVisible(true, animated: true)
+        }
+        syncCoverVisibility()
+    }
+
+    private func syncCoverVisibility() {
+        let show: Bool
+        switch latestState {
+        case .playing, .buffering, .paused:
+            show = false
+        case .completed:
+            // Keep last frame: hide cover. Otherwise show cover (or black fallback).
+            show = !keepLastFrameWhenComplete
+        case .idle, .ready, .error:
+            show = coverOverlay.hasCover
+        }
+        coverOverlay.isHidden = !show
+        if show, !coverOverlay.hasCoverImage {
+            coverOverlay.backgroundColor = .black
         }
     }
 
@@ -158,6 +190,8 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
             let url = args?["url"] as? String ?? ""
             let autoPlay = args?["autoPlay"] as? Bool ?? true
             player.switchVideoSource(url, autoPlay: autoPlay)
+            latestState = .idle
+            syncCoverVisibility()
             result(nil)
         case "getAudioTracks":
             result(player.getAudioTracks())
@@ -201,6 +235,26 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
             let args = call.arguments as? [String: Any]
             let id = args?["id"] as? String ?? ""
             player.setSyncGroupId(id)
+            result(nil)
+        case "sgSetRenderRotation":
+            let args = call.arguments as? [String: Any]
+            let degrees = args?["degrees"] as? Int ?? 0
+            player.setRenderRotation(degrees: degrees)
+            result(nil)
+        case "sgSetMirrorHorizontal":
+            let args = call.arguments as? [String: Any]
+            let enabled = args?["enabled"] as? Bool ?? false
+            player.setMirrorHorizontal(enabled: enabled)
+            result(nil)
+        case "sgSetKeepLastFrameWhenComplete":
+            let args = call.arguments as? [String: Any]
+            keepLastFrameWhenComplete = args?["enabled"] as? Bool ?? false
+            syncCoverVisibility()
+            result(nil)
+        case "sgSetCoverUrl":
+            let args = call.arguments as? [String: Any]
+            coverOverlay.setCoverUrl(args?["url"] as? String)
+            syncCoverVisibility()
             result(nil)
         case "dispose":
             if fullscreenPresenter.isFullscreen {

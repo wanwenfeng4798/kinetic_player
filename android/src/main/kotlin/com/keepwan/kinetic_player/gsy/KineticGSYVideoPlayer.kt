@@ -3,23 +3,32 @@ package com.keepwan.kinetic_player.gsy
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
-import android.opengl.GLSurfaceView
-import android.util.AttributeSet
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.opengl.GLSurfaceView
+import android.os.Handler
+import android.os.Looper
 import android.text.TextUtils
+import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.keepwan.kinetic_player.R
 import com.shuyu.gsyvideoplayer.utils.CommonUtil
+import com.shuyu.gsyvideoplayer.utils.Debuger
 import com.shuyu.gsyvideoplayer.video.StandardGSYVideoPlayer
 import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer
-import com.keepwan.kinetic_player.R
+import moe.codeest.enviews.ENDownloadView
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.Executors
 
 /**
  * [StandardGSYVideoPlayer] for Flutter PlatformView with native-default behavior.
@@ -65,6 +74,13 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     private var gestureDownPlayerVolume = 1f
     internal var volumeToolbarMuted = false
     internal var volumeToolbarLevel = 1f
+
+    private var keepLastFrameWhenComplete = false
+    private var lastAutoCompleteRetainedSurface = false
+    private var coverUrl: String? = null
+    private var coverLoadGeneration = 0
+    private val coverMainHandler = Handler(Looper.getMainLooper())
+    private val coverExecutor = Executors.newSingleThreadExecutor()
 
     var uiConfig: GsyUiConfig
         get() = storedUiConfig ?: DEFAULT_UI_CONFIG
@@ -331,6 +347,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         setLooping(config.looping)
         setAutoFullWithSize(config.autoFullWithSize)
         setNeedLockFull(config.showLockButton)
+        setThumbPlay(config.thumbPlay)
+        setKeepLastFrameWhenComplete(config.keepLastFrameWhenComplete)
         if (config.seekOnStartMs >= 0) {
             setSeekOnStart(config.seekOnStartMs)
         }
@@ -345,10 +363,78 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (!config.showSettingsButton) {
             hideSettingsPanel()
         }
+        setCoverUrl(config.coverUrl)
         syncGestureVolumeDuringPanelInteraction()
         applyEmbeddedChrome()
         fixControlOverlayLayering()
     }
+
+    fun setKeepLastFrameWhenComplete(enabled: Boolean) {
+        keepLastFrameWhenComplete = enabled
+    }
+
+    fun isKeepLastFrameWhenComplete(): Boolean = keepLastFrameWhenComplete
+
+    fun setCoverUrl(url: String?) {
+        if (url.isNullOrBlank()) {
+            coverUrl = null
+            coverLoadGeneration++
+            clearThumbImageView()
+            return
+        }
+        if (url == coverUrl && thumbImageView != null) {
+            return
+        }
+        coverUrl = url
+        val imageView =
+            ImageView(context).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+            }
+        setThumbImageView(imageView)
+        val generation = ++coverLoadGeneration
+        coverExecutor.execute {
+            val bitmap =
+                try {
+                    decodeCoverBitmap(url)
+                } catch (_: Exception) {
+                    null
+                }
+            if (bitmap == null) return@execute
+            coverMainHandler.post {
+                if (generation != coverLoadGeneration) {
+                    bitmap.recycle()
+                    return@post
+                }
+                (thumbImageView as? ImageView)?.setImageBitmap(bitmap)
+            }
+        }
+    }
+
+    private fun decodeCoverBitmap(url: String) =
+        when {
+            url.startsWith("http://", ignoreCase = true) ||
+                url.startsWith("https://", ignoreCase = true) -> {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 10_000
+                connection.connect()
+                connection.inputStream.use { BitmapFactory.decodeStream(it) }
+            }
+            url.startsWith("file://", ignoreCase = true) -> {
+                val path = android.net.Uri.parse(url).path ?: return null
+                BitmapFactory.decodeFile(path)
+            }
+            java.io.File(url).isFile -> BitmapFactory.decodeFile(url)
+            else ->
+                context.contentResolver
+                    .openInputStream(android.net.Uri.parse(url))
+                    ?.use { BitmapFactory.decodeStream(it) }
+        }
 
     /** Keep play/pause chrome above GLSurfaceView and let taps reach GSY controls. */
     fun fixControlOverlayLayering() {
@@ -507,11 +593,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         syncBottomChromeTouchPassthrough()
     }
 
-    override fun changeUiToCompleteShow() {
-        super.changeUiToCompleteShow()
-        fixControlOverlayLayering()
-    }
-
     override fun onClickUiToggle(event: MotionEvent) {
         hideAudioPanel()
         hideSettingsPanel()
@@ -539,8 +620,77 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     }
 
     override fun onAutoCompletion() {
-        super.onAutoCompletion()
+        if (!keepLastFrameWhenComplete) {
+            lastAutoCompleteRetainedSurface = false
+            super.onAutoCompletion()
+            onDanmakuPlaybackComplete?.invoke()
+            return
+        }
+
+        lastAutoCompleteRetainedSurface =
+            mTextureViewContainer != null && mTextureViewContainer.childCount > 0
+
+        setStateAndUi(CURRENT_STATE_AUTO_COMPLETE)
+
+        mSaveChangeViewTIme = 0
+        mCurrentPosition = 0
+
+        if (!mIfCurrentIsFullscreen) {
+            gsyVideoManager.setLastListener(null)
+        }
+
+        mAudioFocusManager?.abandonAudioFocus()
+        if (mContext is Activity) {
+            try {
+                (mContext as Activity).window.clearFlags(
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                )
+            } catch (_: Exception) {
+                // ignore
+            }
+        }
+        releaseNetWorkState()
+
+        if (mVideoAllCallBack != null && isCurrentMediaListener) {
+            Debuger.printfLog("onAutoComplete keepLastFrame")
+            mVideoAllCallBack.onAutoComplete(mOriginUrl, mTitle, this)
+        }
+        mHadPlay = false
         onDanmakuPlaybackComplete?.invoke()
+    }
+
+    override fun onCompletion() {
+        lastAutoCompleteRetainedSurface = false
+        super.onCompletion()
+    }
+
+    override fun startButtonLogic() {
+        lastAutoCompleteRetainedSurface = false
+        super.startButtonLogic()
+    }
+
+    override fun changeUiToCompleteShow() {
+        if (!keepLastFrameWhenComplete) {
+            super.changeUiToCompleteShow()
+            return
+        }
+
+        Debuger.printfLog("changeUiToCompleteShow keepLastFrame")
+
+        setViewShowState(mTopContainer, VISIBLE)
+        setViewShowState(mBottomContainer, VISIBLE)
+        setViewShowState(mStartButton, VISIBLE)
+        setViewShowState(mLoadingProgressBar, INVISIBLE)
+        setViewShowState(mThumbImageViewLayout, INVISIBLE)
+        setViewShowState(mBottomProgressBar, INVISIBLE)
+        setViewShowState(
+            mLockScreen,
+            if (mIfCurrentIsFullscreen && mNeedLockFull) VISIBLE else GONE,
+        )
+
+        (mLoadingProgressBar as? ENDownloadView)?.reset()
+        updateStartImage()
+        fixControlOverlayLayering()
     }
 
     override fun touchSurfaceMoveFullLogic(absDeltaX: Float, absDeltaY: Float) {
@@ -648,12 +798,16 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         super.cloneParams(from, to)
         val fromPlayer = from as? KineticGSYVideoPlayer ?: return
         val toPlayer = to as? KineticGSYVideoPlayer ?: return
+        toPlayer.keepLastFrameWhenComplete = fromPlayer.keepLastFrameWhenComplete
+        toPlayer.lastAutoCompleteRetainedSurface = fromPlayer.lastAutoCompleteRetainedSurface
         toPlayer.uiConfig = fromPlayer.uiConfig
         toPlayer.onVolumeChanged = fromPlayer.onVolumeChanged
         toPlayer.onMuteToggle = fromPlayer.onMuteToggle
         toPlayer.onRequestAudioTracks = fromPlayer.onRequestAudioTracks
         toPlayer.onAudioTrackSelected = fromPlayer.onAudioTrackSelected
         toPlayer.syncVolumeToolbar(fromPlayer.volumeToolbarLevel, fromPlayer.volumeToolbarMuted)
+        toPlayer.setKeepLastFrameWhenComplete(fromPlayer.keepLastFrameWhenComplete)
+        toPlayer.setCoverUrl(fromPlayer.coverUrl)
     }
 
     override fun startWindowFullscreen(

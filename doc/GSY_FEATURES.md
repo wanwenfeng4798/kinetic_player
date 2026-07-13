@@ -39,9 +39,13 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 | 列表播放 / 连续播放 | ✅ | `creationParams['playlist']` / `gsySetPlaylist()` / `gsyPlayNextInPlaylist()` |
 | 重力 / 手动旋转 | ✅ | `GsyUiConfig.rotateViewAuto` + Activity `configChanges` 转发 |
 | 视频 rotation 元数据 | ✅ | GSY 内核自动应用 |
-| 手动旋转 0/90/180/270 | ✅ | `gsySetRenderRotation(degrees)` |
+| 手动旋转 0/90/180/270 | ✅ | `gsySetRenderRotation(degrees)`；iOS：`sgSetRenderRotation(degrees)` |
 | 快播 / 慢播 | ✅ | `setRate()` 或 `GsyUiConfig.speed` |
 | 网络加载速度 | ✅ | `gsyGetNetSpeed()` |
+| 完成后保留最后一帧 | ✅ | `GsyUiConfig.keepLastFrameWhenComplete` / `gsySetKeepLastFrameWhenComplete`；iOS：`sgSetKeepLastFrameWhenComplete` |
+| 视频封面 | ✅ | `GsyUiConfig.coverUrl` / `gsySetCoverUrl`（GSY `setThumbImageView`）；iOS：`sgSetCoverUrl` |
+
+> 保留最后一帧对齐 GSY Demo `KeepLastFrameVideo`：自然播完不移除 render view、不盖封面。iOS 通过隐藏封面层露出 SGPlayer 最后一帧实现。
 
 ---
 
@@ -50,7 +54,9 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 | 能力 | 状态 | API |
 |------|------|-----|
 | 默认 / 16:9 / 4:3 / 填充 / 拉伸 | ✅ | `setScaleMode()` 或 `gsySetGsyShowType(GsyShowType.*)` |
-| 镜像 | ✅ | `gsySetMirrorHorizontal(enabled: true)` |
+| 水平镜像 | ✅ | `gsySetMirrorHorizontal(enabled: true)`；iOS：`sgSetMirrorHorizontal(enabled: true)` |
+
+> iOS SGPlayer 无内置旋转/镜像 API；插件通过对视频渲染视图施加 `CGAffineTransform` 实现与 Android 对等的能力。控制栏不受画面变换影响。
 
 ---
 

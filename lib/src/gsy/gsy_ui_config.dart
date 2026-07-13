@@ -34,6 +34,9 @@ class GsyUiConfig {
     this.autoFullWithSize = false,
     this.fullHideActionBar = true,
     this.fullHideStatusBar = true,
+    this.keepLastFrameWhenComplete = false,
+    this.coverUrl,
+    this.thumbPlay = true,
   });
 
   /// Native chrome + pan gestures (seek / volume / brightness).
@@ -75,6 +78,21 @@ class GsyUiConfig {
   final bool fullHideActionBar;
   final bool fullHideStatusBar;
 
+  /// Keep the last rendered frame when playback completes (both platforms).
+  ///
+  /// Android mirrors GSY `KeepLastFrameVideo`; iOS hides the cover overlay
+  /// so the SGPlayer last frame stays visible.
+  final bool keepLastFrameWhenComplete;
+
+  /// Cover / poster image URL (http/https or local `file://`).
+  ///
+  /// Shown before playback and again on complete unless
+  /// [keepLastFrameWhenComplete] is true.
+  final String? coverUrl;
+
+  /// Tap the cover to start playback (Android GSY `setThumbPlay`).
+  final bool thumbPlay;
+
   Map<String, dynamic> toCreationParams() => <String, dynamic>{
         'gsyUi': <String, dynamic>{
           'enableNativeControls': enableNativeControls,
@@ -107,6 +125,9 @@ class GsyUiConfig {
           'autoFullWithSize': autoFullWithSize,
           'fullHideActionBar': fullHideActionBar,
           'fullHideStatusBar': fullHideStatusBar,
+          'keepLastFrameWhenComplete': keepLastFrameWhenComplete,
+          if (coverUrl != null) 'coverUrl': coverUrl,
+          'thumbPlay': thumbPlay,
         },
       };
 }

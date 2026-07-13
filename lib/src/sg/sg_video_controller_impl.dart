@@ -86,6 +86,22 @@ class SGVideoControllerImpl
     return result ?? false;
   }
 
+  /// SG unique: rotate rendered video (0 / 90 / 180 / 270). Chrome stays upright.
+  Future<void> sgSetRenderRotation(int degrees) =>
+      _invoke('sgSetRenderRotation', {'degrees': degrees});
+
+  /// SG unique: horizontal mirror of rendered video.
+  Future<void> sgSetMirrorHorizontal({required bool enabled}) =>
+      _invoke('sgSetMirrorHorizontal', {'enabled': enabled});
+
+  /// Keep the last rendered frame when playback completes (hide cover overlay).
+  Future<void> sgSetKeepLastFrameWhenComplete({required bool enabled}) =>
+      _invoke('sgSetKeepLastFrameWhenComplete', {'enabled': enabled});
+
+  /// Set cover / poster image URL (null to clear).
+  Future<void> sgSetCoverUrl(String? url) =>
+      _invoke('sgSetCoverUrl', {'url': url});
+
   @override
   Future<void> dispose() async {
     if (_isDisposed) return;

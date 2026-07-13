@@ -9,6 +9,10 @@ struct SgUiConfig {
     let pictureInPictureEnabled: Bool
     let showFullscreenButton: Bool
     let dismissControlTimeMs: Int
+    /// Keep last rendered frame on complete (hide cover overlay).
+    let keepLastFrameWhenComplete: Bool
+    /// Cover / poster image URL.
+    let coverUrl: String?
 
     /// SGPlayer uses a custom video renderer; system PiP (AVPictureInPictureController) is unavailable.
     static var isPictureInPictureSupported: Bool { false }
@@ -45,6 +49,13 @@ struct SgUiConfig {
                 params?["dismissControlTime"] as? Int
                 ?? gsyUi?["dismissControlTime"] as? Int
                 ?? 2500,
+            keepLastFrameWhenComplete:
+                params?["keepLastFrameWhenComplete"] as? Bool
+                ?? gsyUi?["keepLastFrameWhenComplete"] as? Bool
+                ?? false,
+            coverUrl:
+                params?["coverUrl"] as? String
+                ?? gsyUi?["coverUrl"] as? String,
         )
     }
 }

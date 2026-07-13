@@ -12,6 +12,8 @@
 
 - **Volume UI**: Dragging the vertical volume slider shows a percentage label to the left of the track; the label hides on release. Panel background width reduced to 44dp (label floats outside the panel).
 - **iOS gesture controls**: Added GSY-style pan gestures — horizontal seek, left-half brightness, right-half volume — with a center HUD overlay. Controlled by the shared `enableNativeControls` flag (same as Android). System brightness is restored when the player is disposed. Swipe-volume is blocked while the volume popup is open or its slider is being dragged (same as Android), and volume sensitivity matches GSY (~3×).
+- **Render rotate / mirror**: Android already exposed `gsySetRenderRotation` / `gsySetMirrorHorizontal`; iOS adds matching `sgSetRenderRotation` / `sgSetMirrorHorizontal` via `CGAffineTransform` on the video view. Example app includes rotate/mirror controls for both platforms.
+- **Cover / keep last frame**: Android uses GSY `setThumbImageView` + KeepLastFrameVideo-style `onAutoCompletion`; iOS uses a cover overlay and hides it when keeping the last frame. Config: `GsyUiConfig.coverUrl` / `keepLastFrameWhenComplete`; runtime: `gsySetCoverUrl` / `gsySetKeepLastFrameWhenComplete` (iOS: `sgSet*`).
 - **Example**: Explicitly enables `pictureInPictureEnabled: true`; added PiP usage hint in the control panel.
 
 ---

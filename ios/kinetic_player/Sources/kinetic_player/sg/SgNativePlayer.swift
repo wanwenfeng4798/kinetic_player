@@ -10,6 +10,8 @@ protocol SgPlayerCallbacks: AnyObject {
 final class SgNativePlayer: NSObject {
     private let bridge: SgNativePlayerBridge
     private weak var callbacks: SgPlayerCallbacks?
+    private var renderRotationDegrees = 0
+    private var mirrorHorizontal = false
 
     init(callbacks: SgPlayerCallbacks) {
         self.callbacks = callbacks
@@ -103,6 +105,31 @@ final class SgNativePlayer: NSObject {
 
     func setSyncGroupId(_ id: String) {
         bridge.setSyncGroupId(id)
+    }
+
+    /// Rotate the rendered video (0 / 90 / 180 / 270). Chrome overlay is unaffected.
+    func setRenderRotation(degrees: Int) {
+        let normalized = ((degrees % 360) + 360) % 360
+        renderRotationDegrees = normalized
+        applyRenderTransform()
+    }
+
+    /// Horizontal mirror of the rendered video (GSY-style).
+    func setMirrorHorizontal(enabled: Bool) {
+        mirrorHorizontal = enabled
+        applyRenderTransform()
+    }
+
+    func applyRenderTransform() {
+        var transform = CGAffineTransform.identity
+        if renderRotationDegrees != 0 {
+            let radians = CGFloat(renderRotationDegrees) * .pi / 180
+            transform = transform.rotated(by: radians)
+        }
+        if mirrorHorizontal {
+            transform = transform.scaledBy(x: -1, y: 1)
+        }
+        bridge.view.transform = transform
     }
 
     func release() {

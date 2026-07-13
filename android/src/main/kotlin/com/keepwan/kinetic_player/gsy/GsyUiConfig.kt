@@ -35,6 +35,12 @@ data class GsyUiConfig(
     val autoFullWithSize: Boolean = false,
     val fullHideActionBar: Boolean = true,
     val fullHideStatusBar: Boolean = true,
+    /** Keep the last rendered frame when playback completes (GSY KeepLastFrameVideo demo). */
+    val keepLastFrameWhenComplete: Boolean = false,
+    /** Cover / poster image URL shown before play and on complete (unless keeping last frame). */
+    val coverUrl: String? = null,
+    /** Tap cover to start playback (GSY `setThumbPlay`). */
+    val thumbPlay: Boolean = true,
 ) {
     companion object {
         fun fromCreationParams(params: Map<String, Any?>?): GsyUiConfig {
@@ -79,6 +85,10 @@ data class GsyUiConfig(
                 autoFullWithSize = ui["autoFullWithSize"] as? Boolean ?: false,
                 fullHideActionBar = ui["fullHideActionBar"] as? Boolean ?: true,
                 fullHideStatusBar = ui["fullHideStatusBar"] as? Boolean ?: true,
+                keepLastFrameWhenComplete =
+                    ui["keepLastFrameWhenComplete"] as? Boolean ?: false,
+                coverUrl = ui["coverUrl"] as? String,
+                thumbPlay = ui["thumbPlay"] as? Boolean ?: true,
             )
         }
     }
