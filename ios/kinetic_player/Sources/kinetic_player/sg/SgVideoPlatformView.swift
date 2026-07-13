@@ -43,6 +43,9 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
 
         coverOverlay.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(coverOverlay)
+        coverOverlay.onCoverImageUpdated = { [weak self] in
+            self?.syncCoverVisibility()
+        }
         coverOverlay.setCoverUrl(uiConfig.coverUrl)
 
         chrome.translatesAutoresizingMaskIntoConstraints = false
@@ -127,6 +130,8 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
     func chromeDidTapFullscreen() {
         fullscreenPresenter.toggleFullscreen(container: container)
         chrome.updateFullscreenIcon(isFullscreen: fullscreenPresenter.isFullscreen)
+        container.layoutIfNeeded()
+        player.applyRenderTransform()
     }
 
     func chromeDidChangeVolume(_ volume: Double) {
@@ -217,12 +222,16 @@ final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDe
             if !fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.enterFullscreen(container: container)
                 chrome.updateFullscreenIcon(isFullscreen: true)
+                container.layoutIfNeeded()
+                player.applyRenderTransform()
             }
             result(nil)
         case "sgExitFullscreen":
             if fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.exitFullscreen()
                 chrome.updateFullscreenIcon(isFullscreen: false)
+                container.layoutIfNeeded()
+                player.applyRenderTransform()
             }
             result(nil)
         case "sgIsFullscreen":

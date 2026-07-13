@@ -15,7 +15,7 @@
 - **Render rotate / mirror**: Android already exposed `gsySetRenderRotation` / `gsySetMirrorHorizontal`; iOS adds matching `sgSetRenderRotation` / `sgSetMirrorHorizontal` via `CGAffineTransform` on the video view. Example app includes rotate/mirror controls for both platforms.
 - **Cover / keep last frame**: Android uses GSY `setThumbImageView` + KeepLastFrameVideo-style `onAutoCompletion`; iOS uses a cover overlay and hides it when keeping the last frame. Config: `GsyUiConfig.coverUrl` / `keepLastFrameWhenComplete`; runtime: `gsySetCoverUrl` / `gsySetKeepLastFrameWhenComplete` (iOS: `sgSet*`).
 - **Rotate fill + vertical mirror**: 90°/270° rotation now scales to center-fill the player; added `gsySetMirrorVertical` / `sgSetMirrorVertical`.
-- **Rotate / mirror positioning fix**: Android now uses GSY `View.setRotation` + `scaleX`/`scaleY` (MeasureHelper remeasure) instead of a mis-pivoted TextureView matrix; iOS applies transforms on a host view so the Metal render target stays upright.
+- **Rotate / mirror positioning fix**: Android now uses GSY `View.setRotation` + `scaleX`/`scaleY` (MeasureHelper remeasure) instead of a mis-pivoted TextureView matrix; iOS uses `SgTransformHostView` (clipping host + inner content transform) so Auto Layout stays stable and the Metal render target stays identity.
 - **Example**: Explicitly enables `pictureInPictureEnabled: true`; added PiP usage hint in the control panel.
 
 ---

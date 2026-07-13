@@ -57,8 +57,9 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 | 水平镜像 | ✅ | `gsySetMirrorHorizontal(enabled: true)`；iOS：`sgSetMirrorHorizontal(enabled: true)` |
 | 垂直镜像 | ✅ | `gsySetMirrorVertical(enabled: true)`；iOS：`sgSetMirrorVertical(enabled: true)` |
 
-> iOS SGPlayer 无内置旋转/镜像 API；插件在独立 transform 宿主层上施加变换（渲染视图本身不变换）。控制栏不受影响。
+> iOS：在 `SgTransformHostView` 的内层 content 上施加变换（外层裁剪 + Auto Layout 不受 transform 干扰）；Metal 渲染视图保持 identity。控制栏不受影响。
 > Android 使用 GSY `View.setRotation`（MeasureHelper 会按角度重新测布局）+ `scaleX`/`scaleY` 镜像，避免错误的 TextureView matrix 枢轴导致偏位/黑屏。
+> 90° / 270° 会按 `max(w/h, h/w)` 放大以居中铺满。
 
 ---
 

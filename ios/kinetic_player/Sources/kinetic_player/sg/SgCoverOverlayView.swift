@@ -35,11 +35,15 @@ final class SgCoverOverlayView: UIView {
         currentUrl?.isEmpty == false || imageView.image != nil
     }
 
+    /// Invoked on the main queue after a remote/local cover image is applied.
+    var onCoverImageUpdated: (() -> Void)?
+
     func setCoverUrl(_ urlString: String?) {
         if urlString == nil || urlString?.isEmpty == true {
             loadGeneration += 1
             currentUrl = nil
             imageView.image = nil
+            onCoverImageUpdated?()
             return
         }
         guard urlString != currentUrl else { return }
@@ -49,6 +53,7 @@ final class SgCoverOverlayView: UIView {
 
         if let local = loadLocalImage(urlString!) {
             imageView.image = local
+            onCoverImageUpdated?()
             return
         }
 
@@ -60,6 +65,7 @@ final class SgCoverOverlayView: UIView {
             DispatchQueue.main.async {
                 guard generation == self.loadGeneration else { return }
                 self.imageView.image = image
+                self.onCoverImageUpdated?()
             }
         }.resume()
     }
