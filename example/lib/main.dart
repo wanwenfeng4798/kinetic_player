@@ -871,11 +871,21 @@ class _ControlPanelState extends State<_ControlPanel> {
                   child: const Text('平面'),
                 ),
                 FilledButton.tonal(
-                  onPressed: () => active.sgSetBackgroundPlaybackPolicy(
-                    const SgBackgroundPlaybackPolicy(
-                      pausesWhenEnteredBackground: false,
-                    ),
-                  ),
+                  onPressed: () async {
+                    await active.sgSetBackgroundPlaybackPolicy(
+                      const SgBackgroundPlaybackPolicy(
+                        pausesWhenEnteredBackground: false,
+                      ),
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          '已开启后台继续播（需 Info.plist UIBackgroundModes=audio）',
+                        ),
+                      ),
+                    );
+                  },
                   child: const Text('后台继续播'),
                 ),
                 FilledButton.tonal(

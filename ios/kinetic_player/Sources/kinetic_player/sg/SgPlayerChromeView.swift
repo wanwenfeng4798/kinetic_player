@@ -26,6 +26,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private static let toolbarIconPointSize: CGFloat = 14
     private static let toolbarButtonSize: CGFloat = 28
     private static let panActivationThreshold: CGFloat = 12
+    /// Hold scrub UI until playhead catches the committed seek (avoids bounce).
+    private static let seekSettleToleranceMs: Int64 = 800
+    private static let seekHoldTimeout: CFTimeInterval = 1.5
     private static let toolbarSymbolConfig = UIImage.SymbolConfiguration(
         pointSize: toolbarIconPointSize,
         weight: .regular,
@@ -55,6 +58,10 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private var positionMs: Int64 = 0
     private var volumeLevel: Double = 1
     private var muted = false
+    /// Target after gesture/slider commit; UI ignores stale playhead until settled.
+    private var pendingSeekTargetMs: Int64?
+    private var seekHoldDeadline: CFTimeInterval = 0
+    private var seekHoldTimer: Timer?
 
     private var panKind: PanGestureKind = .none
     private var panStartVolume: Double = 1
@@ -82,6 +89,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     deinit {
         hideTimer?.invalidate()
+        seekHoldTimer?.invalidate()
         restoreBrightnessIfNeeded()
     }
 
@@ -94,17 +102,64 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     }
 
     func updateProgress(positionMs: Int64, durationMs: Int64) {
-        self.positionMs = max(0, positionMs)
         self.durationMs = max(0, durationMs)
-        if !isSeeking, panKind != .seek {
-            currentTimeLabel.text = Self.formatMs(self.positionMs)
-            totalTimeLabel.text = Self.formatMs(self.durationMs)
-            if self.durationMs > 0 {
-                progressSlider.value = Float(self.positionMs) / Float(self.durationMs)
-            } else {
-                progressSlider.value = 0
+        totalTimeLabel.text = Self.formatMs(self.durationMs)
+
+        if let pending = pendingSeekTargetMs {
+            let arrived = abs(positionMs - pending) <= Self.seekSettleToleranceMs
+            let timedOut = CACurrentMediaTime() >= seekHoldDeadline
+            if arrived || timedOut {
+                clearSeekHold(applyPositionMs: max(0, positionMs))
             }
+            // Still waiting for seek to land — keep preview UI, ignore stale playhead.
+            return
         }
+
+        // While scrubbing, do not let the live playhead overwrite the preview position.
+        if isSeeking || panKind == .seek {
+            return
+        }
+
+        self.positionMs = max(0, positionMs)
+        applyProgressToChromeUI()
+    }
+
+    private func applyProgressToChromeUI() {
+        currentTimeLabel.text = Self.formatMs(positionMs)
+        if durationMs > 0 {
+            progressSlider.value = Float(positionMs) / Float(durationMs)
+        } else {
+            progressSlider.value = 0
+        }
+    }
+
+    private func beginSeekHold(toMs targetMs: Int64) {
+        pendingSeekTargetMs = targetMs
+        positionMs = targetMs
+        isSeeking = true
+        seekHoldDeadline = CACurrentMediaTime() + Self.seekHoldTimeout
+        currentTimeLabel.text = Self.formatMs(targetMs)
+        if durationMs > 0 {
+            progressSlider.value = Float(targetMs) / Float(durationMs)
+        }
+        seekHoldTimer?.invalidate()
+        seekHoldTimer = Timer.scheduledTimer(
+            withTimeInterval: Self.seekHoldTimeout,
+            repeats: false,
+        ) { [weak self] _ in
+            guard let self, self.pendingSeekTargetMs != nil else { return }
+            // Progress may be suppressed while seek is in-flight; still unlock UI.
+            self.clearSeekHold(applyPositionMs: self.positionMs)
+        }
+    }
+
+    private func clearSeekHold(applyPositionMs: Int64) {
+        seekHoldTimer?.invalidate()
+        seekHoldTimer = nil
+        pendingSeekTargetMs = nil
+        isSeeking = false
+        positionMs = applyPositionMs
+        applyProgressToChromeUI()
     }
 
     func updatePlayState(isPlaying: Bool) {
@@ -515,10 +570,12 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         switch kind {
         case .seek:
             if durationMs > 0 {
-                delegate?.chromeDidSeek(toMs: Int(panPreviewPositionMs))
-                positionMs = panPreviewPositionMs
+                let target = panPreviewPositionMs
+                beginSeekHold(toMs: target)
+                delegate?.chromeDidSeek(toMs: Int(target))
+            } else {
+                clearSeekHold(applyPositionMs: positionMs)
             }
-            isSeeking = false
         case .volume, .brightness, .none:
             break
         }
@@ -600,13 +657,12 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     @objc private func sliderTouchUp() {
         guard durationMs > 0 else {
-            isSeeking = false
+            clearSeekHold(applyPositionMs: positionMs)
             return
         }
-        let positionMs = Int(max(0, Int64(progressSlider.value * Float(durationMs))))
-        delegate?.chromeDidSeek(toMs: positionMs)
-        self.positionMs = Int64(positionMs)
-        isSeeking = false
+        let target = max(0, Int64(progressSlider.value * Float(durationMs)))
+        beginSeekHold(toMs: target)
+        delegate?.chromeDidSeek(toMs: Int(target))
         scheduleAutoHide()
     }
 

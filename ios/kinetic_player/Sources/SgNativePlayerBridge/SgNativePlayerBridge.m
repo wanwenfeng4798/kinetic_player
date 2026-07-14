@@ -1,5 +1,6 @@
 #import "SgNativePlayerBridge.h"
 
+#import <AVFoundation/AVFoundation.h>
 #import <SGPlayer/SGPlayer.h>
 
 @interface SgNativePlayerBridge ()
@@ -17,6 +18,11 @@
 @property (nonatomic, copy, nullable) NSString *lastErrorMessage;
 @property (nonatomic, assign) NSInteger lastErrorCode;
 @property (nonatomic, copy, nullable) NSDictionary *pendingDemuxerOptions;
+@property (nonatomic, assign) BOOL seekInFlight;
+@property (nonatomic, assign) int64_t pendingSeekMs;
+@property (nonatomic, assign) BOOL needsVideoDisplayRefresh;
+@property (nonatomic, assign) BOOL wantsBackgroundPlayback;
+@property (nonatomic, strong, nullable) dispatch_block_t seekWatchdog;
 
 @end
 
@@ -53,6 +59,16 @@
                                              selector:@selector(handleInfoChanged:)
                                                  name:SGPlayerDidChangeInfosNotification
                                                object:_player];
+#if TARGET_OS_IPHONE || TARGET_OS_TV
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleDidEnterBackground:)
+                                                 name:UIApplicationDidEnterBackgroundNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleDidBecomeActive:)
+                                                 name:UIApplicationDidBecomeActiveNotification
+                                               object:nil];
+#endif
   }
   return self;
 }
@@ -198,6 +214,7 @@
 }
 
 - (void)play {
+  [self configurePlaybackAudioSessionIfNeeded];
   SGStateInfo stateInfo = [_player sstateInfo];
   if (stateInfo.playback & SGPlaybackStateFinished) {
     [self replayFromBeginning];
@@ -393,8 +410,79 @@
 }
 
 - (void)seekToMs:(NSInteger)positionMs {
-  CMTime time = CMTimeMake(positionMs, 1000);
-  [_player seekToTime:time];
+  int64_t targetMs = (int64_t)MAX(0, positionMs);
+  CMTime time = CMTimeMake(targetMs, 1000);
+  BOOL resumeAfterSeek = _player.wantsToPlay;
+
+  [self cancelSeekWatchdog];
+  self.seekInFlight = YES;
+  self.pendingSeekMs = targetMs;
+
+  if (![_player seekable]) {
+    self.seekInFlight = NO;
+    [self emitProgressAtMs:targetMs];
+    return;
+  }
+
+  __weak typeof(self) weakSelf = self;
+  BOOL started =
+      [_player seekToTime:time
+           toleranceBefor:kCMTimeZero
+            toleranceAfter:kCMTimeZero
+                   result:^(CMTime resultTime, NSError *error) {
+                     __strong typeof(weakSelf) strongSelf = weakSelf;
+                     if (!strongSelf) {
+                       return;
+                     }
+                     [strongSelf cancelSeekWatchdog];
+                     strongSelf.seekInFlight = NO;
+
+                     int64_t landedMs = strongSelf.pendingSeekMs;
+                     if (!error && CMTIME_IS_NUMERIC(resultTime)) {
+                       landedMs = (int64_t)llround(CMTimeGetSeconds(resultTime) * 1000.0);
+                     }
+                     [strongSelf emitProgressAtMs:landedMs];
+                     [strongSelf kickMetalDisplay];
+
+                     if (resumeAfterSeek || strongSelf.player.wantsToPlay) {
+                       [strongSelf.player play];
+                       [strongSelf applySavedVolume];
+                       strongSelf.player.audioRenderer.pitch = strongSelf.savedPitch;
+                     }
+                   }];
+
+  if (!started) {
+    self.seekInFlight = NO;
+    [self emitProgressAtMs:targetMs];
+    return;
+  }
+
+  // If SGPlayer never invokes the result block, unblock progress updates.
+  dispatch_block_t watchdog = dispatch_block_create(0, ^{
+    __strong typeof(weakSelf) strongSelf = weakSelf;
+    if (!strongSelf || !strongSelf.seekInFlight) {
+      return;
+    }
+    strongSelf.seekInFlight = NO;
+    [strongSelf emitProgressAtMs:strongSelf.pendingSeekMs];
+  });
+  self.seekWatchdog = watchdog;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), watchdog);
+}
+
+- (void)cancelSeekWatchdog {
+  if (self.seekWatchdog) {
+    dispatch_block_cancel(self.seekWatchdog);
+    self.seekWatchdog = nil;
+  }
+}
+
+- (void)emitProgressAtMs:(int64_t)positionMs {
+  int64_t durationMs = [self getDurationMs];
+  if (self.progressHandler) {
+    self.progressHandler(MAX(0, positionMs), durationMs, self.lastBufferedMs);
+  }
 }
 
 - (BOOL)isSeekable {
@@ -504,10 +592,14 @@
   NSNumber *bg = policy[@"pausesWhenEnteredBackground"];
   if ([bg isKindOfClass:[NSNumber class]]) {
     _player.pausesWhenEnteredBackground = bg.boolValue;
+    self.wantsBackgroundPlayback = !bg.boolValue;
   }
   NSNumber *bgNoAudio = policy[@"pausesWhenEnteredBackgroundIfNoAudioTrack"];
   if ([bgNoAudio isKindOfClass:[NSNumber class]]) {
     _player.pausesWhenEnteredBackgroundIfNoAudioTrack = bgNoAudio.boolValue;
+  }
+  if (self.wantsBackgroundPlayback) {
+    [self configurePlaybackAudioSessionIfNeeded];
   }
 #else
   (void)policy;
@@ -528,11 +620,118 @@
 }
 
 - (void)releasePlayer {
+  [self cancelSeekWatchdog];
+  self.seekInFlight = NO;
+  self.needsVideoDisplayRefresh = NO;
   [_player pause];
   _player = nil;
 }
 
+#pragma mark - Audio session / display
+
+/// Required for real background playback together with UIBackgroundModes=audio.
+- (void)configurePlaybackAudioSessionIfNeeded {
+#if TARGET_OS_IOS || TARGET_OS_TV
+  NSError *error = nil;
+  AVAudioSession *session = [AVAudioSession sharedInstance];
+  if (![session setCategory:AVAudioSessionCategoryPlayback
+                       mode:AVAudioSessionModeMoviePlayback
+                    options:0
+                      error:&error]) {
+    NSLog(@"[SgNativePlayerBridge] AVAudioSession setCategory failed: %@", error);
+  }
+  if (![session setActive:YES error:&error]) {
+    NSLog(@"[SgNativePlayerBridge] AVAudioSession setActive failed: %@", error);
+  }
+#endif
+}
+
+- (void)kickMetalDisplay {
+  if (!_player) {
+    return;
+  }
+  SGVideoRenderer *renderer = _player.videoRenderer;
+  id metalView = [renderer valueForKey:@"metalView"];
+  if ([metalView respondsToSelector:@selector(setPaused:)]) {
+    [metalView setValue:@NO forKey:@"paused"];
+  }
+  if ([metalView respondsToSelector:@selector(setNeedsDisplay)]) {
+    [metalView setNeedsDisplay];
+  }
+  id fetchTimer = [renderer valueForKey:@"fetchTimer"];
+  if ([fetchTimer respondsToSelector:@selector(setPaused:)]) {
+    [fetchTimer setValue:@NO forKey:@"paused"];
+  }
+}
+
 #pragma mark - Notifications
+
+- (void)handleDidEnterBackground:(NSNotification *)notification {
+  (void)notification;
+  self.needsVideoDisplayRefresh = YES;
+}
+
+- (void)handleDidBecomeActive:(NSNotification *)notification {
+  (void)notification;
+  if (!self.needsVideoDisplayRefresh) {
+    return;
+  }
+  self.needsVideoDisplayRefresh = NO;
+  [self refreshVideoDisplayAfterForeground];
+}
+
+/// SGPlayer uses MTKView; background audio can keep the clock moving while Metal freezes.
+/// Rebind the renderer and soft-seek to the current clock so the picture catches up.
+- (void)refreshVideoDisplayAfterForeground {
+  if (!_player) {
+    return;
+  }
+  __weak typeof(self) weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    __strong typeof(weakSelf) strongSelf = weakSelf;
+    if (!strongSelf || !strongSelf->_player) {
+      return;
+    }
+
+    if (strongSelf.wantsBackgroundPlayback) {
+      [strongSelf configurePlaybackAudioSessionIfNeeded];
+    }
+
+    SGVideoRenderer *renderer = strongSelf->_player.videoRenderer;
+    UIView *host = strongSelf->_containerView;
+    renderer.view = nil;
+    renderer.view = host;
+    [strongSelf kickMetalDisplay];
+    [host setNeedsLayout];
+    [host layoutIfNeeded];
+
+    BOOL shouldResume = strongSelf->_player.wantsToPlay;
+    SGTimeInfo timeInfo = [strongSelf->_player timeInfo];
+    CMTime playback = timeInfo.playback;
+    if (shouldResume && CMTIME_IS_NUMERIC(playback)) {
+      // Soft seek forces a fresh decoded frame at the audio clock after metal resumes.
+      [strongSelf->_player seekToTime:playback
+                       toleranceBefor:kCMTimeZero
+                        toleranceAfter:kCMTimePositiveInfinity
+                               result:^(CMTime time, NSError *error) {
+                                 (void)time;
+                                 (void)error;
+                                 __strong typeof(weakSelf) inner = weakSelf;
+                                 if (!inner || !inner->_player) {
+                                   return;
+                                 }
+                                 [inner kickMetalDisplay];
+                                 if (inner->_player.wantsToPlay) {
+                                   [inner->_player play];
+                                   [inner applySavedVolume];
+                                 }
+                               }];
+    } else if (shouldResume) {
+      [strongSelf->_player play];
+      [strongSelf applySavedVolume];
+    }
+  });
+}
 
 - (void)handleInfoChanged:(NSNotification *)notification {
   SGTimeInfo timeInfo = [SGPlayer timeInfoFromUserInfo:notification.userInfo];
@@ -556,6 +755,10 @@
   }
 
   if (action & SGInfoActionTime) {
+    // Suppress stale playhead while an async seek is in flight (prevents UI bounce).
+    if (self.seekInFlight || (stateInfo.playback & SGPlaybackStateSeeking)) {
+      return;
+    }
     int64_t positionMs = 0;
     int64_t durationMs = 0;
     int64_t bufferedMs = 0;
