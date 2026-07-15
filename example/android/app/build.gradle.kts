@@ -16,8 +16,8 @@ if (keystorePropertiesFile.exists()) {
 }
 android {
     namespace = "com.example.kinetic_player_example"
-    compileSdk = 36
-    ndkVersion = "30.0.14904198"
+    compileSdk = 37
+    ndkVersion = "30.0.15729638"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -54,7 +54,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true

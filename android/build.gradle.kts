@@ -30,7 +30,7 @@ plugins {
 android {
     namespace = "com.keepwan.kinetic_player"
 
-    compileSdk = 36
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
