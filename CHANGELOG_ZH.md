@@ -1,3 +1,12 @@
+## 0.0.4
+
+### 修复
+
+- android **默认内核**：插件加载时设为 **IJKPlayer**
+- android IJK 精确 seek**：`GsyUiConfig.ijkEnableAccurateSeek`（默认 `true`）通过 `GSYVideoManager.setOptionModelList` 设置 `enable-accurate-seek=1`，减轻拖动进度条关键帧回弹；仅 IJK 内核生效。
+- ios 更新快进进度条不准确以及后台播放问题
+
+
 ## 0.0.3
 
 ### 修复

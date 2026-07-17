@@ -1,3 +1,14 @@
+## 0.0.4
+
+### Fixes
+
+- Android **default kernel**: Set to **IJKPlayer** when plugin loads
+
+- Android IJK accurate seek**: `GsyUiConfig.ijkEnableAccurateSeek` (default `true`) is set to `enable-accurate-seek=1` via `GSYVideoManager.setOptionModelList` to reduce keyframe bounce when dragging the progress bar; only effective for IJK kernels.
+
+- iOS update: inaccurate fast-forward progress bar and background playback issues.
+
+
 ## 0.0.3
 
 ### Fixes
