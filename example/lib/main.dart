@@ -272,7 +272,7 @@ class _ControlPanelState extends State<_ControlPanel> {
   bool _coverEnabled = true;
   List<CommonAudioTrack> _audioTracks = const [];
   int? _selectedAudioTrackIndex;
-  GsyRenderCore _selectedRenderCore = GsyRenderCore.system;
+  GsyRenderCore _selectedRenderCore = GsyRenderCore.ijk;
   final List<_DanmakuCue> _customDanmaku = [];
   final TextEditingController _subtitleTextController = TextEditingController(
     text: 'Hello from Flutter — gsySetEmbeddedSubtitleText',
@@ -311,7 +311,7 @@ class _ControlPanelState extends State<_ControlPanel> {
       _mirrorVertical = false;
       _keepLastFrame = false;
       _coverEnabled = true;
-      _selectedRenderCore = GsyRenderCore.system;
+      _selectedRenderCore = GsyRenderCore.ijk;
       _loadFilters();
       _loadAudioTracks();
     }

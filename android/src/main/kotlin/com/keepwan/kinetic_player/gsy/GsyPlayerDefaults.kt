@@ -2,14 +2,14 @@ package com.keepwan.kinetic_player.gsy
 
 import com.shuyu.gsyvideoplayer.GSYVideoManager
 import com.shuyu.gsyvideoplayer.model.VideoOptionModel
+import com.shuyu.gsyvideoplayer.player.IjkPlayerManager
 import com.shuyu.gsyvideoplayer.player.PlayerFactory
-import com.shuyu.gsyvideoplayer.player.SystemPlayerManager
 import tv.danmaku.ijk.media.player.IjkMediaPlayer
 
 /** Global GSY defaults applied when the Flutter plugin attaches. */
 object GsyPlayerDefaults {
     fun applyPluginDefaults(ijkEnableAccurateSeek: Boolean = true) {
-        PlayerFactory.setPlayManager(SystemPlayerManager::class.java)
+        PlayerFactory.setPlayManager(IjkPlayerManager::class.java)
         applyIjkOptions(ijkEnableAccurateSeek)
     }
 

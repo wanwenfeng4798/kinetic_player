@@ -67,13 +67,13 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 
 | 内核 | 状态 | API |
 |------|------|-----|
-| IJKPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.ijk)` |
+| IJKPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.ijk)`（**插件默认内核**） |
 | Media3 (Exo2) | ✅ | `gsySwitchRenderCore(GsyRenderCore.exo)` |
-| MediaPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.system)`（**插件默认内核**） |
+| MediaPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.system)` |
 | AliPlayer | ❌ | Maven 13.1.0 无 `gsyvideoplayer-ali` 模块 |
 | 自定义内核 | ⚠️ | 需 fork 插件注册 `PlayerFactory.setPlayManager` |
 
-**默认内核**：插件加载时设为 **System MediaPlayer**（`GsyPlayerDefaults`）。
+**默认内核**：插件加载时设为 **IJKPlayer**（`GsyPlayerDefaults`）。
 
 **IJK 精确 seek**：`GsyUiConfig.ijkEnableAccurateSeek`（默认 `true`）通过 `GSYVideoManager.setOptionModelList` 设置 `enable-accurate-seek=1`，减轻拖动进度条关键帧回弹；仅 IJK 内核生效。
 
