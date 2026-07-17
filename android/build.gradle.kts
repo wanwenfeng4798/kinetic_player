@@ -2,14 +2,14 @@ group = "com.keepwan.kinetic_player"
 version = "0.0.3"
 
 buildscript {
-    val kotlinVersion = "2.4.0"
+    val kotlinVersion = "2.4.10"
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:9.2.1")
+        classpath("com.android.tools.build:gradle:9.3.0")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
