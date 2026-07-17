@@ -4,12 +4,14 @@ import android.app.Activity
 import android.content.res.Configuration
 import android.os.Build
 import com.keepwan.kinetic_player.gsy.GsyPlatformViewRegistry
+import com.keepwan.kinetic_player.gsy.GsyPlayerDefaults
 import com.keepwan.kinetic_player.gsy.GsyPlayerLifecycleRegistry
 import com.keepwan.kinetic_player.gsy.GsyVideoViewFactory
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 
 class KineticPlayerPlugin : FlutterPlugin {
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        GsyPlayerDefaults.applyPluginDefaults()
         val messenger = binding.binaryMessenger
         GsyPlatformViewRegistry.attach(messenger)
         binding.platformViewRegistry.registerViewFactory(

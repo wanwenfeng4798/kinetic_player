@@ -69,9 +69,13 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 |------|------|-----|
 | IJKPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.ijk)` |
 | Media3 (Exo2) | ✅ | `gsySwitchRenderCore(GsyRenderCore.exo)` |
-| MediaPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.system)` |
+| MediaPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.system)`（**插件默认内核**） |
 | AliPlayer | ❌ | Maven 13.1.0 无 `gsyvideoplayer-ali` 模块 |
 | 自定义内核 | ⚠️ | 需 fork 插件注册 `PlayerFactory.setPlayManager` |
+
+**默认内核**：插件加载时设为 **System MediaPlayer**（`GsyPlayerDefaults`）。
+
+**IJK 精确 seek**：`GsyUiConfig.ijkEnableAccurateSeek`（默认 `true`）通过 `GSYVideoManager.setOptionModelList` 设置 `enable-accurate-seek=1`，减轻拖动进度条关键帧回弹；仅 IJK 内核生效。
 
 Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 `gsyListExoVideoTracks` / `gsySelectExoVideoTrack`。
 

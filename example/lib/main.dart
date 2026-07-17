@@ -246,6 +246,12 @@ class _ControlPanel extends StatefulWidget {
 }
 
 class _ControlPanelState extends State<_ControlPanel> {
+  static const _renderCoreLabels = <GsyRenderCore, String>{
+    GsyRenderCore.ijk: 'IJKPlayer',
+    GsyRenderCore.exo: 'Media3 (Exo)',
+    GsyRenderCore.system: 'System MediaPlayer',
+  };
+
   static final ValueNotifier<CommonPlayerState> _idleState =
       ValueNotifier(CommonPlayerState.idle);
   static final ValueNotifier<Duration> _zeroDuration =
@@ -266,6 +272,7 @@ class _ControlPanelState extends State<_ControlPanel> {
   bool _coverEnabled = true;
   List<CommonAudioTrack> _audioTracks = const [];
   int? _selectedAudioTrackIndex;
+  GsyRenderCore _selectedRenderCore = GsyRenderCore.system;
   final List<_DanmakuCue> _customDanmaku = [];
   final TextEditingController _subtitleTextController = TextEditingController(
     text: 'Hello from Flutter — gsySetEmbeddedSubtitleText',
@@ -304,9 +311,36 @@ class _ControlPanelState extends State<_ControlPanel> {
       _mirrorVertical = false;
       _keepLastFrame = false;
       _coverEnabled = true;
+      _selectedRenderCore = GsyRenderCore.system;
       _loadFilters();
       _loadAudioTracks();
     }
+  }
+
+  Future<void> _onRenderCoreChanged(GsyRenderCore? core) async {
+    if (core == null || core == _selectedRenderCore) return;
+    final gsy = widget.controller;
+    if (gsy is! GSYVideoControllerImpl) return;
+
+    final wasPlaying = gsy.playerState.value == CommonPlayerState.playing;
+    final pos = gsy.position.value;
+
+    await gsy.gsySwitchRenderCore(core);
+    await gsy.switchVideoSource(_DemoMedia.videoUrl, autoPlay: wasPlaying);
+    if (pos > Duration.zero) {
+      await gsy.seekTo(pos);
+    }
+
+    if (!mounted) return;
+    setState(() => _selectedRenderCore = core);
+    await _loadAudioTracks();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已切换至 ${_renderCoreLabels[core]}，视频已重新加载'),
+      ),
+    );
   }
 
   Future<void> _loadAudioTracks() async {
@@ -590,6 +624,37 @@ class _ControlPanelState extends State<_ControlPanel> {
             ),
           ],
           if (isAndroidGsy) ...[
+            const SizedBox(height: 8),
+            const Text(
+              '播放内核',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Text('内核：'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButton<GsyRenderCore>(
+                    isExpanded: true,
+                    value: _selectedRenderCore,
+                    items: [
+                      for (final core in GsyRenderCore.values)
+                        DropdownMenuItem(
+                          value: core,
+                          child: Text(_renderCoreLabels[core]!),
+                        ),
+                    ],
+                    onChanged: _onRenderCoreChanged,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '切换后会重新加载当前视频；IJK 内核下可配合 ijkEnableAccurateSeek 减轻拖动回弹。',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
             const SizedBox(height: 8),
             const Text(
               '播放中点击画面可唤出暂停按钮；GL 滤镜需从下拉框手动开启。'

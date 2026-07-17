@@ -37,6 +37,7 @@ class GsyUiConfig {
     this.keepLastFrameWhenComplete = false,
     this.coverUrl,
     this.thumbPlay = true,
+    this.ijkEnableAccurateSeek = true,
   });
 
   /// Native chrome + pan gestures (seek / volume / brightness).
@@ -93,6 +94,9 @@ class GsyUiConfig {
   /// Tap the cover to start playback (Android GSY `setThumbPlay`).
   final bool thumbPlay;
 
+  /// IJK FFmpeg accurate seek; reduces keyframe snap-back on drag (IJK core only).
+  final bool ijkEnableAccurateSeek;
+
   Map<String, dynamic> toCreationParams() => <String, dynamic>{
         'gsyUi': <String, dynamic>{
           'enableNativeControls': enableNativeControls,
@@ -128,6 +132,7 @@ class GsyUiConfig {
           'keepLastFrameWhenComplete': keepLastFrameWhenComplete,
           if (coverUrl != null) 'coverUrl': coverUrl,
           'thumbPlay': thumbPlay,
+          'ijkEnableAccurateSeek': ijkEnableAccurateSeek,
         },
       };
 }

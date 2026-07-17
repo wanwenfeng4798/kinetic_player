@@ -41,6 +41,8 @@ data class GsyUiConfig(
     val coverUrl: String? = null,
     /** Tap cover to start playback (GSY `setThumbPlay`). */
     val thumbPlay: Boolean = true,
+    /** IJK FFmpeg accurate seek; reduces keyframe snap-back on drag (IJK core only). */
+    val ijkEnableAccurateSeek: Boolean = true,
 ) {
     companion object {
         fun fromCreationParams(params: Map<String, Any?>?): GsyUiConfig {
@@ -89,6 +91,7 @@ data class GsyUiConfig(
                     ui["keepLastFrameWhenComplete"] as? Boolean ?: false,
                 coverUrl = ui["coverUrl"] as? String,
                 thumbPlay = ui["thumbPlay"] as? Boolean ?: true,
+                ijkEnableAccurateSeek = ui["ijkEnableAccurateSeek"] as? Boolean ?: true,
             )
         }
     }

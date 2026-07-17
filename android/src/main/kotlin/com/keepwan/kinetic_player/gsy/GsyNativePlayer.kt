@@ -162,6 +162,7 @@ class GsyNativePlayer(
         playerView.onAudioTrackSelected = { selectAudioTrack(it) }
         playerView.syncVolumeToolbar(savedVolume, muted)
         mainHandler.post(progressRunnable)
+        GsyPlayerDefaults.applyIjkOptions(initialUiConfig.ijkEnableAccurateSeek)
         GsyPlayerLifecycleRegistry.register(this)
     }
 
@@ -177,6 +178,7 @@ class GsyNativePlayer(
     fun applyUiConfig(config: GsyUiConfig) {
         uiConfig = config
         playerView.uiConfig = config
+        GsyPlayerDefaults.applyIjkOptions(config.ijkEnableAccurateSeek)
         config.previewVttUrl?.let { playerView.setPreviewVttUrl(it) }
         currentUrl?.let { setUrl(it) }
         syncPictureInPictureParams()
