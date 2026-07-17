@@ -83,6 +83,7 @@ CommonVideoPlayerViewBuilder(
 ```
 
 完整示例见 [doc/EXAMPLE.md](doc/EXAMPLE.md) 与 `example/` 目录。
+- 测试高清视频地址 `http://www.thismonkey.com/files/2160p/jellyfish-140-mbps-4k-uhd-hevc-10bit.mkv` ｜ 10 Mbps 码率（轻度测试，适合移动端/低端盒子） `[http://jell.yfish.us/media/jellyfish-10-mbps-hd-hevc-10bit.mkv](http://jell.yfish.us/media/jellyfish-10-mbps-hd-hevc-10bit.mkv)` | 50 Mbps 码率（中度测试，基本等同于常见流媒体最高画质） `[http://jell.yfish.us/media/jellyfish-50-mbps-hd-hevc-10bit.mkv]` | 140 Mbps 码率（重度测试，等同于 4K UHD 蓝光原盘极限码率） `[http://jell.yfish.us/media/jellyfish-140-mbps-4k-uhd-hevc-10bit.mkv](http://jell.yfish.us/media/jellyfish-140-mbps-4k-uhd-hevc-10bit.mkv)` | 400 Mbps 码率（极限高画质硬解测试，极度考验设备解码与网速极限）`[http://jell.yfish.us/media/jellyfish-400-mbps-4k-uhd-hevc-10bit.mkv](http://jell.yfish.us/media/jellyfish-400-mbps-4k-uhd-hevc-10bit.mkv)`
 
 ## 平台支持
 
