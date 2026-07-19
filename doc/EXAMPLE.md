@@ -20,8 +20,8 @@ Android 可直接 `flutter run`。
 
 `example/lib/main.dart` 包含：
 
-1. **视频区域** — `CommonVideoPlayerViewBuilder` 加载远程 MP4，Android 附带 `GsyUiConfig`（原生控制栏、进度条缩略图等）
-2. **设置 · 音轨** — 下拉选择音轨（`getAudioTracks` / `selectAudioTrack`）；播放器内齿轮按钮亦可切换
+1. **视频区域** — `CommonVideoPlayerViewBuilder` 加载远程片源，Android 附带 `GsyUiConfig`（原生控制栏、进度条缩略图等）
+2. **设置 · 片源 / 音轨** — 下拉切换演示片源（含 Big Buck Bunny 与 4K HEVC 测试流）；音轨可下拉选择（`getAudioTracks` / `selectAudioTrack`），播放器内齿轮按钮亦可切换
 3. **Android 专属** — GL 滤镜、字幕（WebVTT / 推送文本）、弹幕（B 站 XML）
 4. **循环 / 截图** — `setLooping`、`captureFrame`
 5. **公共控制** — Play / Pause / Seek 10s、状态与进度显示
@@ -46,7 +46,7 @@ Android 可直接 `flutter run`。
 
 ```dart
 CommonVideoPlayerViewBuilder(
-  url: _DemoMedia.videoUrl,
+  url: _selectedSource.url,
   creationParams: isAndroid
       ? GsyUiConfig(
           enableNativeControls: true,

@@ -25,10 +25,37 @@ class KineticPlayerExampleApp extends StatelessWidget {
   }
 }
 
+class _DemoSource {
+  const _DemoSource(this.label, this.url);
+
+  final String label;
+  final String url;
+}
+
 /// Demo media URLs (Android GSY).
 class _DemoMedia {
-  static const videoUrl =
-      'https://www.w3schools.com/html/mov_bbb.mp4';
+  static const sources = <_DemoSource>[
+    _DemoSource(
+      'Big Buck Bunny (demo)',
+      'https://www.w3schools.com/html/mov_bbb.mp4',
+    ),
+    _DemoSource(
+      'Jellyfish 140 Mbps 4K HEVC',
+      'http://www.thismonkey.com/files/2160p/jellyfish-140-mbps-4k-uhd-hevc-10bit.mkv',
+    ),
+    _DemoSource(
+      'Jellyfish 400 Mbps 4K HEVC',
+      'http://www.thismonkey.com/files/2160p/jellyfish-400-mbps-4k-uhd-hevc-10bit.mkv',
+    ),
+    _DemoSource(
+      'Dredd 测试片段 1',
+      'http://www.thismonkey.com/files/2160p/dredd-1.mkv',
+    ),
+    _DemoSource(
+      'Dredd 测试片段 2',
+      'http://www.thismonkey.com/files/2160p/dredd-2.mkv',
+    ),
+  ];
 
   /// Demo cover / poster image.
   static const coverUrl = 'https://www.gstatic.com/webp/gallery/1.jpg';
@@ -169,6 +196,7 @@ class PlayerDemoPage extends StatefulWidget {
 class _PlayerDemoPageState extends State<PlayerDemoPage> {
   String? _previewVttUri;
   CommonVideoController? _controller;
+  _DemoSource _selectedSource = _DemoMedia.sources.first;
 
   @override
   void initState() {
@@ -186,6 +214,16 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
     super.dispose();
   }
 
+  Future<void> _onSourceChanged(_DemoSource source) async {
+    if (source.url == _selectedSource.url) return;
+    final controller = _controller;
+    final wasPlaying =
+        controller?.playerState.value == CommonPlayerState.playing;
+    setState(() => _selectedSource = source);
+    if (controller == null) return;
+    await controller.switchVideoSource(source.url, autoPlay: wasPlaying);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
@@ -199,14 +237,14 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                 Expanded(
                   flex: 3,
                   child: CommonVideoPlayerViewBuilder(
-                    url: _DemoMedia.videoUrl,
+                    url: _selectedSource.url,
                     creationParams: isAndroid
                         ? GsyUiConfig(
                             enableNativeControls: true,
                             showFullscreenButton: true,
                             showDragProgressTextOnSeekBar: true,
                             pictureInPictureEnabled: true,
-                            videoTitle: 'GSY Demo',
+                            videoTitle: _selectedSource.label,
                             previewVttUrl: _previewVttUri,
                             coverUrl: _DemoMedia.coverUrl,
                             keepLastFrameWhenComplete: false,
@@ -226,7 +264,11 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                 Expanded(
                   flex: 2,
                   child: SingleChildScrollView(
-                    child: _ControlPanel(controller: _controller),
+                    child: _ControlPanel(
+                      controller: _controller,
+                      selectedSource: _selectedSource,
+                      onSourceChanged: _onSourceChanged,
+                    ),
                   ),
                 ),
               ],
@@ -237,9 +279,15 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
 }
 
 class _ControlPanel extends StatefulWidget {
-  const _ControlPanel({this.controller});
+  const _ControlPanel({
+    this.controller,
+    required this.selectedSource,
+    required this.onSourceChanged,
+  });
 
   final CommonVideoController? controller;
+  final _DemoSource selectedSource;
+  final Future<void> Function(_DemoSource source) onSourceChanged;
 
   @override
   State<_ControlPanel> createState() => _ControlPanelState();
@@ -317,6 +365,14 @@ class _ControlPanelState extends State<_ControlPanel> {
     }
   }
 
+  Future<void> _onDemoSourceChanged(String? url) async {
+    if (url == null || url == widget.selectedSource.url) return;
+    final source = _DemoMedia.sources.firstWhere((s) => s.url == url);
+    await widget.onSourceChanged(source);
+    if (!mounted) return;
+    await _loadAudioTracks();
+  }
+
   Future<void> _onRenderCoreChanged(GsyRenderCore? core) async {
     if (core == null || core == _selectedRenderCore) return;
     final gsy = widget.controller;
@@ -326,7 +382,10 @@ class _ControlPanelState extends State<_ControlPanel> {
     final pos = gsy.position.value;
 
     await gsy.gsySwitchRenderCore(core);
-    await gsy.switchVideoSource(_DemoMedia.videoUrl, autoPlay: wasPlaying);
+    await gsy.switchVideoSource(
+      widget.selectedSource.url,
+      autoPlay: wasPlaying,
+    );
     if (pos > Duration.zero) {
       await gsy.seekTo(pos);
     }
@@ -580,6 +639,37 @@ class _ControlPanelState extends State<_ControlPanel> {
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
+            Row(
+              children: [
+                const Text('片源：'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: widget.selectedSource.url,
+                    items: [
+                      for (final source in _DemoMedia.sources)
+                        DropdownMenuItem(
+                          value: source.url,
+                          child: Text(
+                            source.label,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: _onDemoSourceChanged,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.selectedSource.url,
+              style: const TextStyle(fontSize: 11, color: Colors.black45),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 const Text('音轨：'),
