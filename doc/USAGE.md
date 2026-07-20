@@ -239,6 +239,7 @@ if (controller is GSYVideoControllerImpl) {
 | `coverUrl` | — | 封面 / 海报图 URL |
 | `thumbPlay` | `true` | 点击封面开始播放（Android） |
 | `ijkEnableAccurateSeek` | `true` | IJK 精确 seek，减轻拖动进度条关键帧回弹（仅 IJK 内核） |
+| `cacheWithPlay` | `true` | 边播边缓（HttpProxyCache）； |
 
 其他 GSY 能力（滤镜、截图、GIF、字幕、列表等）见 [GSY_FEATURES.md](GSY_FEATURES.md)。
 

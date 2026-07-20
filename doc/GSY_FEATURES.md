@@ -77,6 +77,8 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 
 **IJK 精确 seek**：`GsyUiConfig.ijkEnableAccurateSeek`（默认 `true`）通过 `GSYVideoManager.setOptionModelList` 设置 `enable-accurate-seek=1`，减轻拖动进度条关键帧回弹；仅 IJK 内核生效。
 
+**大文件 / 远程 MKV**：`GsyUiConfig.cacheWithPlay` 开启时走 HttpProxyCache；对多 GB 渐进下载极易多连接超时。大体积远端文件请设 `cacheWithPlay: false`。插件默认将 GSY prepare / Exo HTTP / IJK format 超时提高到 60s。
+
 Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 `gsyListExoVideoTracks` / `gsySelectExoVideoTrack`。
 
 **音轨（音频）** 公共 API：`getAudioTracks()` / `selectAudioTrack(index)`（Exo / IJK 内核，见 `GsyAudioTrackHelper`）。
