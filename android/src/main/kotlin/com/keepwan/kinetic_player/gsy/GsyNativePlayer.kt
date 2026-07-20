@@ -16,6 +16,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
+import kotlin.math.roundToInt
 import com.keepwan.kinetic_player.CommonPlayerState
 import com.keepwan.kinetic_player.ThrottledProgressReporter
 import com.shuyu.gsyvideoplayer.GSYVideoManager
@@ -732,18 +733,17 @@ class GsyNativePlayer(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         if (!isPictureInPictureSupported() || !uiConfig.pictureInPictureEnabled) return
         val activity = CommonUtil.scanForActivity(playerView.context) as? Activity ?: return
-        activity.setPictureInPictureParams(buildPictureInPictureParams(autoEnter = true))
+        try {
+            activity.setPictureInPictureParams(buildPictureInPictureParams(autoEnter = true))
+        } catch (_: IllegalArgumentException) {
+            // OEM may reject aspect ratio even after clamping; must not crash onPrepared.
+        }
     }
 
     private fun buildPictureInPictureParams(autoEnter: Boolean): PictureInPictureParams {
         val width = GSYVideoManager.instance().currentVideoWidth
         val height = GSYVideoManager.instance().currentVideoHeight
-        val aspectRatio =
-            if (width > 0 && height > 0) {
-                Rational(width, height)
-            } else {
-                Rational(16, 9)
-            }
+        val aspectRatio = pictureInPictureAspectRatio(width, height)
         val builder =
             PictureInPictureParams.Builder()
                 .setAspectRatio(aspectRatio)
@@ -753,6 +753,29 @@ class GsyNativePlayer(
             )
         }
         return builder.build()
+    }
+
+    /**
+     * PiP aspect ratio must stay within platform bounds (~0.418–2.39).
+     * Ultra-wide sources (e.g. 3840×1600 ≈ 2.4) otherwise crash [Activity.setPictureInPictureParams].
+     */
+    private fun pictureInPictureAspectRatio(
+        videoWidth: Int,
+        videoHeight: Int,
+    ): Rational {
+        if (videoWidth <= 0 || videoHeight <= 0) {
+            return Rational(16, 9)
+        }
+        var w = videoWidth
+        var h = videoHeight
+        val ratio = w.toDouble() / h
+        when {
+            ratio > PIP_ASPECT_RATIO_MAX ->
+                w = (h * PIP_ASPECT_RATIO_MAX).roundToInt().coerceAtLeast(1)
+            ratio < PIP_ASPECT_RATIO_MIN ->
+                h = (w / PIP_ASPECT_RATIO_MIN).roundToInt().coerceAtLeast(1)
+        }
+        return Rational(w, h)
     }
 
     private fun onPlaybackStarted() {
@@ -823,5 +846,11 @@ class GsyNativePlayer(
         GsyPlayerLifecycleRegistry.unregister(this)
         playerView.release()
         progressReporter.reset()
+    }
+
+    private companion object {
+        /** Matches Android [Activity.setPictureInPictureParams] validation (API 31+). */
+        const val PIP_ASPECT_RATIO_MIN = 0.418410
+        const val PIP_ASPECT_RATIO_MAX = 2.390000
     }
 }

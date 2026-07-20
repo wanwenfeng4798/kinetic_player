@@ -34,7 +34,7 @@ class _DemoSource {
 
 /// Demo media URLs (Android GSY).
 class _DemoMedia {
-  static const sources = <_DemoSource>[
+  static final sources = <_DemoSource>[
     _DemoSource(
       'Big Buck Bunny (demo)',
       'https://www.w3schools.com/html/mov_bbb.mp4',
@@ -54,6 +54,14 @@ class _DemoMedia {
     _DemoSource(
       'Dredd 测试片段 2',
       'http://www.thismonkey.com/files/2160p/dredd-2.mkv',
+    ),
+    _DemoSource(
+      '虚拟频道 (45s 无缝切换) HLS',
+      'https://virtual-channel.unified-streaming.com/demo_channel-stable.isml/.m3u8',
+    ),
+    _DemoSource(
+      '标准 4K VOD 点播 (Tears of Steel),HLS',
+      'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8',
     ),
   ];
 
@@ -171,12 +179,11 @@ class _DemoMedia {
     return buffer.toString();
   }
 
-  static String _escapeXml(String text) =>
-      text
-          .replaceAll('&', '&amp;')
-          .replaceAll('<', '&lt;')
-          .replaceAll('>', '&gt;')
-          .replaceAll('"', '&quot;');
+  static String _escapeXml(String text) => text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
 }
 
 class _DanmakuCue {
@@ -226,7 +233,8 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     final previewReady = !isAndroid || _previewVttUri != null;
 
     return Scaffold(
@@ -626,7 +634,8 @@ class _ControlPanelState extends State<_ControlPanel> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     'Error: $err',
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                    style:
+                        const TextStyle(color: Colors.redAccent, fontSize: 12),
                   ),
                 );
               },
