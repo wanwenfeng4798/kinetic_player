@@ -86,6 +86,20 @@ override fun onUserLeaveHint() {
 
 按 **Home** 或切换到其他 App 即可验证；暂停状态下不会进入 PiP。
 
+### macOS
+
+1. 准备 SGPlayer（见 [MACOS_SGPLAYER.md](MACOS_SGPLAYER.md)）：
+   - `bash macos/scripts/spm_prebuild_hook.sh`（生成 `Package.swift` + ensure 二进制）
+   - 或 `bash macos/scripts/ensure_sgplayer.sh` / `build_sgplayer.sh`
+2. 运行：
+
+```bash
+flutter pub get
+flutter run -d macos
+```
+
+> macOS 与 iOS 共用原生底栏与 SG API；无系统 PiP。
+
 ### iOS
 
 1. **启用 SPM**（推荐）并准备 SGPlayer（见 [IOS_SGPLAYER.md](IOS_SGPLAYER.md)）：

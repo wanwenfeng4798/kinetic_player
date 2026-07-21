@@ -32,6 +32,12 @@ void main() {
       expect(controller, isA<SGVideoControllerImpl>());
     });
 
+    test('createAuto returns SG on macOS', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      final controller = CommonVideoPlayerFactory.createAuto(1);
+      expect(controller, isA<SGVideoControllerImpl>());
+    });
+
     test('createAuto throws on unsupported platform', () {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       expect(
@@ -64,6 +70,12 @@ void main() {
       );
 
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      expect(
+        CommonVideoPlayerFactory.viewTypeForCurrentPlatform(),
+        PlayerViewTypes.sg,
+      );
+
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       expect(
         CommonVideoPlayerFactory.viewTypeForCurrentPlatform(),
         PlayerViewTypes.sg,

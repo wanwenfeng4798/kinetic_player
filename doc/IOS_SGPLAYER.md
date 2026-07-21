@@ -28,7 +28,7 @@ kinetic_player 的 iOS 端依赖预编译的 `SGPlayer.xcframework`（约 250 Mi
 
 钩子会：
 
-1. 按 `sgplayer_binary_manifest.json` 同步 `Package.swift` 的 url/checksum  
+1. 按 `darwin/sgplayer/manifest.ios.json` 同步 `Package.swift` 的 url/checksum  
 2. 调用 `ensure_sgplayer.sh`：已有本地产物 → 跳过；否则下载；再失败则本地编译  
 
 因此开启 SPM 后，**无需再手动跑脚本**（首次联网构建即可）。
@@ -43,8 +43,8 @@ bash kinetic_player/ios/scripts/spm_prebuild_hook.sh
 
 执行顺序（`ensure_sgplayer.sh`）：
 
-1. 已存在 `ios/Frameworks/SGPlayer.xcframework` → 跳过  
-2. 读取 `ios/sgplayer_binary_manifest.json` 中的 `download_url` → 下载解压  
+1. 已存在 `darwin/Frameworks/ios/SGPlayer.xcframework` → 跳过  
+2. 读取 `darwin/sgplayer/manifest.ios.json` 中的 `download_url` → 下载解压  
 3. 下载失败或未配置 URL → 本地从源码编译（30–60 分钟）  
 
 ### 方式 C — 环境变量指定 URL
@@ -100,7 +100,7 @@ bash kinetic_player/ios/scripts/build_sgplayer.sh
 产物路径：
 
 ```
-kinetic_player/ios/Frameworks/SGPlayer.xcframework
+kinetic_player/darwin/Frameworks/ios/SGPlayer.xcframework
 ```
 
 ### 2. 打包 zip、更新 manifest + Package.swift
@@ -111,9 +111,9 @@ bash kinetic_player/ios/scripts/package_sgplayer_release.sh
 
 输出：
 
-- `ios/Frameworks/SGPlayer.xcframework.zip`
-- `ios/Frameworks/SGPlayer.xcframework.zip.sha256`
-- 自动写回 `ios/sgplayer_binary_manifest.json`
+- `darwin/Frameworks/ios/SGPlayer.xcframework.zip`
+- `darwin/Frameworks/ios/SGPlayer.xcframework.zip.sha256`
+- 自动写回 `darwin/sgplayer/manifest.ios.json`
 - 自动生成 `ios/kinetic_player/Package.swift`（远程 binaryTarget）
 
 ### 3. 创建 GitHub Release
@@ -123,27 +123,27 @@ cd kinetic_player
 
 # 需安装 GitHub CLI: https://cli.github.com/
 gh release create sgplayer-v1.0.0 \
-  ios/Frameworks/SGPlayer.xcframework.zip \
+  darwin/Frameworks/ios/SGPlayer.xcframework.zip \
   --repo wanwenfeng4798/kinetic_player \
   --title "SGPlayer prebuilt v1.0.0" \
   --notes "Prebuilt SGPlayer.xcframework (ios-arm64) for kinetic_player."
 ```
 
-Release tag 命名建议：`sgplayer-v<manifest.version>`，与 `ios/sgplayer_binary_manifest.json` 中 `version` 一致。
+Release tag 命名建议：`sgplayer-v<manifest.version>`，与 `darwin/sgplayer/manifest.ios.json` 中 `version` 一致。
 
 ### 4. 提交生成文件
 
 提交（**不要**提交 zip 本身）：
 
-- `ios/sgplayer_binary_manifest.json`
+- `darwin/sgplayer/manifest.ios.json`
 - `ios/kinetic_player/Package.swift`
 
 ### 5. 验证
 
 ```bash
-rm -rf ios/Frameworks/SGPlayer.xcframework
+rm -rf darwin/Frameworks/ios/SGPlayer.xcframework
 bash ios/scripts/download_sgplayer.sh
-ls ios/Frameworks/SGPlayer.xcframework
+ls darwin/Frameworks/ios/SGPlayer.xcframework
 ```
 
 手动改 manifest 后也可：
@@ -157,24 +157,22 @@ bash ios/scripts/generate_package_swift.sh
 | 字段 | 说明 |
 |------|------|
 | `version` | 预编译包版本，与 Release tag 对应 |
-| `sgplayer_branch` | 对应 libobjc/SGPlayer 分支（文档用） |
+| `sgplayer_branch` | 对应 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) 分支（文档 / 本地编译用） |
+| `sgplayer_repository` | SGPlayer 源码 git 地址（`build_sgplayer.sh` 克隆用） |
 | `asset_name` | Release 附件文件名 |
 | `download_url` | 完整 HTTPS 下载地址；留空则跳过下载、走本地编译 |
 | `sha256` | zip 的 SHA256（与 `swift package compute-checksum` 一致）；SPM checksum 同源 |
 
-## CocoaPods 与 SPM
-
-| 集成方式 | SGPlayer 如何就绪 |
-|----------|-------------------|
-| **SPM** | `Package.swift` 远程 `binaryTarget` 自动下载；Example Pre-action 再跑钩子保证本地 `Frameworks/` |
-| **CocoaPods** | `podspec prepare_command` → `ensure_sgplayer.sh` → `vendored_frameworks` |
+## CocoaPods 与 SPM 共用同一产物
 
 ```
-ios/sgplayer_binary_manifest.json     ← 单一真相源（url + sha256）
-    ├── generate_package_swift.sh     → Package.swift binaryTarget(url:checksum:)
-    ├── ensure_sgplayer.sh            → ios/Frameworks/SGPlayer.xcframework
-    └── kinetic_player.podspec        → vendored_frameworks
+darwin/SgNativePlayerBridge/          ← iOS + macOS 共享 ObjC 桥
+darwin/Frameworks/ios/SGPlayer.xcframework   ← iOS 设备 arm64
+darwin/Frameworks/macos/SGPlayer.xcframework ← macosx
 ```
+
+iOS：`ios/kinetic_player.podspec` / `ios/kinetic_player/Package.swift`  
+macOS：`macos/kinetic_player.podspec` / `macos/kinetic_player/Package.swift`
 
 ## 模拟器说明
 
@@ -199,6 +197,6 @@ ios/sgplayer_binary_manifest.json     ← 单一真相源（url + sha256）
 
 ## 第三方许可
 
-SGPlayer 源码与二进制遵循 [libobjc/SGPlayer](https://github.com/libobjc/SGPlayer) 项目自身许可证。
+SGPlayer 源码与二进制遵循 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) 项目自身许可证。
 
 kinetic_player 插件封装代码采用 [MIT License](../LICENSE)。

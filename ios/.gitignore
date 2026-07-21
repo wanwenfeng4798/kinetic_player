@@ -9,10 +9,6 @@ profile
 
 DerivedData/
 build/
-third_party/
-Frameworks/
-Frameworks/*.zip
-Frameworks/*.zip.sha256
 GeneratedPluginRegistrant.h
 GeneratedPluginRegistrant.m
 

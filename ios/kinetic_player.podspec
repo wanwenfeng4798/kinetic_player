@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.version          = '0.0.4'
   s.summary          = 'Dual-core video player: SGPlayer on iOS.'
   s.description      = <<-DESC
-Flutter video player plugin. iOS uses libobjc/SGPlayer master; Android uses GSYVideoPlayer 13.1.0.
+Flutter video player plugin. iOS uses wanwenfeng4798/SGPlayer master; Android uses GSYVideoPlayer 13.1.0.
 SGPlayer.xcframework is fetched via SPM remote binaryTarget (Package.swift) and/or
 `bash ios/scripts/spm_prebuild_hook.sh` / CocoaPods prepare_command (30-60 min only if local build).
 Shared artifact supports CocoaPods (vendored_frameworks) and Swift Package Manager (remote binaryTarget).
@@ -19,7 +19,7 @@ Shared artifact supports CocoaPods (vendored_frameworks) and Swift Package Manag
   s.swift_version    = '5.0'
   s.dependency       'Flutter'
 
-  sgplayer_framework = 'Frameworks/SGPlayer.xcframework'
+  sgplayer_framework = '../darwin/Frameworks/ios/SGPlayer.xcframework'
 
   s.prepare_command = <<-CMD
     set -e
@@ -29,8 +29,8 @@ Shared artifact supports CocoaPods (vendored_frameworks) and Swift Package Manag
   CMD
 
   s.vendored_frameworks = sgplayer_framework
-  s.source_files = 'kinetic_player/Sources/**/*.{swift,h,m}'
-  s.public_header_files = 'kinetic_player/Sources/SgNativePlayerBridge/include/*.h'
+  s.source_files = 'kinetic_player/Sources/**/*.{swift,h,m}', '../darwin/SgNativePlayerBridge/**/*.{h,m}', '../darwin/kinetic_player/Sources/SgPlayerKit/**/*.swift'
+  s.public_header_files = '../darwin/SgNativePlayerBridge/include/*.h'
   s.frameworks = 'AVFoundation', 'AudioToolbox', 'VideoToolbox', 'CoreMedia', 'Metal', 'MetalKit'
   s.libraries = 'iconv', 'bz2', 'z'
   s.pod_target_xcconfig = {

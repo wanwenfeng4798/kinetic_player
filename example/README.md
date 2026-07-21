@@ -6,10 +6,12 @@
 
 ```bash
 # 从 example 目录
-# iOS：Scheme Pre-action 会自动跑钩子；也可手动：
+# macOS：Scheme Pre-action 或手动：
+bash ../macos/scripts/spm_prebuild_hook.sh
+# iOS：
 bash ../ios/scripts/spm_prebuild_hook.sh
 flutter pub get
-flutter run
+flutter run -d macos   # 或 -d ios / Android
 ```
 
 详细说明见 [../doc/EXAMPLE.md](../doc/EXAMPLE.md)。

@@ -599,8 +599,9 @@ class _ControlPanelState extends State<_ControlPanel> {
     final active = widget.controller;
     final isAndroidGsy = active is GSYVideoControllerImpl;
     final isIosSg = active is SGVideoControllerImpl;
-    final supportsTransform = isAndroidGsy || isIosSg;
-    final supportsCover = isAndroidGsy || isIosSg;
+    final isAppleSg = isIosSg;
+    final supportsTransform = isAndroidGsy || isAppleSg;
+    final supportsCover = isAndroidGsy || isAppleSg;
 
     return Padding(
       padding: const EdgeInsets.all(12),

@@ -40,7 +40,7 @@ class SGVideoControllerImpl
   final ValueNotifier<int> playerErrorCode = ValueNotifier(0);
 
   SGVideoControllerImpl(this.viewId) {
-    assertIosPlatform('SGVideoControllerImpl');
+    assertAppleSgPlatform('SGVideoControllerImpl');
     _channel = MethodChannel('com.example.player/sg_$viewId');
     _channel.setMethodCallHandler(_handleNativeEvents);
   }

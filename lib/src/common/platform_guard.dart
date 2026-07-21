@@ -9,6 +9,16 @@ void assertAndroidPlatform(String feature) {
   }
 }
 
+/// Throws when the current platform is not Apple SGPlayer (iOS / macOS).
+void assertAppleSgPlatform(String feature) {
+  if (defaultTargetPlatform != TargetPlatform.iOS &&
+      defaultTargetPlatform != TargetPlatform.macOS) {
+    throw UnsupportedError(
+      '$feature is only supported on iOS/macOS (SGPlayer).',
+    );
+  }
+}
+
 /// Throws when the current platform is not [TargetPlatform.iOS].
 void assertIosPlatform(String feature) {
   if (defaultTargetPlatform != TargetPlatform.iOS) {
@@ -18,12 +28,16 @@ void assertIosPlatform(String feature) {
   }
 }
 
-/// Throws when the current platform is neither Android nor iOS.
-void assertSupportedMobilePlatform() {
+/// Throws when the current platform is not a supported player platform.
+void assertSupportedPlayerPlatform() {
   if (defaultTargetPlatform != TargetPlatform.android &&
-      defaultTargetPlatform != TargetPlatform.iOS) {
+      defaultTargetPlatform != TargetPlatform.iOS &&
+      defaultTargetPlatform != TargetPlatform.macOS) {
     throw UnsupportedError(
-      'This video player plugin only supports Android (GSY) and iOS (SGPlayer).',
+      'This video player plugin supports Android (GSY), iOS and macOS (SGPlayer).',
     );
   }
 }
+
+/// @deprecated Use [assertSupportedPlayerPlatform].
+void assertSupportedMobilePlatform() => assertSupportedPlayerPlatform();

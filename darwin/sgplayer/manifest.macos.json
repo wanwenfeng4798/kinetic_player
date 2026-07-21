@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "github_repository": "https://github.com/wanwenfeng4798/kinetic_player",
+  "sgplayer_branch": "master",
+  "sgplayer_repository": "https://github.com/wanwenfeng4798/SGPlayer.git",
+  "asset_name": "SGPlayer-macOS.xcframework.zip",
+  "download_url": "",
+  "sha256": "",
+  "notes": "Publish macOS prebuilt as sgplayer-macos-v1.0.0 on GitHub Releases, then set download_url and sha256 from package_sgplayer_release.sh."
+}

@@ -4,7 +4,7 @@
 
 # kinetic_player
 
-最强大的移动端android和ios双核 Flutter 视频播放器插件支持各种格式：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS** 使用 [libobjc/SGPlayer](https://github.com/libobjc/SGPlayer)（master）。
+最强大的移动端android和ios双核 Flutter 视频播放器插件支持各种格式：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master）。
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
@@ -17,7 +17,8 @@
 - Android 画中画（PiP）**默认开启**（API 26+；播放中切后台自动进入，含 GSY 自动播放场景）
 - 独有功能通过显式向下转型调用（不污染公共接口）
 - iOS 支持 **CocoaPods** 与 **Swift Package Manager (SPM)** 双集成
-- iOS 预编译 `SGPlayer.xcframework` 可通过 **GitHub Release** 下载，避免本地编译
+- **macOS** 使用 SGPlayer（与 iOS 共享 `darwin/SgNativePlayerBridge`），脚本与远程 binaryTarget 对齐 iOS
+- iOS / macOS 预编译 `SGPlayer.xcframework` 可通过 **GitHub Release** 下载，避免本地编译
 
 ## 文档
 
@@ -27,6 +28,7 @@
 | [doc/GSY_FEATURES.md](doc/GSY_FEATURES.md) | Android GSY 高级能力对照表 |
 | [doc/EXAMPLE.md](doc/EXAMPLE.md) | Example 应用说明 |
 | [doc/IOS_SGPLAYER.md](doc/IOS_SGPLAYER.md) | SGPlayer 预编译产物、Release 发布、本地编译 |
+| [doc/MACOS_SGPLAYER.md](doc/MACOS_SGPLAYER.md) | macOS SGPlayer 预编译、脚本与 SPM 钩子 |
 
 ## 快速开始
 
@@ -50,7 +52,7 @@ flutter:
 
 ### 3. 准备 iOS SGPlayer 二进制
 
-**SPM（推荐）：** `Package.swift` 远程 `binaryTarget` 会在 Xcode 解析时自动下载；Example 的 Scheme Pre-action 会再跑 `spm_prebuild_hook.sh`（同步 checksum + 本地 `Frameworks/`）。
+**SPM（推荐）：** `Package.swift` 远程 `binaryTarget` 会在 Xcode 解析时自动下载；Example 的 Scheme Pre-action 会再跑 `spm_prebuild_hook.sh`（同步 checksum + 本地 `darwin/Frameworks/`）。
 
 **手动 / CI：**
 
@@ -122,9 +124,10 @@ HEVC 10-bit 编码，是发烧友测试显示设备 HDR 映射能力的金标准
 |------|------|------|--------|--------|
 | Android | GSYVideoPlayer 13.1.0 | ✅ | ✅ | ✅ 默认开启 |
 | iOS | SGPlayer master | ✅ | ❌（FFmpeg 预编译仅 arm64 真机） | ❌ |
+| macOS | SGPlayer master | ✅ | ✅（`macosx` xcframework） | ❌ |
 
 ## 许可证
 
 本插件代码采用 [MIT License](LICENSE)。
 
-SGPlayer 为独立第三方项目，其许可证以 [libobjc/SGPlayer](https://github.com/libobjc/SGPlayer) 仓库为准。
+SGPlayer 为独立第三方项目，其许可证以 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) 仓库为准（fork 自 libobjc/SGPlayer）。

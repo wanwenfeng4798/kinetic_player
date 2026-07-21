@@ -8,7 +8,7 @@ import 'common_video_player_factory.dart';
 import 'platform_guard.dart';
 import 'player_view_types.dart';
 
-/// Unified player surface: Android → GSY, iOS → SGPlayer master.
+/// Unified player surface: Android → GSY, iOS/macOS → SGPlayer.
 class CommonVideoPlayerView extends StatefulWidget {
   const CommonVideoPlayerView({
     super.key,
@@ -35,7 +35,7 @@ class _CommonVideoPlayerViewState extends State<CommonVideoPlayerView> {
 
   @override
   Widget build(BuildContext context) {
-    assertSupportedMobilePlatform();
+    assertSupportedPlayerPlatform();
 
     final creationParams = _creationParams;
 
@@ -51,7 +51,17 @@ class _CommonVideoPlayerViewState extends State<CommonVideoPlayerView> {
         layoutDirection: TextDirection.ltr,
         creationParams: creationParams,
         creationParamsCodec: const StandardMessageCodec(),
-        // Let SGPlayer chrome handle seek/volume/brightness pan gestures.
+        gestureRecognizers: defaultGestures,
+        onPlatformViewCreated: widget.onPlatformViewCreated,
+      );
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.macOS) {
+      return AppKitView(
+        viewType: PlayerViewTypes.sg,
+        layoutDirection: TextDirection.ltr,
+        creationParams: creationParams,
+        creationParamsCodec: const StandardMessageCodec(),
         gestureRecognizers: defaultGestures,
         onPlatformViewCreated: widget.onPlatformViewCreated,
       );
