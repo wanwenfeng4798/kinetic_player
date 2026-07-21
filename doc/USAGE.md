@@ -88,10 +88,11 @@ override fun onUserLeaveHint() {
 
 ### iOS
 
-1. **准备 SGPlayer 二进制**（三选一，见 [IOS_SGPLAYER.md](IOS_SGPLAYER.md)）：
-   - 下载 GitHub Release 预编译包（推荐）
-   - `bash ios/scripts/ensure_sgplayer.sh`（自动：下载 → 本地编译）
-   - CocoaPods 模式下 `pod install` 会调用 `ensure_sgplayer.sh`
+1. **启用 SPM**（推荐）并准备 SGPlayer（见 [IOS_SGPLAYER.md](IOS_SGPLAYER.md)）：
+   - SPM：`Package.swift` 使用远程 `binaryTarget(url:checksum:)`，Xcode 解析时自动下载
+   - Example 已在 Scheme **Pre-action** 中调用 `spm_prebuild_hook`（同步 Package.swift + `ensure_sgplayer`）
+   - CocoaPods：`pod install` 的 `prepare_command` 同样调用 `ensure_sgplayer.sh`
+   - 手动：`bash ios/scripts/spm_prebuild_hook.sh`
 
 2. **运行应用**（在 `example/ios` 或你的 App 的 `ios` 目录）：
 
@@ -101,6 +102,7 @@ flutter run   # 真机
 ```
 
 > iOS 模拟器暂不支持 SGPlayer（预编译 FFmpeg 仅真机 arm64）。
+> 宿主 App 需自行添加 Pre-action，见 [IOS_SGPLAYER.md](IOS_SGPLAYER.md)「宿主 App：添加构建前钩子」。
 
 ## 公共 API
 

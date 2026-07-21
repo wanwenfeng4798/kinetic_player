@@ -23,7 +23,7 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   config:
-    # SGPlayer.xcframework: shared by CocoaPods (pod install) and SPM (Package.swift).
+    # SGPlayer: SPM remote binaryTarget (Package.swift) + spm_prebuild_hook / CocoaPods prepare_command.
     enable-swift-package-manager: true
 
   plugin:

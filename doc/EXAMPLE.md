@@ -7,8 +7,8 @@ Example 项目位于 `kinetic_player/example/`，演示双核播放器的集成�
 ```bash
 cd kinetic_player/example
 
-# iOS：先确保 SGPlayer 二进制存在
-bash ../ios/scripts/ensure_sgplayer.sh
+# iOS：SPM 远程 binaryTarget 会自动下载；也可手动跑钩子
+bash ../ios/scripts/spm_prebuild_hook.sh
 
 flutter pub get
 flutter run
@@ -153,6 +153,8 @@ flutter:
   config:
     enable-swift-package-manager: true
 ```
+
+iOS Scheme Pre-action 已调用 `ios/scripts/run_kinetic_sgplayer_prebuild.sh`（同步远程 binaryTarget + ensure 本地 xcframework）。
 
 依赖本地 path 插件：
 

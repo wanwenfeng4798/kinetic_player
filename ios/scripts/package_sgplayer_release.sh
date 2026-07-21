@@ -44,6 +44,22 @@ with open(sys.argv[1], encoding="utf-8") as f:
     print(json.load(f).get("version", "1.0.0"))
 PY
 )"
+DOWNLOAD_URL="https://github.com/wanwenfeng4798/kinetic_player/releases/download/sgplayer-v${VERSION}/SGPlayer.xcframework.zip"
+
+python3 - "${MANIFEST}" "${VERSION}" "${DOWNLOAD_URL}" "${SHA256}" <<'PY'
+import json, sys
+from pathlib import Path
+path, version, url, sha = Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
+data = json.loads(path.read_text(encoding="utf-8"))
+data["version"] = version
+data["download_url"] = url
+data["sha256"] = sha
+data["asset_name"] = "SGPlayer.xcframework.zip"
+path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+print(f"Updated {path}")
+PY
+
+bash "${SCRIPT_DIR}/generate_package_swift.sh"
 
 cat <<EOF
 
@@ -59,11 +75,11 @@ Upload to GitHub Release (recommended, single file limit 2 GiB):
     --title "SGPlayer prebuilt v${VERSION}" \\
     --notes "Prebuilt SGPlayer.xcframework for kinetic_player iOS integration."
 
-Then update ios/sgplayer_binary_manifest.json:
+Manifest + Package.swift already updated:
+  download_url: ${DOWNLOAD_URL}
+  sha256: ${SHA256}
 
-  "download_url": "https://github.com/wanwenfeng4798/kinetic_player/releases/download/sgplayer-v${VERSION}/SGPlayer.xcframework.zip",
-  "sha256": "${SHA256}"
-
+Commit ios/sgplayer_binary_manifest.json and ios/kinetic_player/Package.swift.
 Do NOT commit the zip into git main branch (GitHub file limit ~100 MiB per blob).
 
 EOF

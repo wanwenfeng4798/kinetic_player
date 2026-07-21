@@ -6,7 +6,8 @@
 
 ```bash
 # 从 example 目录
-bash ../ios/scripts/ensure_sgplayer.sh   # iOS 仅首次需要
+# iOS：Scheme Pre-action 会自动跑钩子；也可手动：
+bash ../ios/scripts/spm_prebuild_hook.sh
 flutter pub get
 flutter run
 ```

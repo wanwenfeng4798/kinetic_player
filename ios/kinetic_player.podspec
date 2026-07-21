@@ -7,8 +7,9 @@ Pod::Spec.new do |s|
   s.summary          = 'Dual-core video player: SGPlayer on iOS.'
   s.description      = <<-DESC
 Flutter video player plugin. iOS uses libobjc/SGPlayer master; Android uses GSYVideoPlayer 13.1.0.
-SGPlayer.xcframework is built on first `pod install` or `bash ios/scripts/build_sgplayer.sh` (30-60 min first run).
-Shared artifact supports CocoaPods (vendored_frameworks) and Swift Package Manager (binaryTarget).
+SGPlayer.xcframework is fetched via SPM remote binaryTarget (Package.swift) and/or
+`bash ios/scripts/spm_prebuild_hook.sh` / CocoaPods prepare_command (30-60 min only if local build).
+Shared artifact supports CocoaPods (vendored_frameworks) and Swift Package Manager (remote binaryTarget).
                        DESC
   s.homepage         = 'https://github.com/wanwenfeng4798/kinetic_player'
   s.license          = { :type => 'MIT', :file => '../LICENSE' }

@@ -4,7 +4,8 @@
 #
 # Outputs ios/Frameworks/SGPlayer.xcframework for:
 #   - CocoaPods (vendored_frameworks)
-#   - Swift Package Manager (binaryTarget in ios/kinetic_player/Package.swift)
+#   - Local fallback used by spm_prebuild_hook / ensure_sgplayer
+# SPM primary path: remote binaryTarget in Package.swift (url+checksum from manifest)
 #
 # Note: FFmpeg/OpenSSL from SGPlayer ./build.sh iOS build are device arm64 only,
 # so the xcframework currently ships an ios-arm64 slice (physical device).

@@ -3,7 +3,9 @@
 # Ensure ios/Frameworks/SGPlayer.xcframework exists.
 # Order: use existing -> download prebuilt -> build from source.
 #
-# Used by kinetic_player.podspec prepare_command and SPM workflows.
+# Used by:
+#   - kinetic_player.podspec prepare_command (CocoaPods)
+#   - ios/scripts/spm_prebuild_hook.sh (SPM / Xcode Pre-action)
 
 set -euo pipefail
 

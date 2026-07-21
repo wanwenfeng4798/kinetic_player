@@ -50,13 +50,15 @@ flutter:
 
 ### 3. 准备 iOS SGPlayer 二进制
 
-**推荐（插件使用者）：** 下载预编译产物（维护者发布 Release 后）
+**SPM（推荐）：** `Package.swift` 远程 `binaryTarget` 会在 Xcode 解析时自动下载；Example 的 Scheme Pre-action 会再跑 `spm_prebuild_hook.sh`（同步 checksum + 本地 `Frameworks/`）。
+
+**手动 / CI：**
 
 ```bash
-bash kinetic_player/ios/scripts/ensure_sgplayer.sh
+bash kinetic_player/ios/scripts/spm_prebuild_hook.sh
 ```
 
-**或** 在 CocoaPods 模式下首次 `pod install` 时自动执行上述逻辑。
+**或** CocoaPods 模式下首次 `pod install` 时自动执行 `ensure_sgplayer.sh`。
 
 **备选：** 本地从源码编译（约 30–60 分钟，仅首次）
 
