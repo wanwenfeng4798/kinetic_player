@@ -1,5 +1,7 @@
 # Example 示例
 
+English version: [EXAMPLE_EN.md](EXAMPLE_EN.md)
+
 Example 项目位于 `kinetic_player/example/`，演示双核播放器的集成与主要能力。
 
 ## 运行

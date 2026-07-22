@@ -1,5 +1,7 @@
 # 使用指南
 
+English version: [USAGE_EN.md](USAGE_EN.md)
+
 ## 架构概览
 
 ```

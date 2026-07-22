@@ -1,5 +1,7 @@
 # iOS / macOS SGPlayer 集成（Darwin）
 
+English version: [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md)
+
 kinetic_player 在 **iOS** 与 **macOS** 上共用同一套 SGPlayer 集成方案：
 
 - 源码：`darwin/SgNativePlayerBridge`、`darwin/kinetic_player/Sources/SgPlayerKit`

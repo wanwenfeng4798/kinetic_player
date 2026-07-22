@@ -1,5 +1,7 @@
 # GSY 高级能力对照表
 
+English version: [GSY_FEATURES_EN.md](GSY_FEATURES_EN.md)
+
 Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*`）。iOS / macOS 为 SGPlayer，不含下列 GSY 能力。
 
 ## 图例

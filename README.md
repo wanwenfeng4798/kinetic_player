@@ -4,6 +4,8 @@
 
 # kinetic_player
 
+English version: [README_EN.md](README_EN.md)
+
 最强大的移动端 Android / iOS / macOS Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master）。
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
@@ -89,36 +91,13 @@ CommonVideoPlayerViewBuilder(
 ```
 
 完整示例见 [doc/EXAMPLE.md](doc/EXAMPLE.md) 与 `example/` 目录。
-# HDR 视频测试链接汇总
 
-本文件整理了用于测试 HDR 视频显示及播放器硬件解码能力的稳定直链。
-## 可以直接复制以下 .m3u8 或 .mpd 链接粘贴至播放器（如 GSYVideoPlayer、SGPlayer）中开启测试：
-测试场景,协议/格式,直链 URL
-虚拟频道 (45s 无缝切换),HLS,[https://virtual-channel.unified-streaming.com/demo_channel-stable.isml/.m3u8](https://virtual-channel.unified-streaming.com/demo_channel-stable.isml/.m3u8)
-虚拟频道 (45s 无缝切换),DASH,[https://virtual-channel.unified-streaming.com/demo_channel-stable.isml/.mpd](https://virtual-channel.unified-streaming.com/demo_channel-stable.isml/.mpd)
-标准 4K VOD 点播 (Tears of Steel),HLS,[https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8](https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8)
-标准 4K VOD 点播 (Tears of Steel),DASH,[https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.mpd](https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.mpd)
-SCTE-35 动态广告插播,HLS,[https://live-dai.unified-streaming.com/live/scte35/scte35.isml/.m3u8](https://live-dai.unified-streaming.com/live/scte35/scte35.isml/.m3u8)
-SCTE-35 动态广告插播,DASH,[https://live-dai.unified-streaming.com/live/scte35/scte35.isml/.mpd](https://live-dai.unified-streaming.com/live/scte35/scte35.isml/.mpd)
-低延迟直播 (LL-DASH),DASH,[https://livesim.dashif.org/livesim/testpic_2s/Manifest.mpd](https://livesim.dashif.org/livesim/testpic_2s/Manifest.mpd)
+## HDR 测试链接
 
-## 1. Jellyfish 4K HDR 测试流 (水母测试片)
-HEVC 10-bit 编码，是发烧友测试显示设备 HDR 映射能力的金标准。
-* **10bit 高码率测试
-  `https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8`
-* **140 Mbps 码率版本**
-  `http://www.thismonkey.com/files/2160p/jellyfish-140-mbps-4k-uhd-hevc-10bit.mkv`
-* **400 Mbps 极限码率版本**
-  `http://www.thismonkey.com/files/2160p/jellyfish-400-mbps-4k-uhd-hevc-10bit.mkv`
-  *(提示：码率较高，建议下载至本地后播放)*
+为避免重复维护，HDR 测试流统一维护在独立文档：
 
-## 2. 《特警判官》(Dredd) 4K 测试片段
-用于测试电影场景下的 HDR 色彩表现。
-
-* **测试片段 1**
-  `http://www.thismonkey.com/files/2160p/dredd-1.mkv`
-* **测试片段 2**
-  `http://www.thismonkey.com/files/2160p/dredd-2.mkv`
+- 中文： [doc/HDR_TEST_LINKS.md](doc/HDR_TEST_LINKS.md)
+- English: [doc/HDR_TEST_LINKS_EN.md](doc/HDR_TEST_LINKS_EN.md)
 
 ## 平台支持
 
