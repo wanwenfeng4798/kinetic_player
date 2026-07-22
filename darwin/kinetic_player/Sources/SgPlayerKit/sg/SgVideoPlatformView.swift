@@ -4,9 +4,10 @@ import UIKit
 #elseif os(macOS)
 import AppKit
 import FlutterMacOS
+import ObjectiveC
 #endif
 
-final class SgVideoPlatformView: NSObject, FlutterPlatformView, SgPlayerChromeDelegate {
+final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
 #if os(iOS)
     private let container = UIView()
 #elseif os(macOS)
@@ -416,6 +417,10 @@ private final class SgChannelCallbacks: SgPlayerCallbacks {
     }
 }
 
+#if os(iOS)
+extension SgVideoPlatformView: FlutterPlatformView {}
+#endif
+
 final class SgVideoViewFactory: NSObject, FlutterPlatformViewFactory {
     private let messenger: FlutterBinaryMessenger
 
@@ -423,6 +428,7 @@ final class SgVideoViewFactory: NSObject, FlutterPlatformViewFactory {
         self.messenger = messenger
     }
 
+#if os(iOS)
     func create(
         withFrame frame: CGRect,
         viewIdentifier viewId: Int64,
@@ -430,8 +436,32 @@ final class SgVideoViewFactory: NSObject, FlutterPlatformViewFactory {
     ) -> FlutterPlatformView {
         SgVideoPlatformView(frame: frame, viewId: viewId, messenger: messenger, args: args)
     }
+#elseif os(macOS)
+    // macOS factory returns NSView directly (no FlutterPlatformView protocol).
+    // Retain the controller on the view so channel handlers stay alive.
+    func create(withViewIdentifier viewId: Int64, arguments args: Any?) -> NSView {
+        let platformView = SgVideoPlatformView(
+            frame: .zero,
+            viewId: viewId,
+            messenger: messenger,
+            args: args,
+        )
+        let view = platformView.view()
+        objc_setAssociatedObject(
+            view,
+            &SgVideoPlatformViewAssociationKey,
+            platformView,
+            .OBJC_ASSOCIATION_RETAIN_NONATOMIC,
+        )
+        return view
+    }
+#endif
 
-    func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
+    func createArgsCodec() -> (FlutterMessageCodec & NSObjectProtocol)? {
         FlutterStandardMessageCodec.sharedInstance()
     }
 }
+
+#if os(macOS)
+private var SgVideoPlatformViewAssociationKey: UInt8 = 0
+#endif

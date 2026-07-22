@@ -112,21 +112,17 @@ let package = Package(
                 .linkedLibrary("z"),
             ]
         ),
-        .target(
-            name: "SgPlayerKit",
-            dependencies: [
-                .product(name: "FlutterFramework", package: "FlutterFramework"),
-                "SgNativePlayerBridge",
-            ],
-            path: "Sources/SgPlayerKit"
-        ),
+        // SgPlayerKit Swift sources live under Sources/SgPlayerKit but must compile in the
+        // main plugin target: intermediate SPM targets do not receive FlutterMacOS
+        // framework search paths from Flutter's Xcode integration.
         .target(
             name: "kinetic_player",
             dependencies: [
                 .product(name: "FlutterFramework", package: "FlutterFramework"),
-                "SgPlayerKit",
+                "SgNativePlayerBridge",
             ],
-            path: "Sources/kinetic_player"
+            path: "Sources",
+            exclude: ["SgNativePlayerBridge"]
         ),
     ]
 )

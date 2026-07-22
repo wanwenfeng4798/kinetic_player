@@ -44,4 +44,26 @@ PLUGIN_MACOS="$(resolve_plugin_macos)" || {
   echo "[run_kinetic_sgplayer_prebuild] Could not locate kinetic_player/macos" >&2
   exit 1
 }
+
+# Flutter SPM defaults FlutterGeneratedPluginSwiftPackage to macOS 10.15; kinetic_player
+# requires 11.0 (SF Symbols). Keep the generated package platforms in sync.
+GENERATED_PKG="${APP_IOS_DIR}/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift"
+if [[ -f "${GENERATED_PKG}" ]]; then
+  python3 - "${GENERATED_PKG}" <<'PY'
+from pathlib import Path
+import re
+import sys
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+updated = re.sub(
+    r'\.macOS\("10\.\d+"\)',
+    '.macOS("11.0")',
+    text,
+)
+if updated != text:
+    path.write_text(updated, encoding="utf-8")
+    print(f"[run_kinetic_sgplayer_prebuild] Bumped {path} to macOS 11.0")
+PY
+fi
+
 exec bash "${PLUGIN_MACOS}/scripts/spm_prebuild_hook.sh"
