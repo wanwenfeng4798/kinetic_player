@@ -457,9 +457,16 @@ final class SgVideoViewFactory: NSObject, FlutterPlatformViewFactory {
     }
 #endif
 
+#if os(iOS)
+    // iOS headers use NS_ASSUME_NONNULL: implemented createArgsCodec must be non-optional.
+    func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
+        FlutterStandardMessageCodec.sharedInstance()
+    }
+#elseif os(macOS)
     func createArgsCodec() -> (FlutterMessageCodec & NSObjectProtocol)? {
         FlutterStandardMessageCodec.sharedInstance()
     }
+#endif
 }
 
 #if os(macOS)
