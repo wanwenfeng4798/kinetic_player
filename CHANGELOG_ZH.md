@@ -1,11 +1,36 @@
+## 1.0.0
+
+### 新功能
+
+- **macOS 支持**：通过 `AppKitView` 使用 SGPlayer；与 iOS 共享 Darwin UI / 桥（`darwin/SgNativePlayerBridge`、`darwin/kinetic_player/Sources/SgPlayerKit`）。最低 **macOS 11**。
+- **Darwin 统一工具链**：脚本集中在 `darwin/scripts/sgplayer/`（参数 `ios` | `macos`）；产物在 `darwin/Frameworks/{ios,macos}/`；manifest 在 `darwin/sgplayer/manifest.*.json`。
+- **SPM remote binaryTarget**：iOS / macOS `Package.swift` 使用 `url` + `checksum`；Example Scheme Pre-action + `spm_prebuild_hook` / `ensure_sgplayer`（下载 → 本地编译回退）。
+- **文档**：统一 [doc/DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md)；README / USAGE / EXAMPLE 与 iOS、macOS 对齐。
+
+### 修复
+
+- **Android PiP**：钳制画中画宽高比并兜底异常，避免超宽比 / 极端比例视频崩溃。
+- **大体积远程片源（Android）**：调整超时与边播边缓存策略，减轻大远程 MKV 等场景卡死。
+- **iOS / macOS SPM**：目标路径限制在 Flutter ephemeral 包根内（同步共享源码与本地 xcframework）；`SgPlayerKit` 并入主 target `kinetic_player`，正确解析 `Flutter` / `FlutterMacOS`。
+- **平台视图 API**：对齐 iOS / macOS Factory 签名（`FlutterPlatformView` vs 直接返回 `NSView`；`createArgsCodec` 可空性）。
+- **macOS Example**：沙盒开启 `com.apple.security.network.client`；部署版本对齐 11.0。
+
+### 增强
+
+- **Example**：HDR / 高码率演示片源；Android 内核切换下拉；macOS Example 与 Pre-action 钩子。
+- **Android**（承接 0.0.4）：默认内核 **IJKPlayer**；`GsyUiConfig.ijkEnableAccurateSeek` → `enable-accurate-seek`。
+
+---
+
 ## 0.0.4
 
 ### 修复
 
 - android **默认内核**：插件加载时设为 **IJKPlayer**
-- android IJK 精确 seek**：`GsyUiConfig.ijkEnableAccurateSeek`（默认 `true`）通过 `GSYVideoManager.setOptionModelList` 设置 `enable-accurate-seek=1`，减轻拖动进度条关键帧回弹；仅 IJK 内核生效。
+- android IJK 精确 seek：`GsyUiConfig.ijkEnableAccurateSeek`（默认 `true`）通过 `GSYVideoManager.setOptionModelList` 设置 `enable-accurate-seek=1`，减轻拖动进度条关键帧回弹；仅 IJK 内核生效。
 - ios 更新快进进度条不准确以及后台播放问题
 
+---
 
 ## 0.0.3
 

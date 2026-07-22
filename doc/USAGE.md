@@ -6,21 +6,22 @@
 Dart 层
   CommonVideoController          ← 纯公共 API
   CommonVideoPlayerView          ← 平台原生视图
-  CommonVideoPlayerFactory       ← Android→GSY / iOS→SG 自动选型
+  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG 自动选型
        │
        ├── GSYVideoControllerImpl   (Android 独有 API)
-       └── SGVideoControllerImpl    (iOS 独有 API)
+       └── SGVideoControllerImpl    (iOS / macOS 独有 API)
 ```
 
 Channel 命名：
 
 - Android GSY：`com.example.player/gsy_<viewId>`
-- iOS SG：`com.example.player/sg_<viewId>`
+- iOS / macOS SG：`com.example.player/sg_<viewId>`
 
 PlatformView 类型：
 
-- Android：`com.example.player/gsy_view_ui`
-- iOS：`com.example.player/sg_view_ui`
+- Android：`com.example.player/gsy_view_ui`（`AndroidView`）
+- iOS：`com.example.player/sg_view_ui`（`UiKitView`）
+- macOS：`com.example.player/sg_view_ui`（`AppKitView`）
 
 ## 集成
 
@@ -86,37 +87,41 @@ override fun onUserLeaveHint() {
 
 按 **Home** 或切换到其他 App 即可验证；暂停状态下不会进入 PiP。
 
-### macOS
+### iOS / macOS（SGPlayer，共用 Darwin）
 
-1. 准备 SGPlayer（见 [MACOS_SGPLAYER.md](MACOS_SGPLAYER.md)）：
-   - `bash macos/scripts/spm_prebuild_hook.sh`（生成 `Package.swift` + ensure 二进制）
-   - 或 `bash macos/scripts/ensure_sgplayer.sh` / `build_sgplayer.sh`
-2. 运行：
+两端流程一致，详见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)。
+
+1. **启用 SPM**（推荐）：
+
+```yaml
+flutter:
+  config:
+    enable-swift-package-manager: true
+```
+
+2. **准备二进制**（任选其一）：
+
+```bash
+bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
+bash darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
+```
+
+- SPM：`Package.swift` 远程 `binaryTarget(url:checksum:)`，Xcode 解析时下载  
+- Example 已在 Scheme **Pre-action** 中调用钩子（同步 Package.swift + `ensure_sgplayer`）  
+- CocoaPods：`prepare_command` 同样调用 `ensure_sgplayer.sh`  
+
+3. **运行**：
 
 ```bash
 flutter pub get
+flutter run          # iOS 真机
 flutter run -d macos
 ```
 
-> macOS 与 iOS 共用原生底栏与 SG API；无系统 PiP。
-
-### iOS
-
-1. **启用 SPM**（推荐）并准备 SGPlayer（见 [IOS_SGPLAYER.md](IOS_SGPLAYER.md)）：
-   - SPM：`Package.swift` 使用远程 `binaryTarget(url:checksum:)`，Xcode 解析时自动下载
-   - Example 已在 Scheme **Pre-action** 中调用 `spm_prebuild_hook`（同步 Package.swift + `ensure_sgplayer`）
-   - CocoaPods：`pod install` 的 `prepare_command` 同样调用 `ensure_sgplayer.sh`
-   - 手动：`bash ios/scripts/spm_prebuild_hook.sh`
-
-2. **运行应用**（在 `example/ios` 或你的 App 的 `ios` 目录）：
-
-```bash
-flutter pub get
-flutter run   # 真机
-```
-
-> iOS 模拟器暂不支持 SGPlayer（预编译 FFmpeg 仅真机 arm64）。
-> 宿主 App 需自行添加 Pre-action，见 [IOS_SGPLAYER.md](IOS_SGPLAYER.md)「宿主 App：添加构建前钩子」。
+> iOS 模拟器暂不支持（FFmpeg 预编译仅真机 arm64）。  
+> 宿主 App 请添加 Pre-action，见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)。  
+> macOS Example 需 `com.apple.security.network.client` 出站网络权限。  
+> iOS / macOS 均无系统 PiP；原生底栏与 SG API 共用。
 
 ## 公共 API
 
@@ -186,10 +191,10 @@ CommonVideoPlayerView(
 
 ## 原生控制栏 UI（双端对齐）
 
-Android（GSY）与 iOS（SGPlayer）均采用 B 站风格底部控制栏，进度条与音量条轨道色统一（`#4DE8B5` 进度 / 半透明白色轨道）。
+Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏，进度条与音量条轨道色统一（`#4DE8B5` 进度 / 半透明白色轨道）。
 
-| 能力 | Android | iOS | 配置 |
-|------|---------|-----|------|
+| 能力 | Android | iOS / macOS | 配置 |
+|------|---------|-------------|------|
 | 中央播放/暂停 | ✅ | ✅ | `enableNativeControls` |
 | 进度条 + 时间 | ✅ | ✅ | 原生默认 |
 | 单击显隐控制栏 | ✅ | ✅ | 点击画面空白；播放中约 2.5s 自动隐藏 |
@@ -201,13 +206,13 @@ Android（GSY）与 iOS（SGPlayer）均采用 B 站风格底部控制栏，进�
 
 > **音量（Android）**：开启 `showVolumeToolbar` 后，画面右侧滑动调节的是**播放器音量**（与喇叭弹窗同源），不再用系统音量条。音量弹窗打开或正在拖动滑轨时，右侧滑动调音量会被暂时禁用，避免与竖向滑轨冲突。
 
-> **音量（iOS）**：右侧滑动同样调节播放器音量（灵敏度与 Android GSY 一致，约 3×）；音量弹窗打开或拖动滑轨时，右侧滑动调音量同样被禁用。
+> **音量（iOS / macOS）**：右侧滑动同样调节播放器音量（灵敏度与 Android GSY 一致，约 3×）；音量弹窗打开或拖动滑轨时，右侧滑动调音量同样被禁用。
 
 > **音量持久化**：通过滑轨或 `setVolume()` 设置的音量在暂停/恢复、播放完成重播、换源后会自动恢复，不会回到默认值。
 
 > **音轨**：不在音量弹窗内选择，请在设置面板（齿轮）或 Flutter 层调用 `selectAudioTrack`。
 
-> **iOS 画中画**：SGPlayer 使用自定义 `videoRenderer`，无法接入系统 `AVPictureInPictureController`，当前不支持 PiP。
+> **画中画**：SGPlayer 使用自定义渲染，无法接入系统 `AVPictureInPictureController`，iOS / macOS 当前均不支持 PiP。
 
 ### 触摸区域说明
 
@@ -239,8 +244,8 @@ if (controller is GSYVideoControllerImpl) {
 
 | 字段 | 默认 | 说明 |
 |------|------|------|
-| `enableNativeControls` | `true` | 双端：滑动手势（进度/音量/亮度）；iOS 同时控制底栏显隐 |
-| `enableNativeControlsFullscreen` | `true` | Android 全屏手势；iOS 与 `enableNativeControls` 共用 |
+| `enableNativeControls` | `true` | 双端：滑动手势（进度/音量/亮度）；Apple 端同时控制底栏显隐 |
+| `enableNativeControlsFullscreen` | `true` | Android 全屏手势；Apple 端与 `enableNativeControls` 共用 |
 | `showFullscreenButton` | `true` | 全屏按钮 |
 | `showLockButton` | `true` | 全屏锁屏按钮（Android） |
 | `showVolumeToolbar` | `true` | 喇叭按钮 + 竖向音量弹窗 |
@@ -259,7 +264,7 @@ if (controller is GSYVideoControllerImpl) {
 
 其他 GSY 能力（滤镜、截图、GIF、字幕、列表等）见 [GSY_FEATURES.md](GSY_FEATURES.md)。
 
-### iOS — SGVideoControllerImpl
+### iOS / macOS — SGVideoControllerImpl
 
 ```dart
 if (controller is SGVideoControllerImpl) {
@@ -299,12 +304,12 @@ if (controller is SGVideoControllerImpl) {
 | `sgGetVideoTracks` / `sgSelectVideoTrack` | 视频轨 |
 | `sgSetBackgroundPlaybackPolicy` | 后台 / 中断策略 |
 
-`creationParams` / `gsyUi` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（iOS 读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`。
+`creationParams` / `gsyUi` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（Apple 端读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`。
 
 ## 平台差异速查
 
-| 能力 | Android (GSY) | iOS (SGPlayer) |
-|------|---------------|----------------|
+| 能力 | Android (GSY) | iOS / macOS (SGPlayer) |
+|------|---------------|------------------------|
 | 循环 | 原生 `isLooping` | 结束时 `seek(0)+play` |
 | 截图 overlay | `captureFrame(includeOverlay: true)` 含 UI | `includeOverlay` 无效 |
 | 换源 | 重建播放器 | `replaceWithURL` / `sgReplaceWithSegments` |
@@ -318,6 +323,7 @@ if (controller is SGVideoControllerImpl) {
 | 保留最后一帧 | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` |
 | 缓冲 / 错误详情 | — | `buffered` / `playerError` |
 | 音高 / VRBox / 多段 / demuxer | — | 见上表 |
+| 部署注意 | — | iOS：真机；macOS 11+；沙盒需 `network.client` |
 
 ## 监听状态
 
@@ -335,5 +341,5 @@ controller.position.addListener(() {
 
 1. 每个 `CommonVideoPlayerViewBuilder` 会在 dispose 时自动释放 controller；若手动持有 controller，需在页面 dispose 时调用 `controller.dispose()`。
 2. Android Activity 需转发 `onConfigurationChanged`、`onBackPressed`、`onUserLeaveHint`（见上文 Android 集成节）。
-3. iOS 需在真机测试 SGPlayer 相关功能。
+3. iOS 需在真机测试 SGPlayer；macOS 需 11.0+，并开启出站网络 entitlement。
 4. 关闭画中画：`GsyUiConfig(pictureInPictureEnabled: false)`。

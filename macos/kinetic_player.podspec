@@ -1,7 +1,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'kinetic_player'
-  s.version          = '0.0.4'
+  s.version          = '1.0.0'
   s.summary          = 'Dual-core video player: SGPlayer on macOS.'
   s.description      = <<-DESC
 Flutter video player plugin. macOS uses wanwenfeng4798/SGPlayer master; Android uses GSYVideoPlayer 13.1.0.

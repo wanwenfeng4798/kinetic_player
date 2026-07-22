@@ -7,14 +7,15 @@ Example 项目位于 `kinetic_player/example/`，演示双核播放器的集成�
 ```bash
 cd kinetic_player/example
 
-# iOS：SPM 远程 binaryTarget 会自动下载；也可手动跑钩子
-bash ../ios/scripts/spm_prebuild_hook.sh
+bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
+bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
 
 flutter pub get
-flutter run
+flutter run          # iOS 真机 / Android
+flutter run -d macos
 ```
 
-Android 可直接 `flutter run`。
+Android 可直接 `flutter run`。iOS / macOS 细节见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)。
 
 ## 界面结构
 
@@ -154,7 +155,7 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-iOS Scheme Pre-action 已调用 `ios/scripts/run_kinetic_sgplayer_prebuild.sh`（同步远程 binaryTarget + ensure 本地 xcframework）。
+iOS / macOS Scheme Pre-action 已分别调用 `example/{ios,macos}/scripts/run_kinetic_sgplayer_prebuild.sh`（同步远程 binaryTarget + ensure 本地 xcframework）。详见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)。
 
 依赖本地 path 插件：
 

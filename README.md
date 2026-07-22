@@ -4,21 +4,20 @@
 
 # kinetic_player
 
-最强大的移动端android和ios双核 Flutter 视频播放器插件支持各种格式：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master）。
+最强大的移动端 Android / iOS / macOS Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master）。
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
 ## 特性
 
 - 统一的 `CommonVideoController` API（播放 / 暂停 / 跳转 / 缩放 / 倍速 / 音量 / 音轨 / 循环 / 截图等）
-- 平台自动选型：Android → GSY，iOS → SGPlayer
+- 平台自动选型：Android → GSY，iOS / macOS → SGPlayer
 - B 站风格原生控制栏：竖向音量弹窗（拖动显示百分比）、设置面板选音轨、统一进度条与底栏图标尺寸
-- iOS 支持滑动手势调进度 / 音量 / 亮度（与 Android 共用 `enableNativeControls`）
+- iOS / macOS 支持滑动手势调进度 / 音量 / 亮度（与 Android 共用 `enableNativeControls`）
 - Android 画中画（PiP）**默认开启**（API 26+；播放中切后台自动进入，含 GSY 自动播放场景）
 - 独有功能通过显式向下转型调用（不污染公共接口）
-- iOS 支持 **CocoaPods** 与 **Swift Package Manager (SPM)** 双集成
-- **macOS** 使用 SGPlayer（与 iOS 共享 `darwin/SgNativePlayerBridge`），脚本与远程 binaryTarget 对齐 iOS
-- iOS / macOS 预编译 `SGPlayer.xcframework` 可通过 **GitHub Release** 下载，避免本地编译
+- iOS / macOS 支持 **CocoaPods** 与 **Swift Package Manager (SPM)**；脚本与产物统一在 `darwin/`
+- 预编译 `SGPlayer.xcframework` 可通过 **GitHub Release** 下载，避免本地编译
 
 ## 文档
 
@@ -27,8 +26,7 @@
 | [doc/USAGE.md](doc/USAGE.md) | 集成步骤、公共 API、原生 UI、平台差异、PiP 配置 |
 | [doc/GSY_FEATURES.md](doc/GSY_FEATURES.md) | Android GSY 高级能力对照表 |
 | [doc/EXAMPLE.md](doc/EXAMPLE.md) | Example 应用说明 |
-| [doc/IOS_SGPLAYER.md](doc/IOS_SGPLAYER.md) | SGPlayer 预编译产物、Release 发布、本地编译 |
-| [doc/MACOS_SGPLAYER.md](doc/MACOS_SGPLAYER.md) | macOS SGPlayer 预编译、脚本与 SPM 钩子 |
+| [doc/DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md) | iOS / macOS SGPlayer：二进制、脚本、SPM、Release |
 
 ## 快速开始
 
@@ -40,7 +38,7 @@ dependencies:
     path: ../kinetic_player   # 或 pub.dev / git 引用
 ```
 
-### 2. 启用 iOS SPM（推荐）
+### 2. 启用 Apple SPM（推荐，iOS / macOS）
 
 在应用与插件 `pubspec.yaml` 中：
 
@@ -50,22 +48,26 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-### 3. 准备 iOS SGPlayer 二进制
+### 3. 准备 SGPlayer 二进制（iOS / macOS）
 
-**SPM（推荐）：** `Package.swift` 远程 `binaryTarget` 会在 Xcode 解析时自动下载；Example 的 Scheme Pre-action 会再跑 `spm_prebuild_hook.sh`（同步 checksum + 本地 `darwin/Frameworks/`）。
+详见 [doc/DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md)。
+
+**SPM（推荐）：** `Package.swift` 远程 `binaryTarget` 由 Xcode 解析时下载；Example Scheme Pre-action 再跑钩子（同步 checksum + ensure 本地产物）。
 
 **手动 / CI：**
 
 ```bash
-bash kinetic_player/ios/scripts/spm_prebuild_hook.sh
+bash kinetic_player/darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
+bash kinetic_player/darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
 ```
 
-**或** CocoaPods 模式下首次 `pod install` 时自动执行 `ensure_sgplayer.sh`。
+**或** CocoaPods：`pod install` 经 `prepare_command` 调用 `ensure_sgplayer.sh`。
 
-**备选：** 本地从源码编译（约 30–60 分钟，仅首次）
+**备选：** 本地源码编译（约 30–60 分钟，仅首次）
 
 ```bash
-bash kinetic_player/ios/scripts/build_sgplayer.sh
+bash kinetic_player/darwin/scripts/sgplayer/build_sgplayer.sh ios
+bash kinetic_player/darwin/scripts/sgplayer/build_sgplayer.sh macos
 ```
 
 ### 4. 最小示例

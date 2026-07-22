@@ -1,6 +1,6 @@
 # GSY 高级能力对照表
 
-Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*`）。iOS 仍为 SGPlayer，不含下列 GSY 能力。
+Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*`）。iOS / macOS 为 SGPlayer，不含下列 GSY 能力。
 
 ## 图例
 
@@ -45,7 +45,7 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 | 完成后保留最后一帧 | ✅ | `GsyUiConfig.keepLastFrameWhenComplete` / `gsySetKeepLastFrameWhenComplete`；iOS：`sgSetKeepLastFrameWhenComplete` |
 | 视频封面 | ✅ | `GsyUiConfig.coverUrl` / `gsySetCoverUrl`（GSY `setThumbImageView`）；iOS：`sgSetCoverUrl` |
 
-> 保留最后一帧对齐 GSY Demo `KeepLastFrameVideo`：自然播完不移除 render view、不盖封面。iOS 通过隐藏封面层露出 SGPlayer 最后一帧实现。
+> 保留最后一帧对齐 GSY Demo `KeepLastFrameVideo`：自然播完不移除 render view、不盖封面。iOS / macOS 通过隐藏封面层露出 SGPlayer 最后一帧实现。
 
 ---
 
@@ -119,7 +119,7 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 
 | Android 12+ 系统自动 PiP | ✅ | 播放中通过 `PictureInPictureParams.setAutoEnterEnabled` 自动进入 |
 | 宿主 Manifest | ⚠️ | `supportsPictureInPicture="true"`、`resizeableActivity="true"` |
 | 宿主 Activity | ⚠️ | `KineticPlayerPlugin.handleUserLeaveHint(this)` |
-| iOS 画中画 | ❌ | SGPlayer 自定义渲染，无系统 PiP |
+| iOS / macOS 画中画 | ❌ | SGPlayer 自定义渲染，无系统 PiP |
 | 桌面多窗体 | ⚠️ | 依赖 Android 系统多窗口 + PiP |
 
 关闭 PiP：

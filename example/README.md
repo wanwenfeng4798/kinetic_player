@@ -6,12 +6,12 @@
 
 ```bash
 # 从 example 目录
-# macOS：Scheme Pre-action 或手动：
-bash ../macos/scripts/spm_prebuild_hook.sh
-# iOS：
-bash ../ios/scripts/spm_prebuild_hook.sh
+bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
+bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
+
 flutter pub get
-flutter run -d macos   # 或 -d ios / Android
+flutter run -d macos   # 或真机 iOS / Android
 ```
 
-详细说明见 [../doc/EXAMPLE.md](../doc/EXAMPLE.md)。
+SGPlayer 集成见 [../doc/DARWIN_SGPLAYER.md](../doc/DARWIN_SGPLAYER.md)。  
+更多说明见 [../doc/EXAMPLE.md](../doc/EXAMPLE.md)。

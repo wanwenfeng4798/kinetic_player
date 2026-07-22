@@ -1,13 +1,36 @@
+## 1.0.0
+
+### Features
+
+- **macOS support**: SGPlayer on macOS via `AppKitView`, sharing Darwin UI/bridge with iOS (`darwin/SgNativePlayerBridge`, `darwin/kinetic_player/Sources/SgPlayerKit`). Minimum **macOS 11**.
+- **Unified Darwin tooling**: Shared scripts under `darwin/scripts/sgplayer/` (`ios` | `macos`); artifacts in `darwin/Frameworks/{ios,macos}/`; manifests in `darwin/sgplayer/manifest.*.json`.
+- **SPM binaryTarget**: Remote `binaryTarget(url:checksum:)` for iOS/macOS `Package.swift`, with Example Scheme Pre-actions and `spm_prebuild_hook` / `ensure_sgplayer` (download → local build fallback).
+- **Docs**: Single guide [doc/DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md); README / USAGE / EXAMPLE aligned for iOS + macOS.
+
+### Fixes
+
+- **Android PiP**: Clamp picture-in-picture aspect ratio (and guard failures) to avoid crashes on ultra-wide / extreme aspect videos.
+- **Large remote media (Android)**: Safer timeouts / cache behavior for big remote MKV-style streams (e.g. disable aggressive play-while-cache where it caused hangs).
+- **iOS / macOS SPM**: Package targets stay inside the Flutter-ephemeral package root (synced sources + local xcframework); `SgPlayerKit` compiled in the main `kinetic_player` target so `Flutter` / `FlutterMacOS` resolve correctly.
+- **Platform view APIs**: Correct iOS vs macOS factory signatures (`FlutterPlatformView` vs returning `NSView`; `createArgsCodec` optionality).
+- **macOS Example**: Enable `com.apple.security.network.client` for sandboxed outbound streaming; align deployment target to 11.0.
+
+### Enhancements
+
+- **Example**: HDR / high-bitrate demo sources; Android kernel switcher in the demo UI; macOS Example app + Pre-action hooks.
+- **Android** (carried from 0.0.4 line): default kernel **IJKPlayer**; `GsyUiConfig.ijkEnableAccurateSeek` → `enable-accurate-seek` for IJK.
+
+---
+
 ## 0.0.4
 
 ### Fixes
 
-- Android **default kernel**: Set to **IJKPlayer** when plugin loads
+- Android **default kernel**: Set to **IJKPlayer** when plugin loads.
+- Android IJK accurate seek: `GsyUiConfig.ijkEnableAccurateSeek` (default `true`) sets `enable-accurate-seek=1` via `GSYVideoManager.setOptionModelList` to reduce keyframe bounce when dragging the progress bar; only effective for IJK kernels.
+- iOS: inaccurate seek / progress-bar scrubbing and background playback issues.
 
-- Android IJK accurate seek**: `GsyUiConfig.ijkEnableAccurateSeek` (default `true`) is set to `enable-accurate-seek=1` via `GSYVideoManager.setOptionModelList` to reduce keyframe bounce when dragging the progress bar; only effective for IJK kernels.
-
-- iOS update: inaccurate fast-forward progress bar and background playback issues.
-
+---
 
 ## 0.0.3
 
