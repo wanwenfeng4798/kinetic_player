@@ -25,6 +25,9 @@ kinetic_sgplayer_init() {
   MANIFEST="${DARWIN_DIR}/sgplayer/manifest.${platform}.json"
   OUTPUT_DIR="${DARWIN_DIR}/Frameworks/${platform}"
   XCFRAMEWORK_OUTPUT="${OUTPUT_DIR}/SGPlayer.xcframework"
+  # Flutter SPM symlinks {ios|macos}/kinetic_player into ephemeral/Packages; relative
+  # paths that leave that package dir resolve incorrectly. Keep a package-local link.
+  SPM_LOCAL_XCFRAMEWORK="${PLATFORM_DIR}/kinetic_player/SGPlayer.xcframework"
   VENDOR_DIR="${DARWIN_DIR}/third_party"
   SGPLAYER_DIR="${VENDOR_DIR}/SGPlayer"
   SGPLAYER_SCRIPTS_DIR="${common_dir}"
@@ -45,7 +48,8 @@ PY
 }
 
 sgplayer_log() {
-  printf '%s %s\n' "${LOG_PREFIX}" "$*"
+  # Always stderr so callers can capture path-only return values via $().
+  printf '%s %s\n' "${LOG_PREFIX}" "$*" >&2
 }
 
 sgplayer_fail() {
@@ -83,4 +87,53 @@ ensure_sgplayer_repo() {
     git checkout "${SGPLAYER_BRANCH}"
     git pull --ff-only origin "${SGPLAYER_BRANCH}" 2>/dev/null || true
   )
+}
+
+# Flutter SPM forbids target paths outside the package root, and resolves paths via the
+# ephemeral symlink of {ios|macos}/kinetic_player. Canonical sources/artifacts live under
+# darwin/; mirror them into the SPM package before resolve/build.
+sync_spm_package_inputs() {
+  local pkg_root="${PLATFORM_DIR}/kinetic_player"
+  local pkg_sources="${pkg_root}/Sources"
+  local src_kit="${DARWIN_DIR}/kinetic_player/Sources/SgPlayerKit"
+  local src_bridge="${DARWIN_DIR}/SgNativePlayerBridge"
+  local dest_kit="${pkg_sources}/SgPlayerKit"
+  local dest_bridge="${pkg_sources}/SgNativePlayerBridge"
+
+  [[ -d "${src_kit}" ]] || sgplayer_fail "Missing shared sources: ${src_kit}"
+  [[ -d "${src_bridge}" ]] || sgplayer_fail "Missing shared sources: ${src_bridge}"
+
+  mkdir -p "${pkg_sources}"
+  rm -rf "${dest_kit}" "${dest_bridge}"
+  # Prefer APFS clone when available (near-instant); fall back to ditto.
+  if cp -cR "${src_kit}" "${dest_kit}" 2>/dev/null; then
+    :
+  else
+    ditto "${src_kit}" "${dest_kit}"
+  fi
+  if cp -cR "${src_bridge}" "${dest_bridge}" 2>/dev/null; then
+    :
+  else
+    ditto "${src_bridge}" "${dest_bridge}"
+  fi
+  sgplayer_log "SPM sources synced -> ${dest_kit}, ${dest_bridge}"
+
+  # Local binaryTarget (macos without remote URL, or ios offline fallback).
+  if [[ -d "${XCFRAMEWORK_OUTPUT}" ]]; then
+    SPM_LOCAL_XCFRAMEWORK="${pkg_root}/SGPlayer.xcframework"
+    if [[ -L "${SPM_LOCAL_XCFRAMEWORK}" ]]; then
+      rm -f "${SPM_LOCAL_XCFRAMEWORK}"
+    fi
+    if [[ ! -f "${SPM_LOCAL_XCFRAMEWORK}/Info.plist" ]]; then
+      rm -rf "${SPM_LOCAL_XCFRAMEWORK}"
+      sgplayer_log "Copying xcframework into SPM package..."
+      ditto "${XCFRAMEWORK_OUTPUT}" "${SPM_LOCAL_XCFRAMEWORK}"
+    fi
+    sgplayer_log "SPM local xcframework: ${SPM_LOCAL_XCFRAMEWORK}"
+  fi
+}
+
+# Back-compat alias used by build_sgplayer.sh
+sync_spm_local_xcframework() {
+  sync_spm_package_inputs
 }

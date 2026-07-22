@@ -59,9 +59,11 @@ elif platform == "macos":
             checksum: "{sha}"
         ),'''
     elif not url:
+        # Must stay inside the SPM package dir: Flutter symlinks kinetic_player/
+        # into ephemeral/Packages and breaks ../../darwin/... resolution.
         sgplayer_target = '''        .binaryTarget(
             name: "SGPlayer",
-            path: "../../darwin/Frameworks/macos/SGPlayer.xcframework"
+            path: "SGPlayer.xcframework"
         ),'''
     else:
         raise SystemExit("download_url set but sha256 missing or invalid in manifest")
@@ -93,7 +95,7 @@ let package = Package(
         .target(
             name: "SgNativePlayerBridge",
             dependencies: ["SGPlayer"],
-            path: "../../../darwin/SgNativePlayerBridge",
+            path: "Sources/SgNativePlayerBridge",
             publicHeadersPath: "include",
             cSettings: [
                 .headerSearchPath("include"),
@@ -112,8 +114,11 @@ let package = Package(
         ),
         .target(
             name: "SgPlayerKit",
-            dependencies: ["SgNativePlayerBridge"],
-            path: "../../../darwin/kinetic_player/Sources/SgPlayerKit"
+            dependencies: [
+                .product(name: "FlutterFramework", package: "FlutterFramework"),
+                "SgNativePlayerBridge",
+            ],
+            path: "Sources/SgPlayerKit"
         ),
         .target(
             name: "kinetic_player",

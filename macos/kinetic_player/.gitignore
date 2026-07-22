@@ -1,0 +1,5 @@
+# Synced by darwin/scripts/sgplayer/ensure_sgplayer.sh for Flutter SPM.
+# Canonical sources live under darwin/; do not edit copies here.
+SGPlayer.xcframework
+Sources/SgPlayerKit/
+Sources/SgNativePlayerBridge/

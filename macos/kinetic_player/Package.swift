@@ -19,12 +19,13 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "SGPlayer",
-            path: "../../darwin/Frameworks/macos/SGPlayer.xcframework"
+            url: "https://github.com/wanwenfeng4798/kinetic_player/releases/download/sgplayer-macos-v1.0.0/SGPlayer-macOS.xcframework.zip",
+            checksum: "717ae074d6aa829455151ce96ba14b235727d211a90ce333638d951c53215b2e"
         ),
         .target(
             name: "SgNativePlayerBridge",
             dependencies: ["SGPlayer"],
-            path: "../../../darwin/SgNativePlayerBridge",
+            path: "Sources/SgNativePlayerBridge",
             publicHeadersPath: "include",
             cSettings: [
                 .headerSearchPath("include"),
@@ -43,8 +44,11 @@ let package = Package(
         ),
         .target(
             name: "SgPlayerKit",
-            dependencies: ["SgNativePlayerBridge"],
-            path: "../../../darwin/kinetic_player/Sources/SgPlayerKit"
+            dependencies: [
+                .product(name: "FlutterFramework", package: "FlutterFramework"),
+                "SgNativePlayerBridge",
+            ],
+            path: "Sources/SgPlayerKit"
         ),
         .target(
             name: "kinetic_player",

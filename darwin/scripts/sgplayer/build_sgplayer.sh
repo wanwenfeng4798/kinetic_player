@@ -62,12 +62,23 @@ build_dependencies_macos() {
   [[ -f "${ffmpeg_lib}" ]] || sgplayer_fail "FFmpeg build did not produce ${ffmpeg_lib}"
 }
 
+# Locate built .framework under DerivedData. Echoes path on stdout only.
+find_built_framework() {
+  local derived_data="$1"
+  local path_glob="$2"
+  local built_framework
+  built_framework="$(find "${derived_data}" -path "${path_glob}" -type d | head -n 1)"
+  [[ -n "${built_framework}" ]] || sgplayer_fail "Could not locate SGPlayer.framework under ${derived_data} (${path_glob})"
+  printf '%s\n' "${built_framework}"
+}
+
 build_device_framework_ios() {
   local derived_data="${SGPLAYER_DIR}/DerivedData/iphoneos"
   sgplayer_log "Building SGPlayer.framework (Release, iphoneos)..."
   rm -rf "${derived_data}"
   (
     cd "${SGPLAYER_DIR}"
+    # Keep xcodebuild on stderr so "$(...)" only captures the framework path.
     xcodebuild \
       -project SGPlayer.xcodeproj \
       -scheme "SGPlayer iOS" \
@@ -77,11 +88,8 @@ build_device_framework_ios() {
       BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
       ONLY_ACTIVE_ARCH=NO \
       build
-  )
-  local built_framework
-  built_framework="$(find "${derived_data}" -path "*/Release-iphoneos/SGPlayer.framework" -type d | head -n 1)"
-  [[ -n "${built_framework}" ]] || sgplayer_fail "Could not locate SGPlayer.framework for iphoneos"
-  printf '%s' "${built_framework}"
+  ) >&2
+  find_built_framework "${derived_data}" "*/Release-iphoneos/SGPlayer.framework"
 }
 
 build_mac_framework() {
@@ -96,14 +104,12 @@ build_mac_framework() {
       -configuration Release \
       -sdk macosx \
       -derivedDataPath "${derived_data}" \
+      -destination 'platform=macOS' \
       BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
       ONLY_ACTIVE_ARCH=NO \
       build
-  )
-  local built_framework
-  built_framework="$(find "${derived_data}" -path "*/Release/SGPlayer.framework" -type d | head -n 1)"
-  [[ -n "${built_framework}" ]] || sgplayer_fail "Could not locate SGPlayer.framework for macosx"
-  printf '%s' "${built_framework}"
+  ) >&2
+  find_built_framework "${derived_data}" "*/Release/SGPlayer.framework"
 }
 
 build_xcframework() {
@@ -120,7 +126,11 @@ build_xcframework() {
     slice_framework="$(build_mac_framework)"
   fi
 
-  sgplayer_log "Creating SGPlayer.xcframework..."
+  # Trim accidental whitespace/newlines from captured path.
+  slice_framework="$(printf '%s' "${slice_framework}" | tr -d '\r' | head -n 1)"
+  [[ -d "${slice_framework}" ]] || sgplayer_fail "Framework path is not a directory: ${slice_framework}"
+
+  sgplayer_log "Creating SGPlayer.xcframework from ${slice_framework}..."
   xcodebuild -create-xcframework \
     -framework "${slice_framework}" \
     -output "${XCFRAMEWORK_OUTPUT}"
@@ -152,6 +162,7 @@ main() {
   fi
   build_xcframework
 
+  sync_spm_local_xcframework
   sgplayer_log "Done. SGPlayer (${SGPLAYER_BRANCH}) xcframework is ready."
 }
 

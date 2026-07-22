@@ -25,7 +25,7 @@ let package = Package(
         .target(
             name: "SgNativePlayerBridge",
             dependencies: ["SGPlayer"],
-            path: "../../../darwin/SgNativePlayerBridge",
+            path: "Sources/SgNativePlayerBridge",
             publicHeadersPath: "include",
             cSettings: [
                 .headerSearchPath("include"),
@@ -44,8 +44,11 @@ let package = Package(
         ),
         .target(
             name: "SgPlayerKit",
-            dependencies: ["SgNativePlayerBridge"],
-            path: "../../../darwin/kinetic_player/Sources/SgPlayerKit"
+            dependencies: [
+                .product(name: "FlutterFramework", package: "FlutterFramework"),
+                "SgNativePlayerBridge",
+            ],
+            path: "Sources/SgPlayerKit"
         ),
         .target(
             name: "kinetic_player",
