@@ -24,7 +24,7 @@ Core: [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) (**m
 | PiP | ❌ | ❌ |
 | Outbound network (Example) | ATS / system network | App Sandbox needs `com.apple.security.network.client` |
 
-Other capabilities (bottom bar, gestures, audio tracks, cover, SG API) are shared; see [USAGE_EN.md](USAGE_EN.md).
+Other capabilities (bottom bar, gestures, audio tracks, cover, SG API) are shared; see [USAGE_EN.md](USAGE_EN.md). Android-only: [GSY_FEATURES_EN.md](GSY_FEATURES_EN.md). Web: [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md).
 
 ## Directory layout
 

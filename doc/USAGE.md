@@ -369,7 +369,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 | 截图 overlay | `captureFrame(includeOverlay: true)` 含 UI | `includeOverlay` 无效 | 当前帧 canvas（跨域可能失败） |
 | 换源 | 重建播放器 | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
 | 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()` | Artplayer `fullscreen` 控件 |
-| 画中画 | 默认开启，需 Manifest + `onUserLeaveHint` | 不支持 | `togglePip()` / 浏览器 PiP |
+| 画中画 | 默认开启，需 Manifest + `onUserLeaveHint` | 不支持 | `togglePip()` / Document PiP（见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)） |
 | 音轨 UI | 齿轮设置面板 | 齿轮设置面板 | `AudioTrack` API（浏览器支持时） |
 | 音量 UI | 喇叭竖向弹窗 | 喇叭竖向弹窗 | Artplayer 音量控件 |
 | 手势调节 | `enableNativeControls` | 同左 | Artplayer gesture（可关） |
