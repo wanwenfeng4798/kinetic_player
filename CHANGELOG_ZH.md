@@ -1,3 +1,24 @@
+## 2.0.0
+
+### 新功能
+
+- **Flutter Web**：基于 Artplayer.js **5.4.0**（`HtmlElementView`）；公共 API 与 Android / iOS / macOS 对齐。Web 独有能力通过 `ArtplayerVideoControllerImpl` / `ArtplayerUiConfig` 暴露，**不污染** `CommonVideoController`。详见 [doc/WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md)。
+- **Web 流媒体**：HLS / DASH（`hls.js` / `dashjs`），`.m3u8` / `.mpd` 自动 `customType`。
+- **Artplayer 官方插件**：经 `artPlugins` / `ArtplayerPluginKeys` 打包（弹幕、HLS/DASH 控制、VTT 缩略图、字幕、Chromecast、VAST、章节、自动缩略图、氛围光、Document PiP、外挂音轨、JASSUB、ASR、广告等）。`danmukuMask` 仍走 CDN 懒加载（MediaPipe 体积过大）。
+- **Web 进程内桥**：使用 `ArtplayerViewRegistry`，避免 Web 上双端 MethodChannel 冲突。
+
+### 修复
+
+- **Web 音轨**：浏览器无 `audioTracks` 时不再伪造 Default 轨；列表为空时 `selectAudioTrack(0)` 成功空操作。
+- **macOS 中央播放图标**：避免 AppKit 将 SF Symbol 拉伸进 60×60 点击区导致变形（`imageScaling` + 固定字号 / `play.fill` 光学居中）。
+- **macOS 滑动手势**：移除 Flutter `AppKitView` 内不可靠的滑动（且无系统亮度 API）。进度 / 音量 / 音轨改为与齿轮选音轨相同的按钮弹窗（进度条、喇叭弹窗、设置面板）。**iOS 仍保留**横向调进度、左半屏亮度、右半屏音量手势。
+
+### 文档
+
+- 新增 Web 说明 [WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md) / [WEB_ARTPLAYER_EN.md](doc/WEB_ARTPLAYER_EN.md)；README / USAGE / EXAMPLE / Darwin 文档补充 Web 与 macOS 交互差异。
+
+---
+
 ## 1.0.0
 
 ### 新功能

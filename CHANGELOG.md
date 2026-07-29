@@ -1,3 +1,24 @@
+## 2.0.0
+
+### Features
+
+- **Flutter Web**: Artplayer.js **5.4.0** via `HtmlElementView`; public API aligned with Android / iOS / macOS. Web-only APIs on `ArtplayerVideoControllerImpl` / `ArtplayerUiConfig` (does not pollute `CommonVideoController`). See [doc/WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md).
+- **Web streaming**: HLS / DASH via `hls.js` / `dashjs` with automatic `customType` for `.m3u8` / `.mpd`.
+- **Artplayer plugins**: Bundled official plugins through `artPlugins` / `ArtplayerPluginKeys` (danmuku, HLS/DASH control, VTT thumbnail, subtitles, Chromecast, VAST, chapter, auto-thumbnail, ambilight, Document PiP, audio-track, JASSUB, ASR, ads). `danmukuMask` remains CDN lazy-load (MediaPipe size).
+- **In-process Web bridge**: `ArtplayerViewRegistry` instead of dual-end MethodChannel (avoids conflict on Web).
+
+### Fixes
+
+- **Web audio tracks**: No fake “Default” track when the browser exposes no `audioTracks`; `selectAudioTrack(0)` is a no-op success when the list is empty.
+- **macOS center play icon**: Stop AppKit from stretching SF Symbols into the 60×60 hit target (`imageScaling` + fixed symbol size / optical centering for `play.fill`).
+- **macOS pan gestures**: Removed unreliable pans inside Flutter `AppKitView` (and there is no public brightness API). Seek / volume / tracks use the same button + popup pattern as the gear / 音轨 UI (progress slider, speaker panel, settings panel). **iOS keeps** horizontal seek / left brightness / right volume pans.
+
+### Docs
+
+- Web guides [WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md) / [WEB_ARTPLAYER_EN.md](doc/WEB_ARTPLAYER_EN.md); README / USAGE / EXAMPLE / Darwin docs updated for Web and macOS interaction differences.
+
+---
+
 ## 1.0.0
 
 ### Features

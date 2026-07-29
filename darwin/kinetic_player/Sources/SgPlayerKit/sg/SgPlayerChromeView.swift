@@ -805,21 +805,19 @@ final class SgTrackSlider: NSView {
     }
 }
 
-/// Native playback chrome: play/pause, progress, settings (音轨), volume, fullscreen,
-/// plus GSY-style pan gestures (seek / volume). There is no public brightness API on
-/// macOS, so the left-side brightness swipe from the iOS chrome is intentionally skipped.
+/// Native playback chrome: play/pause, progress, settings (音轨), volume, fullscreen.
+///
+/// macOS does not rely on pan gestures (unreliable inside Flutter `AppKitView`, and
+/// there is no public brightness API). Seek uses the progress slider; volume uses the
+/// toolbar speaker button → vertical popup — same interaction pattern as the gear / 音轨
+/// settings button.
 final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
-    private enum PanGestureKind {
-        case none
-        case seek
-        case volume
-    }
-
     weak var delegate: SgPlayerChromeDelegate?
 
     private static let toolbarIconPointSize: CGFloat = 14
     private static let toolbarButtonSize: CGFloat = 28
-    private static let panActivationThreshold: CGFloat = 12
+    private static let centerPlayButtonSize: CGFloat = 60
+    private static let centerPlayIconPointSize: CGFloat = 26
     private static let seekSettleToleranceMs: Int64 = 800
     private static let seekHoldTimeout: CFTimeInterval = 1.5
 
@@ -835,7 +833,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private let centerPlayButton = NSButton()
     private let audioPanel = SgAudioPanelView()
     private let settingsPanel = SgSettingsPanelView()
-    private let gestureOverlay = SgGestureOverlayView()
 
     private var hideTimer: Timer?
     private var controlsVisible = true
@@ -850,12 +847,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private var pendingSeekTargetMs: Int64?
     private var seekHoldDeadline: CFTimeInterval = 0
     private var seekHoldTimer: Timer?
-
-    private var panKind: PanGestureKind = .none
-    private var panStartVolume: Double = 1
-    private var panStartPositionMs: Int64 = 0
-    private var panPreviewPositionMs: Int64 = 0
-    private var volumeSliderDragging = false
 
     override var isFlipped: Bool { true }
 
@@ -893,7 +884,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             return
         }
 
-        if isSeeking || panKind == .seek {
+        if isSeeking {
             return
         }
 
@@ -1061,9 +1052,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             self.delegate?.chromeDidChangeVolume(volume)
             self.scheduleAutoHide()
         }
-        audioPanel.onDraggingChanged = { [weak self] dragging in
-            self?.volumeSliderDragging = dragging
-        }
         addSubview(audioPanel)
 
         settingsPanel.translatesAutoresizingMaskIntoConstraints = false
@@ -1079,17 +1067,18 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         centerPlayButton.isBordered = false
         centerPlayButton.setButtonType(.momentaryChange)
         centerPlayButton.imagePosition = .imageOnly
+        // Prevent AppKit from stretching the SF Symbol into the full 60×60 hit target
+        // (that squashes/distorts play.fill / pause.fill on macOS).
+        centerPlayButton.imageScaling = .scaleProportionallyDown
         centerPlayButton.contentTintColor = .white
         centerPlayButton.wantsLayer = true
         centerPlayButton.layer?.backgroundColor = NSColor(white: 0, alpha: 0.45).cgColor
-        centerPlayButton.layer?.cornerRadius = 30
+        centerPlayButton.layer?.cornerRadius = Self.centerPlayButtonSize / 2
         centerPlayButton.layer?.masksToBounds = true
         centerPlayButton.translatesAutoresizingMaskIntoConstraints = false
         centerPlayButton.target = self
         centerPlayButton.action = #selector(centerPlayTapped)
         addSubview(centerPlayButton)
-
-        addSubview(gestureOverlay)
 
         NSLayoutConstraint.activate([
             bottomPanel.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -1111,26 +1100,19 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
             centerPlayButton.centerXAnchor.constraint(equalTo: centerXAnchor),
             centerPlayButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            centerPlayButton.widthAnchor.constraint(equalToConstant: 60),
-            centerPlayButton.heightAnchor.constraint(equalToConstant: 60),
-
-            gestureOverlay.centerXAnchor.constraint(equalTo: centerXAnchor),
-            gestureOverlay.centerYAnchor.constraint(equalTo: centerYAnchor),
+            centerPlayButton.widthAnchor.constraint(equalToConstant: Self.centerPlayButtonSize),
+            centerPlayButton.heightAnchor.constraint(equalToConstant: Self.centerPlayButtonSize),
         ])
 
         updateCenterPlayIcon()
         updateFullscreenIcon(isFullscreen: false)
         updateVolumeIcon()
 
+        // Click toggles chrome / dismisses panels. Pan gestures are intentionally
+        // omitted on macOS — use progress slider + speaker/gear buttons instead.
         let click = NSClickGestureRecognizer(target: self, action: #selector(handleBackgroundClick))
         click.delegate = self
         addGestureRecognizer(click)
-
-        if config.enableNativeControls {
-            let pan = NSPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
-            pan.delegate = self
-            addGestureRecognizer(pan)
-        }
     }
 
     private func applyConfig() {
@@ -1152,11 +1134,43 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private func updateCenterPlayIcon() {
         let symbol = isPlaying ? "pause.fill" : "play.fill"
-        let symbolConfig = NSImage.SymbolConfiguration(pointSize: 22, weight: .medium)
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-            .withSymbolConfiguration(symbolConfig)
-        image?.isTemplate = true
+        let symbolConfig = NSImage.SymbolConfiguration(
+            pointSize: Self.centerPlayIconPointSize,
+            weight: .semibold,
+        )
+        guard var image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+            .withSymbolConfiguration(symbolConfig) else {
+            centerPlayButton.image = nil
+            return
+        }
+        image.isTemplate = true
+        // play.fill is optically left-heavy; nudge it slightly so it looks centered
+        // inside the circular hit target (pause.fill stays centered).
+        if !isPlaying {
+            image = Self.opticallyCenteredPlayImage(image)
+        }
         centerPlayButton.image = image
+    }
+
+    /// Draws the play glyph into a square canvas with a small +x offset for optical balance.
+    private static func opticallyCenteredPlayImage(_ symbol: NSImage) -> NSImage {
+        let size = NSSize(width: centerPlayIconPointSize + 4, height: centerPlayIconPointSize + 4)
+        let canvas = NSImage(size: size, flipped: false) { bounds in
+            let drawSize = symbol.size
+            let origin = NSPoint(
+                x: (bounds.width - drawSize.width) / 2 + 2,
+                y: (bounds.height - drawSize.height) / 2,
+            )
+            symbol.draw(
+                in: NSRect(origin: origin, size: drawSize),
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1,
+            )
+            return true
+        }
+        canvas.isTemplate = true
+        return canvas
     }
 
     private func updateVolumeIcon() {
@@ -1256,110 +1270,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             return
         }
         toggleControlsVisibility()
-    }
-
-    // MARK: - Pan gestures (seek / volume)
-
-    /// Same rule as Android `shouldBlockGestureVolume`: popup open or slider drag wins.
-    private var shouldBlockGestureVolume: Bool {
-        audioPanelVisible || volumeSliderDragging
-    }
-
-    @objc private func handlePanGesture(_ gesture: NSPanGestureRecognizer) {
-        guard config.enableNativeControls else { return }
-
-        switch gesture.state {
-        case .began:
-            hideTimer?.invalidate()
-            panKind = .none
-            panStartVolume = volumeLevel
-            panStartPositionMs = positionMs
-            panPreviewPositionMs = positionMs
-
-        case .changed:
-            let translation = gesture.translation(in: self)
-            if panKind == .none {
-                let absX = abs(translation.x)
-                let absY = abs(translation.y)
-                guard max(absX, absY) >= Self.panActivationThreshold else { return }
-                if absX >= absY {
-                    panKind = .seek
-                    isSeeking = true
-                } else if shouldBlockGestureVolume {
-                    // Volume popup / slider owns volume control — ignore vertical swipe.
-                    return
-                } else {
-                    panKind = .volume
-                }
-            }
-            if panKind == .volume, shouldBlockGestureVolume {
-                return
-            }
-            applyPanChange(translation: translation)
-
-        case .ended, .cancelled, .failed:
-            finishPanGesture()
-
-        default:
-            break
-        }
-    }
-
-    private func applyPanChange(translation: CGPoint) {
-        let height = max(bounds.height, 1)
-        let width = max(bounds.width, 1)
-
-        switch panKind {
-        case .seek:
-            guard durationMs > 0 else { return }
-            let deltaMs = Int64((translation.x / width) * Double(durationMs))
-            let target = max(0, min(durationMs, panStartPositionMs + deltaMs))
-            panPreviewPositionMs = target
-            progressSlider.value = Float(target) / Float(durationMs)
-            currentTimeLabel.stringValue = Self.formatMs(target)
-            let total = Self.formatMs(durationMs)
-            gestureOverlay.show(
-                symbolName: translation.x >= 0 ? "forward.fill" : "backward.fill",
-                text: "\(Self.formatMs(target)) / \(total)",
-            )
-            bringToFront(gestureOverlay)
-
-        case .volume:
-            let delta = -Double(translation.y) * 3.0 / Double(height)
-            let level = max(0, min(1, panStartVolume + delta))
-            volumeLevel = level
-            muted = level <= 0.001
-            updateVolumeIcon()
-            audioPanel.syncVolume(volume: level, muted: muted)
-            delegate?.chromeDidChangeVolume(level)
-            let percent = Int((level * 100).rounded())
-            let symbol = percent == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill"
-            gestureOverlay.show(symbolName: symbol, text: "\(percent)%")
-            bringToFront(gestureOverlay)
-
-        case .none:
-            break
-        }
-    }
-
-    private func finishPanGesture() {
-        let kind = panKind
-        panKind = .none
-        gestureOverlay.hide(animated: true)
-
-        switch kind {
-        case .seek:
-            if durationMs > 0 {
-                let target = panPreviewPositionMs
-                beginSeekHold(toMs: target)
-                delegate?.chromeDidSeek(toMs: Int(target))
-            } else {
-                clearSeekHold(applyPositionMs: positionMs)
-            }
-        case .volume, .none:
-            break
-        }
-        scheduleAutoHide()
     }
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: NSGestureRecognizer) -> Bool {

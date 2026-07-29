@@ -221,20 +221,22 @@ CommonVideoPlayerView(
 
 Android (GSY) and iOS / macOS (SGPlayer) both use a Bilibili-style native bottom control bar with consistent progress/volume track colors (`#4DE8B5` progress and semi-transparent white track).
 
-| Capability | Android | iOS / macOS | Configuration |
-|---|---|---|---|
-| Center play/pause | ✅ | ✅ | `enableNativeControls` |
-| Progress bar + time | ✅ | ✅ | Native default |
-| Tap to show/hide controls | ✅ | ✅ | Tap blank area; auto-hide after ~2.5s while playing |
-| **Volume** | ✅ | ✅ | Tap **speaker** to pop up vertical volume bar; while dragging show percentage on the **left** of the slider (e.g. `50%`); hide when release |
-| **Gestures** | ✅ | ✅ | `enableNativeControls`: horizontal seek; left half brightness; right half volume |
-| **Audio tracks** | ✅ | ✅ | Tap **gear (settings)** to open the panel; or use Dart `getAudioTracks` / `selectAudioTrack` |
-| Fullscreen | ✅ | ✅ | Fullscreen button (same size as settings/volume icons, 28dp) / `gsyStartFullscreen()` / `sgStartFullscreen()` |
-| Picture-in-Picture PiP | ✅ default | ❌ not supported | `pictureInPictureEnabled` (Android only) |
+| Capability | Android | iOS | macOS | Configuration |
+|---|---|---|---|---|
+| Center play/pause | ✅ | ✅ | ✅ | `enableNativeControls` |
+| Progress bar + time | ✅ | ✅ | ✅ | Native default |
+| Tap to show/hide controls | ✅ | ✅ | ✅ | Tap blank area; auto-hide after ~2.5s while playing |
+| **Volume** | ✅ | ✅ | ✅ | Tap **speaker** to pop up vertical volume bar; while dragging show percentage on the **left** of the slider (e.g. `50%`); hide when release |
+| **Gestures** | ✅ | ✅ | ❌ | Android / iOS: `enableNativeControls` — horizontal seek; left half brightness; right half volume. macOS pans are unreliable inside Flutter `AppKitView` and there is no public brightness API — use the same button/popup pattern as audio tracks: progress slider seek, speaker volume, gear tracks |
+| **Audio tracks** | ✅ | ✅ | ✅ | Tap **gear (settings)** to open the panel; or use Dart `getAudioTracks` / `selectAudioTrack` |
+| Fullscreen | ✅ | ✅ | ✅ | Fullscreen button (same size as settings/volume icons, 28dp) / `gsyStartFullscreen()` / `sgStartFullscreen()` |
+| Picture-in-Picture PiP | ✅ default | ❌ | ❌ | `pictureInPictureEnabled` (Android only) |
 
 > **Volume (Android)**: when `showVolumeToolbar` is enabled, the right-side slider adjusts **player volume** (same source as the speaker popup), instead of the system volume slider. While the volume popup is open or dragging the slider, the right-side volume slider is temporarily disabled to avoid conflicts.
 
-> **Volume (iOS / macOS)**: the right-side slider also adjusts player volume (similar sensitivity to Android GSY, about 3×). While the volume popup is open or dragging, the right-side volume slider is disabled as well.
+> **Volume (iOS)**: the right-side slider also adjusts player volume (similar sensitivity to Android GSY, about 3×). While the volume popup is open or dragging, the right-side volume slider is disabled as well.
+
+> **Volume (macOS)**: no pan gestures; tap the speaker for a vertical volume slider (same interaction pattern as gear / audio tracks).
 
 > **Volume persistence**: volume set via slider or `setVolume()` is restored on pause/resume, replay after completion, and switching sources.
 
@@ -272,7 +274,7 @@ if (controller is GSYVideoControllerImpl) {
 
 | Field | Default | Description |
 |---|---|---|
-| `enableNativeControls` | `true` | Both: swipe gestures (progress/volume/brightness); Apple side also controls control bar visibility |
+| `enableNativeControls` | `true` | Android / iOS: swipe gestures (progress/volume/brightness); Apple side also controls control bar visibility. macOS: control bar visibility only — no pans (use progress slider + speaker/gear buttons) |
 | `enableNativeControlsFullscreen` | `true` | Android fullscreen gesture; Apple shares with `enableNativeControls` |
 | `showFullscreenButton` | `true` | Fullscreen button |
 | `showLockButton` | `true` | Lock button (Android) |
@@ -363,7 +365,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 | PiP | enabled by default (manifest + `onUserLeaveHint`) | not supported | `togglePip()` / Document PiP |
 | Audio tracks UI | gear settings panel | gear settings panel | browser `AudioTrack` when available |
 | Volume UI | vertical volume popup | vertical volume popup | Artplayer volume control |
-| Gesture controls | `enableNativeControls` | same | Artplayer gesture (optional) |
+| Gesture controls | `enableNativeControls` | iOS same; macOS uses progress slider + speaker/gear buttons | Artplayer gesture (optional) |
 | Render rotation / mirror | `gsySetRenderRotation` / MirrorH/V | `sgSetRenderRotation` / MirrorH/V | via `artplayerOptions` |
 | Cover | `gsySetCoverUrl` | `sgSetCoverUrl` | `poster` / `coverUrl` |
 | Keep last frame | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` | browser default |

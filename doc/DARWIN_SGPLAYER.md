@@ -26,7 +26,7 @@ kinetic_player 在 **iOS** 与 **macOS** 上共用同一套 SGPlayer 集成方�
 | 画中画 | ❌ | ❌ |
 | 出站网络（Example） | ATS / 系统网络 | App Sandbox 需 `com.apple.security.network.client` |
 
-其余能力（底栏、手势、音轨、封面、SG API）两端同源，见 [USAGE.md](USAGE.md)。Android 独有能力见 [GSY_FEATURES.md](GSY_FEATURES.md)；Web 见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。
+其余能力（底栏、音轨、封面、SG API）两端同源；**滑动手势仅 iOS**（macOS 用进度条 + 喇叭/齿轮按钮，见 [USAGE.md](USAGE.md)）。Android 独有能力见 [GSY_FEATURES.md](GSY_FEATURES.md)；Web 见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。
 
 ## 目录结构
 

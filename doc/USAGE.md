@@ -230,20 +230,22 @@ CommonVideoPlayerView(
 
 Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏，进度条与音量条轨道色统一（`#4DE8B5` 进度 / 半透明白色轨道）。
 
-| 能力 | Android | iOS / macOS | 配置 |
-|------|---------|-------------|------|
-| 中央播放/暂停 | ✅ | ✅ | `enableNativeControls` |
-| 进度条 + 时间 | ✅ | ✅ | 原生默认 |
-| 单击显隐控制栏 | ✅ | ✅ | 点击画面空白；播放中约 2.5s 自动隐藏 |
-| **音量** | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条；拖动时在滑轨**左侧**显示百分比（如 `50%`），松手后隐藏 |
-| **手势** | ✅ | ✅ | `enableNativeControls`：横向调进度；左半屏纵向调亮度；右半屏纵向调音量 |
-| **音轨** | ✅ | ✅ | 点击**齿轮（设置）**弹出面板选择；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
-| 全屏 | ✅ | ✅ | 全屏按钮（与设置/音量图标同尺寸 28dp）/ `gsyStartFullscreen()` / `sgStartFullscreen()` |
-| 画中画 PiP | ✅ 默认开启 | ❌ 不支持 | `pictureInPictureEnabled`（Android）/ Web 见下 |
+| 能力 | Android | iOS | macOS | 配置 |
+|------|---------|-----|-------|------|
+| 中央播放/暂停 | ✅ | ✅ | ✅ | `enableNativeControls` |
+| 进度条 + 时间 | ✅ | ✅ | ✅ | 原生默认 |
+| 单击显隐控制栏 | ✅ | ✅ | ✅ | 点击画面空白；播放中约 2.5s 自动隐藏 |
+| **音量** | ✅ | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条；拖动时在滑轨**左侧**显示百分比（如 `50%`），松手后隐藏 |
+| **手势** | ✅ | ✅ | ❌ | Android / iOS：`enableNativeControls` 横向调进度、左半屏亮度、右半屏音量。macOS 在 Flutter `AppKitView` 内滑动不可靠且无系统亮度 API，改为与音轨相同的按钮弹窗：进度条 seek、喇叭调音量、齿轮选音轨 |
+| **音轨** | ✅ | ✅ | ✅ | 点击**齿轮（设置）**弹出面板选择；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
+| 全屏 | ✅ | ✅ | ✅ | 全屏按钮（与设置/音量图标同尺寸 28dp）/ `gsyStartFullscreen()` / `sgStartFullscreen()` |
+| 画中画 PiP | ✅ 默认开启 | ❌ | ❌ | `pictureInPictureEnabled`（Android）/ Web 见下 |
 
 > **音量（Android）**：开启 `showVolumeToolbar` 后，画面右侧滑动调节的是**播放器音量**（与喇叭弹窗同源），不再用系统音量条。音量弹窗打开或正在拖动滑轨时，右侧滑动调音量会被暂时禁用，避免与竖向滑轨冲突。
 
-> **音量（iOS / macOS）**：右侧滑动同样调节播放器音量（灵敏度与 Android GSY 一致，约 3×）；音量弹窗打开或拖动滑轨时，右侧滑动调音量同样被禁用。
+> **音量（iOS）**：右侧滑动同样调节播放器音量（灵敏度与 Android GSY 一致，约 3×）；音量弹窗打开或拖动滑轨时，右侧滑动调音量同样被禁用。
+
+> **音量（macOS）**：无滑动手势；点击喇叭弹出竖向音量条（与齿轮选音轨同一交互模式）。
 
 > **音量持久化**：通过滑轨或 `setVolume()` 设置的音量在暂停/恢复、播放完成重播、换源后会自动恢复，不会回到默认值。
 
@@ -281,7 +283,7 @@ if (controller is GSYVideoControllerImpl) {
 
 | 字段 | 默认 | 说明 |
 |------|------|------|
-| `enableNativeControls` | `true` | 双端：滑动手势（进度/音量/亮度）；Apple 端同时控制底栏显隐 |
+| `enableNativeControls` | `true` | Android / iOS：滑动手势（进度/音量/亮度）；Apple 端同时控制底栏显隐。macOS：底栏显隐，无滑动手势（用进度条 + 喇叭/齿轮按钮） |
 | `enableNativeControlsFullscreen` | `true` | Android 全屏手势；Apple 端与 `enableNativeControls` 共用 |
 | `showFullscreenButton` | `true` | 全屏按钮 |
 | `showLockButton` | `true` | 全屏锁屏按钮（Android） |
@@ -372,7 +374,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 | 画中画 | 默认开启，需 Manifest + `onUserLeaveHint` | 不支持 | `togglePip()` / Document PiP（见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)） |
 | 音轨 UI | 齿轮设置面板 | 齿轮设置面板 | `AudioTrack` API（浏览器支持时） |
 | 音量 UI | 喇叭竖向弹窗 | 喇叭竖向弹窗 | Artplayer 音量控件 |
-| 手势调节 | `enableNativeControls` | 同左 | Artplayer gesture（可关） |
+| 手势调节 | `enableNativeControls` | iOS 同左；macOS 用进度条 + 喇叭/齿轮按钮 | Artplayer gesture（可关） |
 | 画面旋转 / 镜像 | `gsySetRenderRotation` / MirrorH/V | `sgSetRenderRotation` / MirrorH/V | 经 `artplayerOptions` 扩展 |
 | 封面 | `gsySetCoverUrl` | `sgSetCoverUrl` | `poster` / `coverUrl` |
 | 保留最后一帧 | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` | 浏览器默认行为 |

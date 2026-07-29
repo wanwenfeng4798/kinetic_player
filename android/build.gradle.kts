@@ -1,5 +1,5 @@
 group = "com.keepwan.kinetic_player"
-version = "1.0.0"
+version = "2.0.0"
 
 buildscript {
     val kotlinVersion = "2.4.10"

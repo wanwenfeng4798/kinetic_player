@@ -37,7 +37,7 @@ Android can run directly with `flutter run`. iOS / macOS details: [DARWIN_SGPLAY
 | Speaker | Popup vertical volume bar (Bilibili style); **while dragging, show percentage on the left side of the slider** |
 | Gear | Popup settings panel to select audio track |
 | Fullscreen | Window-level fullscreen (icon size matches settings/volume icons) |
-| Swipe gestures | Horizontal seek; left half brightness; right half volume (`enableNativeControls`) |
+| Swipe gestures | **Android / iOS**: horizontal seek; left half brightness; right half volume (`enableNativeControls`). **macOS**: no pans — seek via progress slider, volume via speaker popup (same pattern as gear / audio tracks) |
 | Rotate / Mirror | Rotate left/right by 90°, reset, left/right mirror, up/down mirror (Android / iOS) |
 | Cover / Keep last frame | Toggle cover and keep last frame after playing finished (Android / iOS) |
 | Advanced (iOS) | Pitch, VR/VRBox, background playback, demuxer options, video track selection; buffering and error display |

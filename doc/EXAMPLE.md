@@ -39,7 +39,7 @@ Android 可直接 `flutter run`。iOS / macOS 细节见 [DARWIN_SGPLAYER.md](DAR
 | 喇叭 | 弹出竖向音量条（B 站风格）；**拖动时在滑轨左侧显示百分比** |
 | 齿轮 | 弹出设置面板，选择音轨 |
 | 全屏 | 窗口级全屏（图标与设置/音量同尺寸） |
-| 滑动手势 | 横向调进度；左半屏纵向调亮度；右半屏纵向调音量（`enableNativeControls`） |
+| 滑动手势 | **Android / iOS**：横向调进度；左半屏纵向调亮度；右半屏纵向调音量（`enableNativeControls`）。**macOS**：无滑动手势；进度用进度条，音量用喇叭弹窗（与齿轮选音轨同一模式） |
 | 旋转 / 镜像 | 左转/右转 90°、复位、左右镜像、上下镜像（Android / iOS） |
 | 封面 / 最后一帧 | 开关封面、播完保留最后一帧（Android / iOS） |
 | SG 高级（iOS） | 音高、VR/VRBox、后台播放、demuxer 选项、视频轨；缓冲与错误显示 |

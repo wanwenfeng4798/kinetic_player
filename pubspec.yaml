@@ -1,6 +1,6 @@
 name: kinetic_player
 description: "Multi-core Flutter video player: GSYVideoPlayer 13.1.0 (Android) + SGPlayer (iOS/macOS) + Artplayer.js (Web)."
-version: 1.0.0
+version: 2.0.0
 homepage: https://github.com/wanwenfeng4798/kinetic_player
 license: MIT
 
