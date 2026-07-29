@@ -171,6 +171,43 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
   Future<void> artSetUiConfig(ArtplayerUiConfig config) =>
       _invoke('artSetUiConfig', config.toCreationParams());
 
+  /// Bundled Artplayer plugin keys (danmuku / hlsControl / …).
+  Future<List<String>> artAvailablePlugins() async {
+    final host = _host;
+    if (host == null) return ArtplayerPluginKeys.all;
+    final result = await host.invoke<Object>('artAvailablePlugins');
+    if (result is! List) return ArtplayerPluginKeys.all;
+    return result.map((e) => e.toString()).toList();
+  }
+
+  /// Call a method on a loaded Artplayer plugin instance.
+  ///
+  /// Example: `artCallPlugin('artplayerPluginDanmuku', 'hide')`.
+  Future<Object?> artCallPlugin(
+    String name,
+    String method, {
+    List<Object?> args = const [],
+  }) {
+    return _host?.invoke<Object>('artCallPlugin', {
+          'name': name,
+          'method': method,
+          'args': args,
+        }) ??
+        Future<Object?>.value();
+  }
+
+  /// Emit a danmaku item when `artPlugins.danmuku` is enabled.
+  Future<void> artEmitDanmuku(Map<String, dynamic> danmu) =>
+      _invoke('artEmitDanmuku', {'danmu': danmu});
+
+  /// Toggle Document Picture-in-Picture (`artPlugins.documentPip`).
+  Future<bool> artToggleDocumentPip() async {
+    final host = _host;
+    if (host == null) return false;
+    final result = await host.invoke<Object>('artToggleDocumentPip');
+    return result == true;
+  }
+
   @override
   Future<void> dispose() async {
     if (_isDisposed) return;

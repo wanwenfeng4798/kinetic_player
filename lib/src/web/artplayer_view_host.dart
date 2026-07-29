@@ -53,6 +53,10 @@ class ArtplayerViewHost {
       if (ui is Map) {
         config.setProperty('ui'.toJS, _mapToJs(ui));
       }
+      final artPlugins = params['artPlugins'];
+      if (artPlugins is Map) {
+        config.setProperty('artPlugins'.toJS, _mapToJs(artPlugins));
+      }
       final artOptions = params['artplayerOptions'];
       if (artOptions is Map) {
         config.setProperty('artplayerOptions'.toJS, _mapToJs(artOptions));
@@ -70,7 +74,10 @@ class ArtplayerViewHost {
       config.setProperty('onEvent'.toJS, onEvent);
 
       final attach = bridge.getProperty('attach'.toJS) as JSFunction;
-      attach.callAsFunction(bridge, config);
+      final attached = attach.callAsFunction(bridge, config);
+      if (attached != null) {
+        await ArtplayerViewHost._awaitJs(attached);
+      }
 
       if (!_ready.isCompleted) _ready.complete();
     } catch (error, stack) {

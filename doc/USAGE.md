@@ -141,7 +141,7 @@ flutter run -d chrome
 
 ```dart
 CommonVideoPlayerViewBuilder(
-  url: videoUrl,
+  url: videoUrl, // .m3u8 / .mpd 会自动挂 HLS/DASH customType
   creationParams: ArtplayerUiConfig(
     ui: const GsyUiConfig(
       enableNativeControls: true,
@@ -149,9 +149,24 @@ CommonVideoPlayerViewBuilder(
       pictureInPictureEnabled: true,
       coverUrl: 'https://example.com/cover.jpg',
     ),
-    // Artplayer-only：插件 / 弹幕 / 自定义 layers，不进入公共 API
+    // Artplayer 5.4 官方插件（不进入公共 API）
+    artPlugins: {
+      ArtplayerPluginKeys.danmuku: {
+        'danmuku': [
+          {'text': 'hello', 'time': 1},
+        ],
+      },
+      ArtplayerPluginKeys.hlsControl: true,
+      ArtplayerPluginKeys.vttThumbnail: {
+        'vtt': 'https://example.com/thumbs.vtt',
+      },
+      ArtplayerPluginKeys.documentPip: true,
+      // ArtplayerPluginKeys.danmukuMask: true, // CDN 懒加载 MediaPipe
+      // ArtplayerPluginKeys.ads: {'source': '...', 'type': 'video'},
+      // ArtplayerPluginKeys.vast: {'tagUrl': 'https://...'},
+    },
     artplayerOptions: {
-      // e.g. plugins: [...],
+      // 其它 Artplayer option（theme / layers 等）
     },
   ).toCreationParams(),
   builder: (controller) {
@@ -160,12 +175,16 @@ CommonVideoPlayerViewBuilder(
 );
 ```
 
+内置 `artPlugins` 键：`danmuku`、`danmukuMask`、`hlsControl`、`dashControl`、`vttThumbnail`、`multipleSubtitles`、`chromecast`、`vast`、`chapter`、`autoThumbnail`、`ambilight`、`documentPip`、`audioTrack`、`jassub`、`asr`、`ads`（见 `ArtplayerPluginKeys`）。
+
 **Web 注意**：
 
-- 默认关闭 HTML5 `video.controls`；`enableNativeControls: true` 时使用 Artplayer 控制栏。
+- Artplayer.js **5.4.0**；默认关闭 HTML5 `video.controls`；`enableNativeControls: true` 时使用 Artplayer 控制栏。
 - 移动 Web 已设置 `playsinline` / `webkit-playsinline` / `x5-video-player-type=h5`。
 - 自动播放失败时会静音重试（浏览器策略）；仍失败则进入 `error`。
-- PiP 依赖 `document.pictureInPictureEnabled`；用 `togglePip()`（需转型 `ArtplayerVideoControllerImpl`）。
+- PiP 依赖 `document.pictureInPictureEnabled`；用 `togglePip()`。Document PiP 需开启 `artPlugins.documentPip` 后调用 `artToggleDocumentPip()`。
+- `.m3u8` / `.mpd` 自动接入 `hls.js` / `dashjs`；配合 `hlsControl` / `dashControl` 使用。
+- `danmukuMask` 体积大，启用时从 jsDelivr CDN 懒加载。
 - 进度回调约 250ms 节流，与原生一致。
 
 若修改 `web/src` 下 TypeScript 桥接，需重新打包：
@@ -367,9 +386,15 @@ if (controller is ArtplayerVideoControllerImpl) {
   if (supported) {
     await controller.togglePip();
   }
+  await controller.artEmitDanmuku({'text': 'hi', 'time': 1});
+  await controller.artToggleDocumentPip();
+  await controller.artCallPlugin('artplayerPluginDanmuku', 'hide');
   await controller.artSetUiConfig(ArtplayerUiConfig(
     ui: const GsyUiConfig(pictureInPictureEnabled: true),
-    artplayerOptions: const {/* Artplayer-only */},
+    artPlugins: {
+      ArtplayerPluginKeys.danmuku: true,
+      ArtplayerPluginKeys.hlsControl: true,
+    },
   ));
   controller.pipActive; // ValueNotifier<bool>
 }
@@ -377,10 +402,13 @@ if (controller is ArtplayerVideoControllerImpl) {
 
 | API | 说明 |
 |-----|------|
-| `togglePip()` | 进入 / 退出浏览器 PiP（不支持则抛错） |
+| `togglePip()` | 进入 / 退出浏览器 Video PiP |
 | `artIsPipSupported()` | `document.pictureInPictureEnabled` |
-| `pipActive` | PiP 状态 |
-| `artSetUiConfig` | 运行时更新 UI / 透传 `artplayerOptions` |
+| `pipActive` | Video PiP 状态 |
+| `artToggleDocumentPip()` | Document PiP（需 `artPlugins.documentPip`） |
+| `artEmitDanmuku` / `artCallPlugin` | 弹幕发送 / 通用插件方法调用 |
+| `artAvailablePlugins()` | 本构建支持的插件键列表 |
+| `artSetUiConfig` | 运行时更新 UI（插件需在创建时通过 `artPlugins` 启用） |
 
 ## 平台差异速查
 

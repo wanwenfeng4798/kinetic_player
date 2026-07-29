@@ -1,7 +1,15 @@
-import Artplayer from 'artplayer';
+import Artplayer, { type Option as ArtplayerOption } from 'artplayer';
+import { ART_PLUGIN_KEYS, getPluginInstance, resolveArtPlugins } from './plugins';
+import {
+  buildStreamCustomType,
+  inferStreamType,
+  type CustomTypeMap,
+} from './stream_types';
 import type {
+  ArtPluginsConfig,
   AudioTrackInfo,
   KineticArtplayerConfig,
+  PluginFactory,
   ScaleMode,
   VideoSizeInfo,
 } from './types';
@@ -25,21 +33,58 @@ export class KineticArtplayerAdapter {
   private pipActive = false;
   private scaleMode: ScaleMode = ScaleModeEnum.fit;
 
-  constructor(config: KineticArtplayerConfig) {
+  private constructor(
+    config: KineticArtplayerConfig,
+    resolvedPlugins: PluginFactory[],
+  ) {
     this.config = config;
     const ui = config.ui ?? {};
     const enableControls = ui.enableNativeControls !== false;
     const pipEnabled = ui.pictureInPictureEnabled !== false;
-    const custom = {
+
+    const extensions = {
       ...(config.artplayerOptions ?? {}),
       ...(config.webCustomExtensions ?? {}),
     };
+    const {
+      artPlugins: _ignoredPlugins,
+      plugins: existingPlugins,
+      customType: existingCustomType,
+      type: explicitType,
+      ...custom
+    } = extensions as Record<string, unknown> & {
+      artPlugins?: ArtPluginsConfig;
+      plugins?: PluginFactory[];
+      customType?: CustomTypeMap;
+      type?: string;
+    };
+
+    const pluginsConfig =
+      config.artPlugins ??
+      (_ignoredPlugins as ArtPluginsConfig | undefined) ??
+      (config.webCustomExtensions?.['artPlugins'] as ArtPluginsConfig | undefined);
+
+    const mergedPlugins = [
+      ...resolvedPlugins,
+      ...((Array.isArray(existingPlugins) ? existingPlugins : []) as PluginFactory[]),
+    ];
+
+    const url = config.url ?? '';
+    const streamType =
+      (typeof explicitType === 'string' && explicitType) || inferStreamType(url);
+    const needsStreamCustomType =
+      Boolean(pluginsConfig?.hlsControl) ||
+      Boolean(pluginsConfig?.dashControl) ||
+      streamType === 'm3u8' ||
+      streamType === 'mpd' ||
+      streamType === 'hls' ||
+      streamType === 'dash';
 
     this.looping = ui.looping === true;
 
-    this.art = new Artplayer({
+    const option: ArtplayerOption = {
       container: config.container,
-      url: config.url ?? '',
+      url,
       poster: ui.coverUrl,
       volume: 1,
       autoplay: false,
@@ -61,15 +106,22 @@ export class KineticArtplayerAdapter {
       gesture: enableControls,
       autoOrientation: false,
       moreVideoAttr: {
+        // Typed attr is playsInline; WebKit / X5 attrs set in applyMobileInlineAttributes.
+        playsInline: true,
         controls: false,
-        playsinline: true,
-        'webkit-playsinline': true,
-        'x5-video-player-type': 'h5',
         preload: 'metadata',
       },
-      ...custom,
-    });
+      ...(custom as Partial<ArtplayerOption>),
+      ...(streamType ? { type: streamType } : {}),
+      ...(needsStreamCustomType
+        ? { customType: buildStreamCustomType(existingCustomType) }
+        : existingCustomType
+          ? { customType: existingCustomType }
+          : {}),
+      ...(mergedPlugins.length > 0 ? { plugins: mergedPlugins } : {}),
+    };
 
+    this.art = new Artplayer(option);
     if (typeof ui.speed === 'number' && ui.speed > 0) {
       this.art.playbackRate = ui.speed;
     }
@@ -81,6 +133,19 @@ export class KineticArtplayerAdapter {
     this.applyMobileInlineAttributes();
     this.bindEvents();
     this.setupPipListeners();
+  }
+
+  static async create(config: KineticArtplayerConfig): Promise<KineticArtplayerAdapter> {
+    const extensions = {
+      ...(config.artplayerOptions ?? {}),
+      ...(config.webCustomExtensions ?? {}),
+    };
+    const pluginsConfig =
+      config.artPlugins ??
+      (extensions['artPlugins'] as ArtPluginsConfig | undefined) ??
+      (config.webCustomExtensions?.['artPlugins'] as ArtPluginsConfig | undefined);
+    const resolved = await resolveArtPlugins(pluginsConfig);
+    return new KineticArtplayerAdapter(config, resolved);
   }
 
   private hideNativeChrome(): void {
@@ -252,7 +317,12 @@ export class KineticArtplayerAdapter {
 
   setLooping(looping: boolean): void {
     this.looping = looping;
-    this.art.loop = looping;
+    // Artplayer 5.4 exposes loop via option; keep local flag for ended handler.
+    (
+      this.art as Artplayer & {
+        option: { loop?: boolean };
+      }
+    ).option.loop = looping;
   }
 
   setScaleMode(mode: ScaleMode): void {
@@ -279,6 +349,10 @@ export class KineticArtplayerAdapter {
 
   async switchVideoSource(url: string, autoPlay = true): Promise<void> {
     this.emitState(PlayerState.buffering);
+    const streamType = inferStreamType(url);
+    if (streamType) {
+      (this.art as unknown as { option: { type?: string } }).option.type = streamType;
+    }
     await this.art.switchUrl(url);
     if (autoPlay) {
       await this.play();
@@ -288,21 +362,11 @@ export class KineticArtplayerAdapter {
   }
 
   getAudioTracks(): AudioTrackInfo[] {
-    const video = this.art.video as HTMLVideoElement & {
-      audioTracks?: {
-        length: number;
-        [index: number]: { label?: string; language?: string; enabled: boolean };
-      };
-    };
-    const tracks = video.audioTracks;
+    const tracks = this.readAudioTracks();
+    // Most browsers do not expose HTMLMediaElement.audioTracks for plain
+    // progressive media; return empty so hosts don't offer a fake selectable track.
     if (!tracks || tracks.length === 0) {
-      return [
-        {
-          index: 0,
-          label: 'Default',
-          selected: true,
-        },
-      ];
+      return [];
     }
     const result: AudioTrackInfo[] = [];
     for (let i = 0; i < tracks.length; i++) {
@@ -318,18 +382,31 @@ export class KineticArtplayerAdapter {
   }
 
   selectAudioTrack(index: number): boolean {
-    const video = this.art.video as HTMLVideoElement & {
-      audioTracks?: {
-        length: number;
-        [i: number]: { enabled: boolean };
-      };
-    };
-    const tracks = video.audioTracks;
-    if (!tracks || index < 0 || index >= tracks.length) return false;
+    const tracks = this.readAudioTracks();
+    // No multi-track API: treat as single default stream — no-op success for 0.
+    if (!tracks || tracks.length === 0) {
+      return index === 0;
+    }
+    if (index < 0 || index >= tracks.length) return false;
     for (let i = 0; i < tracks.length; i++) {
       tracks[i].enabled = i === index;
     }
     return true;
+  }
+
+  private readAudioTracks():
+    | {
+        length: number;
+        [index: number]: { label?: string; language?: string; enabled: boolean };
+      }
+    | undefined {
+    const video = this.art.video as HTMLVideoElement & {
+      audioTracks?: {
+        length: number;
+        [index: number]: { label?: string; language?: string; enabled: boolean };
+      };
+    };
+    return video?.audioTracks;
   }
 
   getVideoSize(): VideoSizeInfo | null {
@@ -399,6 +476,55 @@ export class KineticArtplayerAdapter {
     if (ui.enableNativeControls === false) {
       this.hideNativeChrome();
     }
+  }
+
+  /** List of bundled plugin keys supported by this build. */
+  static get availablePlugins(): readonly string[] {
+    return ART_PLUGIN_KEYS;
+  }
+
+  getPlugin(name: string): Record<string, unknown> | null {
+    return getPluginInstance(this.art, name);
+  }
+
+  /**
+   * Invoke a method on a loaded plugin instance.
+   * Example: callPlugin('artplayerPluginDanmuku', 'emit', [{ text: 'hi' }])
+   */
+  callPlugin(
+    name: string,
+    method: string,
+    args: unknown[] = [],
+  ): unknown {
+    const plugin = this.getPlugin(name);
+    if (!plugin) {
+      throw new Error(`Plugin not loaded: ${name}`);
+    }
+    const fn = plugin[method];
+    if (typeof fn !== 'function') {
+      throw new Error(`Plugin method not found: ${name}.${method}`);
+    }
+    return (fn as (...a: unknown[]) => unknown).apply(plugin, args);
+  }
+
+  /** Convenience: emit a danmaku item when danmuku plugin is active. */
+  emitDanmuku(danmu: Record<string, unknown>): unknown {
+    const plugin =
+      this.getPlugin('artplayerPluginDanmuku') ?? this.getPlugin('danmuku');
+    if (!plugin || typeof plugin['emit'] !== 'function') {
+      throw new Error('Danmuku plugin is not loaded');
+    }
+    return (plugin['emit'] as (d: Record<string, unknown>) => unknown)(danmu);
+  }
+
+  /** Document Picture-in-Picture toggle when document-pip plugin is active. */
+  toggleDocumentPip(): boolean {
+    const plugin = this.getPlugin('artplayerPluginDocumentPip');
+    if (!plugin || typeof plugin['toggle'] !== 'function') {
+      throw new Error('Document PiP plugin is not loaded');
+    }
+    (plugin['toggle'] as () => void)();
+    return Boolean(plugin['isActive']);
   }
 
   dispose(): void {

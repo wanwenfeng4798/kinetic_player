@@ -71,4 +71,14 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
   Future<bool> artIsPipSupported() => throw UnimplementedError();
   Future<void> artSetUiConfig(ArtplayerUiConfig config) =>
       throw UnimplementedError();
+  Future<List<String>> artAvailablePlugins() => throw UnimplementedError();
+  Future<Object?> artCallPlugin(
+    String name,
+    String method, {
+    List<Object?> args = const [],
+  }) =>
+      throw UnimplementedError();
+  Future<void> artEmitDanmuku(Map<String, dynamic> danmu) =>
+      throw UnimplementedError();
+  Future<bool> artToggleDocumentPip() => throw UnimplementedError();
 }

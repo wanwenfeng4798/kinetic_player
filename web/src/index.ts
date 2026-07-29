@@ -1,5 +1,6 @@
 import { KineticArtplayerAdapter } from './artplayer_adapter';
 import { ArtplayerWebBridge, createBridge } from './artplayer_web_bridge';
+import { ART_PLUGIN_KEYS } from './plugins';
 import { PlayerState, ScaleMode } from './types';
 
 export interface KineticArtplayerGlobal {
@@ -8,6 +9,7 @@ export interface KineticArtplayerGlobal {
   createBridge: typeof createBridge;
   PlayerState: typeof PlayerState;
   ScaleMode: typeof ScaleMode;
+  availablePlugins: readonly string[];
   isPipSupported: () => boolean;
 }
 
@@ -17,6 +19,7 @@ const api: KineticArtplayerGlobal = {
   createBridge,
   PlayerState,
   ScaleMode,
+  availablePlugins: ART_PLUGIN_KEYS,
   isPipSupported: () => KineticArtplayerAdapter.isPipSupported,
 };
 
@@ -36,6 +39,7 @@ export {
   createBridge,
   PlayerState,
   ScaleMode,
+  ART_PLUGIN_KEYS,
 };
 
 export default api;

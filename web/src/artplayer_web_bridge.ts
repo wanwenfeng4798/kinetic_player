@@ -1,5 +1,5 @@
 import { KineticArtplayerAdapter } from './artplayer_adapter';
-import type { ArtplayerUiConfig, KineticArtplayerConfig } from './types';
+import type { ArtPluginsConfig, ArtplayerUiConfig, KineticArtplayerConfig } from './types';
 import { PlayerState } from './types';
 
 export type BridgeEventHandler = (method: string, args: Record<string, unknown>) => void;
@@ -18,8 +18,9 @@ export class ArtplayerWebBridge {
     ui?: ArtplayerUiConfig;
     artplayerOptions?: Record<string, unknown>;
     webCustomExtensions?: Record<string, unknown>;
+    artPlugins?: ArtPluginsConfig;
     onEvent?: BridgeEventHandler;
-  }): void {
+  }): Promise<void> {
     this.dispose();
     this.eventHandler = config.onEvent ?? null;
 
@@ -29,6 +30,7 @@ export class ArtplayerWebBridge {
       ui: config.ui,
       artplayerOptions: config.artplayerOptions,
       webCustomExtensions: config.webCustomExtensions,
+      artPlugins: config.artPlugins,
       onStateChanged: (state) => {
         this.emit('onPlayerStateChanged', { state });
       },
@@ -44,7 +46,9 @@ export class ArtplayerWebBridge {
       },
     };
 
-    this.adapter = new KineticArtplayerAdapter(adapterConfig);
+    return KineticArtplayerAdapter.create(adapterConfig).then((adapter) => {
+      this.adapter = adapter;
+    });
   }
 
   private emit(method: string, args: Record<string, unknown>): void {
@@ -115,6 +119,20 @@ export class ArtplayerWebBridge {
       case 'artSetUiConfig':
         adapter.applyUiConfig((args['gsyUi'] as ArtplayerUiConfig) ?? (args as ArtplayerUiConfig));
         return null;
+      case 'artAvailablePlugins':
+        return [...KineticArtplayerAdapter.availablePlugins];
+      case 'artCallPlugin': {
+        const name = String(args['name'] ?? '');
+        const pluginMethod = String(args['method'] ?? '');
+        const pluginArgs = Array.isArray(args['args']) ? (args['args'] as unknown[]) : [];
+        return adapter.callPlugin(name, pluginMethod, pluginArgs);
+      }
+      case 'artEmitDanmuku':
+        return adapter.emitDanmuku(
+          (args['danmu'] as Record<string, unknown>) ?? args,
+        );
+      case 'artToggleDocumentPip':
+        return adapter.toggleDocumentPip();
       case 'dispose':
         this.dispose();
         return null;
