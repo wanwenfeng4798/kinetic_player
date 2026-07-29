@@ -1,6 +1,6 @@
 # Example App
 
-The Example project lives in `kinetic_player/example/` and demonstrates how to integrate and use the dual-core player.
+The Example project lives in `kinetic_player/example/` and demonstrates multi-platform player integration.
 
 ## Run
 
@@ -13,9 +13,10 @@ bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
 flutter pub get
 flutter run          # iOS device / Android
 flutter run -d macos
+flutter run -d chrome   # Web (Artplayer)
 ```
 
-Android can run directly with `flutter run`. iOS / macOS details are in [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md).
+Android can run directly with `flutter run`. iOS / macOS details: [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md). Web: [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md).
 
 ## UI layout
 

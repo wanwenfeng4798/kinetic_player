@@ -2,7 +2,7 @@
 
 English version: [GSY_FEATURES_EN.md](GSY_FEATURES_EN.md)
 
-Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*`）。iOS / macOS 为 SGPlayer，不含下列 GSY 能力。
+Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*`）。iOS / macOS 见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)；Web 见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。本文仅覆盖 Android GSY 独有能力。
 
 ## 图例
 

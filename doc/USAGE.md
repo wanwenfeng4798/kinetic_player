@@ -130,70 +130,35 @@ flutter run -d macos
 
 ### Web（Artplayer.js）
 
-无需额外原生工程步骤。插件通过 `HtmlElementView` 挂载 Artplayer，公共 API 与双端一致。
+无需额外原生工程。通过 `HtmlElementView` 挂载 Artplayer，公共 API 与其它平台一致。
 
 ```bash
 flutter pub get
 flutter run -d chrome
 ```
 
-`creationParams` 可继续使用 `GsyUiConfig`（控制栏 / PiP / 封面等字段会被映射到 Artplayer）。Web 独有高级能力请用 `ArtplayerUiConfig`：
+Web 独有能力（`artPlugins`、HLS/DASH、Document PiP、弹幕 API、TS 打包等）见独立文档：
+
+- 中文：[WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)
+- English：[WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md)
+
+最小示例：
 
 ```dart
 CommonVideoPlayerViewBuilder(
-  url: videoUrl, // .m3u8 / .mpd 会自动挂 HLS/DASH customType
+  url: videoUrl,
   creationParams: ArtplayerUiConfig(
     ui: const GsyUiConfig(
       enableNativeControls: true,
-      showFullscreenButton: true,
       pictureInPictureEnabled: true,
-      coverUrl: 'https://example.com/cover.jpg',
     ),
-    // Artplayer 5.4 官方插件（不进入公共 API）
     artPlugins: {
-      ArtplayerPluginKeys.danmuku: {
-        'danmuku': [
-          {'text': 'hello', 'time': 1},
-        ],
-      },
       ArtplayerPluginKeys.hlsControl: true,
-      ArtplayerPluginKeys.vttThumbnail: {
-        'vtt': 'https://example.com/thumbs.vtt',
-      },
-      ArtplayerPluginKeys.documentPip: true,
-      // ArtplayerPluginKeys.danmukuMask: true, // CDN 懒加载 MediaPipe
-      // ArtplayerPluginKeys.ads: {'source': '...', 'type': 'video'},
-      // ArtplayerPluginKeys.vast: {'tagUrl': 'https://...'},
-    },
-    artplayerOptions: {
-      // 其它 Artplayer option（theme / layers 等）
     },
   ).toCreationParams(),
-  builder: (controller) {
-    // …
-  },
+  builder: (controller) { /* … */ },
 );
 ```
-
-内置 `artPlugins` 键：`danmuku`、`danmukuMask`、`hlsControl`、`dashControl`、`vttThumbnail`、`multipleSubtitles`、`chromecast`、`vast`、`chapter`、`autoThumbnail`、`ambilight`、`documentPip`、`audioTrack`、`jassub`、`asr`、`ads`（见 `ArtplayerPluginKeys`）。
-
-**Web 注意**：
-
-- Artplayer.js **5.4.0**；默认关闭 HTML5 `video.controls`；`enableNativeControls: true` 时使用 Artplayer 控制栏。
-- 移动 Web 已设置 `playsinline` / `webkit-playsinline` / `x5-video-player-type=h5`。
-- 自动播放失败时会静音重试（浏览器策略）；仍失败则进入 `error`。
-- PiP 依赖 `document.pictureInPictureEnabled`；用 `togglePip()`。Document PiP 需开启 `artPlugins.documentPip` 后调用 `artToggleDocumentPip()`。
-- `.m3u8` / `.mpd` 自动接入 `hls.js` / `dashjs`；配合 `hlsControl` / `dashControl` 使用。
-- `danmukuMask` 体积大，启用时从 jsDelivr CDN 懒加载。
-- 进度回调约 250ms 节流，与原生一致。
-
-若修改 `web/src` 下 TypeScript 桥接，需重新打包：
-
-```bash
-cd web && npm install && npm run build
-```
-
-产物写入 `assets/web/kinetic_artplayer.js`（已作为 plugin asset 声明）。
 
 ## 公共 API
 
@@ -380,35 +345,21 @@ if (controller is SGVideoControllerImpl) {
 
 ### Web — ArtplayerVideoControllerImpl
 
+完整插件表、HLS/DASH、Document PiP 与打包说明见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。
+
 ```dart
 if (controller is ArtplayerVideoControllerImpl) {
-  final supported = await controller.artIsPipSupported();
-  if (supported) {
-    await controller.togglePip();
-  }
+  await controller.togglePip();
   await controller.artEmitDanmuku({'text': 'hi', 'time': 1});
-  await controller.artToggleDocumentPip();
-  await controller.artCallPlugin('artplayerPluginDanmuku', 'hide');
-  await controller.artSetUiConfig(ArtplayerUiConfig(
-    ui: const GsyUiConfig(pictureInPictureEnabled: true),
-    artPlugins: {
-      ArtplayerPluginKeys.danmuku: true,
-      ArtplayerPluginKeys.hlsControl: true,
-    },
-  ));
-  controller.pipActive; // ValueNotifier<bool>
+  controller.pipActive;
 }
 ```
 
 | API | 说明 |
 |-----|------|
-| `togglePip()` | 进入 / 退出浏览器 Video PiP |
-| `artIsPipSupported()` | `document.pictureInPictureEnabled` |
-| `pipActive` | Video PiP 状态 |
-| `artToggleDocumentPip()` | Document PiP（需 `artPlugins.documentPip`） |
-| `artEmitDanmuku` / `artCallPlugin` | 弹幕发送 / 通用插件方法调用 |
-| `artAvailablePlugins()` | 本构建支持的插件键列表 |
-| `artSetUiConfig` | 运行时更新 UI（插件需在创建时通过 `artPlugins` 启用） |
+| `togglePip()` / `artToggleDocumentPip()` | Video / Document PiP |
+| `artEmitDanmuku` / `artCallPlugin` | 弹幕 / 插件方法 |
+| `artAvailablePlugins()` / `artSetUiConfig` | 插件键列表 / UI 更新 |
 
 ## 平台差异速查
 
@@ -446,4 +397,4 @@ controller.position.addListener(() {
 2. Android Activity 需转发 `onConfigurationChanged`、`onBackPressed`、`onUserLeaveHint`（见上文 Android 集成节）。
 3. iOS 需在真机测试 SGPlayer；macOS 需 11.0+，并开启出站网络 entitlement。
 4. 关闭画中画：`GsyUiConfig(pictureInPictureEnabled: false)`。
-5. Web 使用 Artplayer.js；修改 `web/src` 后执行 `npm run build` 更新 `assets/web/kinetic_artplayer.js`。自动播放受浏览器策略限制，失败时会尝试静音播放。
+5. Web 使用 Artplayer.js；独有能力见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。修改 `web/src` 后执行 `npm run build`。自动播放受浏览器策略限制。

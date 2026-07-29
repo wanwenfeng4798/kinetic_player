@@ -1,27 +1,25 @@
 # Usage Guide
 
+Chinese version: [USAGE.md](USAGE.md)
+
 ## Architecture Overview
 
 ```
 Dart layer
   CommonVideoController          ← Public API
-  CommonVideoPlayerView          ← Native platform view
-  CommonVideoPlayerFactory       ← Auto selection: Android→GSY / iOS·macOS→SG
+  CommonVideoPlayerView          ← Platform view
+  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer
        │
-       ├── GSYVideoControllerImpl   (Android-only)
-       └── SGVideoControllerImpl    (iOS / macOS-only)
+       ├── GSYVideoControllerImpl        (Android-only)
+       ├── SGVideoControllerImpl         (iOS / macOS-only)
+       └── ArtplayerVideoControllerImpl  (Web-only)
 ```
 
-Channel names:
+Channel / view names:
 
-- Android GSY: `com.example.player/gsy_<viewId>`
-- iOS / macOS SG: `com.example.player/sg_<viewId>`
-
-PlatformView types:
-
-- Android: `com.example.player/gsy_view_ui` (`AndroidView`)
-- iOS: `com.example.player/sg_view_ui` (`UiKitView`)
-- macOS: `com.example.player/sg_view_ui` (`AppKitView`)
+- Android GSY: `com.example.player/gsy_<viewId>` / `gsy_view_ui` (`AndroidView`)
+- iOS / macOS SG: `com.example.player/sg_<viewId>` / `sg_view_ui` (`UiKitView` / `AppKitView`)
+- Web Artplayer: in-process `ArtplayerViewRegistry` / `art_view_ui` (`HtmlElementView`)
 
 ## Integration
 
@@ -122,6 +120,36 @@ flutter run -d macos
 > Host App must add the Pre-action; see [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md).
 > macOS Example needs App Sandbox outbound network entitlement `com.apple.security.network.client`.
 > There is no system PiP on iOS / macOS; they share the native bottom bar and SG APIs.
+
+### Web (Artplayer.js)
+
+No native project steps:
+
+```bash
+flutter pub get
+flutter run -d chrome
+```
+
+Web-only features (plugins, HLS/DASH, Document PiP, rebuild) are in a dedicated doc — same role as GSY / Darwin docs:
+
+- English: [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md)
+- Chinese: [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)
+
+```dart
+CommonVideoPlayerViewBuilder(
+  url: videoUrl,
+  creationParams: ArtplayerUiConfig(
+    ui: const GsyUiConfig(
+      enableNativeControls: true,
+      pictureInPictureEnabled: true,
+    ),
+    artPlugins: {
+      ArtplayerPluginKeys.hlsControl: true,
+    },
+  ).toCreationParams(),
+  builder: (controller) { /* … */ },
+);
+```
 
 ## Public API
 
@@ -306,24 +334,41 @@ if (controller is SGVideoControllerImpl) {
 
 `creationParams` / `gsyUi` fields: `enableNativeControls`, `showVolumeToolbar`, `showSettingsButton`, `showFullscreenButton`, `dismissControlTime`, `pictureInPictureEnabled` (read on Apple side but not effective), `coverUrl`, `keepLastFrameWhenComplete`.
 
+### Web — ArtplayerVideoControllerImpl
+
+Full plugin matrix, HLS/DASH, Document PiP, and rebuild steps: [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md).
+
+```dart
+if (controller is ArtplayerVideoControllerImpl) {
+  await controller.togglePip();
+  await controller.artEmitDanmuku({'text': 'hi', 'time': 1});
+  controller.pipActive;
+}
+```
+
+| API | Description |
+|-----|-------------|
+| `togglePip()` / `artToggleDocumentPip()` | Video / Document PiP |
+| `artEmitDanmuku` / `artCallPlugin` | Danmaku / plugin methods |
+| `artAvailablePlugins()` / `artSetUiConfig` | Plugin keys / UI update |
+
 ## Platform differences quick check
 
-| Capability | Android (GSY) | iOS / macOS (SGPlayer) |
-|---|---|---|
-| Loop | native `isLooping` | seek(0)+play after completion |
-| Screenshot overlay | `captureFrame(includeOverlay: true)` includes UI | `includeOverlay` is ineffective |
-| Switch source | rebuild player | `replaceWithURL` / `sgReplaceWithSegments` |
-| Fullscreen | `gsyStartFullscreen()` | `sgStartFullscreen()` |
-| PiP | enabled by default (manifest + `onUserLeaveHint`; backgrounding enters PiP) | not supported |
-| Audio tracks UI | gear settings panel | gear settings panel |
-| Volume UI | vertical volume popup; show percent; disable GSY left-edge volume gesture when popup is enabled | vertical volume popup |
-| Gesture controls | `enableNativeControls`: horizontal seek, left brightness, right volume | same |
-| Render rotation / mirror | `gsySetRenderRotation` / MirrorH/V | `sgSetRenderRotation` / MirrorH/V |
-| Cover | `gsySetCoverUrl` | `sgSetCoverUrl` |
-| Keep last frame | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` |
-| Buffered / error details | — | `buffered` / `playerError` |
-| Pitch / VRBox / multi-segment / demuxer | — | see above |
-| Deployment notes | — | iOS: device testing; macOS 11+; sandbox needs `network.client` |
+| Capability | Android (GSY) | iOS / macOS (SGPlayer) | Web (Artplayer) |
+|---|---|---|---|
+| Loop | native `isLooping` | seek(0)+play after completion | Artplayer `loop` / replay on ended |
+| Screenshot overlay | `captureFrame(includeOverlay: true)` includes UI | `includeOverlay` ineffective | canvas frame (CORS may fail) |
+| Switch source | rebuild player | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
+| Fullscreen | `gsyStartFullscreen()` | `sgStartFullscreen()` | Artplayer fullscreen control |
+| PiP | enabled by default (manifest + `onUserLeaveHint`) | not supported | `togglePip()` / Document PiP |
+| Audio tracks UI | gear settings panel | gear settings panel | browser `AudioTrack` when available |
+| Volume UI | vertical volume popup | vertical volume popup | Artplayer volume control |
+| Gesture controls | `enableNativeControls` | same | Artplayer gesture (optional) |
+| Render rotation / mirror | `gsySetRenderRotation` / MirrorH/V | `sgSetRenderRotation` / MirrorH/V | via `artplayerOptions` |
+| Cover | `gsySetCoverUrl` | `sgSetCoverUrl` | `poster` / `coverUrl` |
+| Keep last frame | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` | browser default |
+| Buffered / error details | — | `buffered` / `playerError` | `error` state |
+| Deployment notes | — | iOS device; macOS 11+; sandbox `network.client` | Chrome / Safari / mobile Web; autoplay policy |
 
 ## Listeners
 
@@ -343,4 +388,5 @@ controller.position.addListener(() {
 2. Android Activity should forward `onConfigurationChanged`, `onBackPressed`, `onUserLeaveHint` (see the Android integration section).
 3. iOS needs device testing for SGPlayer features; macOS requires 11.0+ and outbound network entitlement.
 4. Disable PiP: `GsyUiConfig(pictureInPictureEnabled: false)`.
+5. Web uses Artplayer.js; platform-only details live in [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md). Rebuild with `npm run build` after editing `web/src`.
 

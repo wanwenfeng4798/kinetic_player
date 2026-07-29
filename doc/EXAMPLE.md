@@ -2,7 +2,7 @@
 
 English version: [EXAMPLE_EN.md](EXAMPLE_EN.md)
 
-Example 项目位于 `kinetic_player/example/`，演示双核播放器的集成与主要能力。
+Example 项目位于 `kinetic_player/example/`，演示多平台播放器的集成与主要能力。
 
 ## 运行
 
@@ -15,9 +15,10 @@ bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
 flutter pub get
 flutter run          # iOS 真机 / Android
 flutter run -d macos
+flutter run -d chrome   # Web（Artplayer）
 ```
 
-Android 可直接 `flutter run`。iOS / macOS 细节见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)。
+Android 可直接 `flutter run`。iOS / macOS 细节见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)。Web 见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。
 
 ## 界面结构
 

@@ -6,17 +6,18 @@
 
 English version: [README_EN.md](README_EN.md)
 
-最强大的移动端 Android / iOS / macOS Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master）。
+最强大的跨平台 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master），**Web** 使用 [Artplayer.js 5.4.0](https://artplayer.org)。
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
 ## 特性
 
 - 统一的 `CommonVideoController` API（播放 / 暂停 / 跳转 / 缩放 / 倍速 / 音量 / 音轨 / 循环 / 截图等）
-- 平台自动选型：Android → GSY，iOS / macOS → SGPlayer
+- 平台自动选型：Android → GSY，iOS / macOS → SGPlayer，Web → Artplayer
 - B 站风格原生控制栏：竖向音量弹窗（拖动显示百分比）、设置面板选音轨、统一进度条与底栏图标尺寸
 - iOS / macOS 支持滑动手势调进度 / 音量 / 亮度（与 Android 共用 `enableNativeControls`）
 - Android 画中画（PiP）**默认开启**（API 26+；播放中切后台自动进入，含 GSY 自动播放场景）
+- Web：Video / Document PiP、HLS/DASH、官方 Artplayer 插件（弹幕 / 字幕 / Chromecast 等）
 - 独有功能通过显式向下转型调用（不污染公共接口）
 - iOS / macOS 支持 **CocoaPods** 与 **Swift Package Manager (SPM)**；脚本与产物统一在 `darwin/`
 - 预编译 `SGPlayer.xcframework` 可通过 **GitHub Release** 下载，避免本地编译
@@ -27,8 +28,9 @@ English version: [README_EN.md](README_EN.md)
 |------|------|
 | [doc/USAGE.md](doc/USAGE.md) | 集成步骤、公共 API、原生 UI、平台差异、PiP 配置 |
 | [doc/GSY_FEATURES.md](doc/GSY_FEATURES.md) | Android GSY 高级能力对照表 |
-| [doc/EXAMPLE.md](doc/EXAMPLE.md) | Example 应用说明 |
 | [doc/DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md) | iOS / macOS SGPlayer：二进制、脚本、SPM、Release |
+| [doc/WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md) | Web Artplayer：插件、HLS/DASH、Web 独有 API、打包 |
+| [doc/EXAMPLE.md](doc/EXAMPLE.md) | Example 应用说明 |
 
 ## 快速开始
 
@@ -101,11 +103,12 @@ CommonVideoPlayerViewBuilder(
 
 ## 平台支持
 
-| 平台 | 内核 | 真机 | 模拟器 | 画中画 |
-|------|------|------|--------|--------|
+| 平台 | 内核 | 真机 / 桌面 | 模拟器 / 浏览器 | 画中画 |
+|------|------|-------------|-----------------|--------|
 | Android | GSYVideoPlayer 13.1.0 | ✅ | ✅ | ✅ 默认开启 |
 | iOS | SGPlayer master | ✅ | ❌（FFmpeg 预编译仅 arm64 真机） | ❌ |
 | macOS | SGPlayer master | ✅ | ✅（`macosx` xcframework） | ❌ |
+| Web | Artplayer.js 5.4.0 | — | ✅ Chrome / Safari / 移动 Web | ✅ Video PiP；Document PiP 可选 |
 
 ## 许可证
 

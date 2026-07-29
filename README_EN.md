@@ -1,19 +1,21 @@
 # kinetic_player
 
-The strongest cross-platform Flutter video player plugin for **Android / iOS / macOS**.
+The strongest cross-platform Flutter video player plugin for **Android / iOS / macOS / Web**.
 
 - **Android**: [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)
 - **iOS / macOS**: [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) (**master**)
+- **Web**: [Artplayer.js 5.4.0](https://artplayer.org)
 
 Repo: [github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
 ## Features
 
 - Unified `CommonVideoController` API (play / pause / seek / scale / rate / volume / tracks / loop / screenshot / etc.)
-- Platform auto-selection: Android → GSY, iOS / macOS → SGPlayer
+- Platform auto-selection: Android → GSY, iOS / macOS → SGPlayer, Web → Artplayer
 - Bilibili-style native control bar (vertical volume popup with percentage while dragging, settings panel for audio tracks, consistent progress bar + bottom bar icon sizing)
 - iOS / macOS native gesture controls (seek / brightness / volume) with the shared `enableNativeControls` flag
 - Android Picture-in-Picture (PiP) **enabled by default** (API 26+)
+- Web: Video / Document PiP, HLS/DASH, official Artplayer plugins (danmaku / subtitles / Chromecast / …)
 - Private platform-only APIs via explicit downcasting (does not pollute the public interface)
 - iOS / macOS integrate via both **CocoaPods** and **Swift Package Manager (SPM)**, with scripts and artifacts unified under `darwin/`
 - Prebuilt `SGPlayer.xcframework` download via **GitHub Release** (avoid local building)
@@ -24,8 +26,9 @@ Repo: [github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng47
 |---|---|
 | [doc/USAGE_EN.md](doc/USAGE_EN.md) | Integration steps, public API, native UI, platform differences |
 | [doc/GSY_FEATURES_EN.md](doc/GSY_FEATURES_EN.md) | Android GSY advanced capability matrix |
-| [doc/EXAMPLE_EN.md](doc/EXAMPLE_EN.md) | Example app notes |
 | [doc/DARWIN_SGPLAYER_EN.md](doc/DARWIN_SGPLAYER_EN.md) | iOS / macOS SGPlayer binaries, scripts, SPM, Release |
+| [doc/WEB_ARTPLAYER_EN.md](doc/WEB_ARTPLAYER_EN.md) | Web Artplayer plugins, HLS/DASH, Web-only APIs, rebuild |
+| [doc/EXAMPLE_EN.md](doc/EXAMPLE_EN.md) | Example app notes |
 
 ## Quick Start
 
@@ -98,11 +101,12 @@ To avoid duplicated maintenance, HDR test streams are maintained in dedicated do
 
 ## Platform support
 
-| Platform | Core | Real device | Simulator | PiP |
+| Platform | Core | Device / desktop | Simulator / browser | PiP |
 |---|---|---|---|---|
 | Android | GSYVideoPlayer 13.1.0 | ✅ | ✅ | ✅ (enabled by default) |
 | iOS | SGPlayer master | ✅ | ❌ (prebuilt FFmpeg is arm64 only) | ❌ |
 | macOS | SGPlayer master | ✅ | ✅ (macosx xcframework) | ❌ |
+| Web | Artplayer.js 5.4.0 | — | ✅ Chrome / Safari / mobile Web | ✅ Video PiP; Document PiP optional |
 
 ## License
 

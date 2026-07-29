@@ -1,6 +1,6 @@
 # Android GSY Advanced Capability Matrix
 
-Android side is based on **GSYVideoPlayer 13.1.0** (`io.github.carguo:gsyvideoplayer-*`). iOS / macOS are SGPlayer-based and do not include the following GSY capabilities.
+Android side is based on **GSYVideoPlayer 13.1.0** (`io.github.carguo:gsyvideoplayer-*`). For iOS / macOS see [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md); for Web see [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md). This document covers Android GSY-only capabilities.
 
 ## Legend
 
