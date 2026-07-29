@@ -8,22 +8,25 @@ English version: [USAGE_EN.md](USAGE_EN.md)
 Dart 层
   CommonVideoController          ← 纯公共 API
   CommonVideoPlayerView          ← 平台原生视图
-  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG 自动选型
+  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer
        │
-       ├── GSYVideoControllerImpl   (Android 独有 API)
-       └── SGVideoControllerImpl    (iOS / macOS 独有 API)
+       ├── GSYVideoControllerImpl        (Android 独有 API)
+       ├── SGVideoControllerImpl         (iOS / macOS 独有 API)
+       └── ArtplayerVideoControllerImpl  (Web 独有 API)
 ```
 
 Channel 命名：
 
 - Android GSY：`com.example.player/gsy_<viewId>`
 - iOS / macOS SG：`com.example.player/sg_<viewId>`
+- Web Artplayer：进程内 Dart 注册表（`ArtplayerViewRegistry`，无跨端 MethodChannel）
 
 PlatformView 类型：
 
 - Android：`com.example.player/gsy_view_ui`（`AndroidView`）
 - iOS：`com.example.player/sg_view_ui`（`UiKitView`）
 - macOS：`com.example.player/sg_view_ui`（`AppKitView`）
+- Web：`com.example.player/art_view_ui`（`HtmlElementView` + Artplayer.js）
 
 ## 集成
 
@@ -125,6 +128,54 @@ flutter run -d macos
 > macOS Example 需 `com.apple.security.network.client` 出站网络权限。  
 > iOS / macOS 均无系统 PiP；原生底栏与 SG API 共用。
 
+### Web（Artplayer.js）
+
+无需额外原生工程步骤。插件通过 `HtmlElementView` 挂载 Artplayer，公共 API 与双端一致。
+
+```bash
+flutter pub get
+flutter run -d chrome
+```
+
+`creationParams` 可继续使用 `GsyUiConfig`（控制栏 / PiP / 封面等字段会被映射到 Artplayer）。Web 独有高级能力请用 `ArtplayerUiConfig`：
+
+```dart
+CommonVideoPlayerViewBuilder(
+  url: videoUrl,
+  creationParams: ArtplayerUiConfig(
+    ui: const GsyUiConfig(
+      enableNativeControls: true,
+      showFullscreenButton: true,
+      pictureInPictureEnabled: true,
+      coverUrl: 'https://example.com/cover.jpg',
+    ),
+    // Artplayer-only：插件 / 弹幕 / 自定义 layers，不进入公共 API
+    artplayerOptions: {
+      // e.g. plugins: [...],
+    },
+  ).toCreationParams(),
+  builder: (controller) {
+    // …
+  },
+);
+```
+
+**Web 注意**：
+
+- 默认关闭 HTML5 `video.controls`；`enableNativeControls: true` 时使用 Artplayer 控制栏。
+- 移动 Web 已设置 `playsinline` / `webkit-playsinline` / `x5-video-player-type=h5`。
+- 自动播放失败时会静音重试（浏览器策略）；仍失败则进入 `error`。
+- PiP 依赖 `document.pictureInPictureEnabled`；用 `togglePip()`（需转型 `ArtplayerVideoControllerImpl`）。
+- 进度回调约 250ms 节流，与原生一致。
+
+若修改 `web/src` 下 TypeScript 桥接，需重新打包：
+
+```bash
+cd web && npm install && npm run build
+```
+
+产物写入 `assets/web/kinetic_artplayer.js`（已作为 plugin asset 声明）。
+
 ## 公共 API
 
 `CommonVideoController` 提供：
@@ -204,7 +255,7 @@ Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制�
 | **手势** | ✅ | ✅ | `enableNativeControls`：横向调进度；左半屏纵向调亮度；右半屏纵向调音量 |
 | **音轨** | ✅ | ✅ | 点击**齿轮（设置）**弹出面板选择；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
 | 全屏 | ✅ | ✅ | 全屏按钮（与设置/音量图标同尺寸 28dp）/ `gsyStartFullscreen()` / `sgStartFullscreen()` |
-| 画中画 PiP | ✅ 默认开启 | ❌ 不支持 | `pictureInPictureEnabled`（仅 Android） |
+| 画中画 PiP | ✅ 默认开启 | ❌ 不支持 | `pictureInPictureEnabled`（Android）/ Web 见下 |
 
 > **音量（Android）**：开启 `showVolumeToolbar` 后，画面右侧滑动调节的是**播放器音量**（与喇叭弹窗同源），不再用系统音量条。音量弹窗打开或正在拖动滑轨时，右侧滑动调音量会被暂时禁用，避免与竖向滑轨冲突。
 
@@ -308,24 +359,46 @@ if (controller is SGVideoControllerImpl) {
 
 `creationParams` / `gsyUi` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（Apple 端读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`。
 
+### Web — ArtplayerVideoControllerImpl
+
+```dart
+if (controller is ArtplayerVideoControllerImpl) {
+  final supported = await controller.artIsPipSupported();
+  if (supported) {
+    await controller.togglePip();
+  }
+  await controller.artSetUiConfig(ArtplayerUiConfig(
+    ui: const GsyUiConfig(pictureInPictureEnabled: true),
+    artplayerOptions: const {/* Artplayer-only */},
+  ));
+  controller.pipActive; // ValueNotifier<bool>
+}
+```
+
+| API | 说明 |
+|-----|------|
+| `togglePip()` | 进入 / 退出浏览器 PiP（不支持则抛错） |
+| `artIsPipSupported()` | `document.pictureInPictureEnabled` |
+| `pipActive` | PiP 状态 |
+| `artSetUiConfig` | 运行时更新 UI / 透传 `artplayerOptions` |
+
 ## 平台差异速查
 
-| 能力 | Android (GSY) | iOS / macOS (SGPlayer) |
-|------|---------------|------------------------|
-| 循环 | 原生 `isLooping` | 结束时 `seek(0)+play` |
-| 截图 overlay | `captureFrame(includeOverlay: true)` 含 UI | `includeOverlay` 无效 |
-| 换源 | 重建播放器 | `replaceWithURL` / `sgReplaceWithSegments` |
-| 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()` |
-| 画中画 | 默认开启，需 Manifest + `onUserLeaveHint`；播放中（含自动播放）切后台进入 | 不支持 |
-| 音轨 UI | 齿轮设置面板 | 齿轮设置面板 |
-| 音量 UI | 喇叭竖向弹窗；拖动显示百分比；禁用 GSY 左侧音量手势 | 喇叭竖向弹窗 |
-| 手势调节 | `enableNativeControls`：横向进度、左亮度、右音量 | 同左（底栏显隐一并受控） |
-| 画面旋转 / 镜像 | `gsySetRenderRotation` / MirrorH/V | `sgSetRenderRotation` / MirrorH/V |
-| 封面 | `gsySetCoverUrl` | `sgSetCoverUrl` |
-| 保留最后一帧 | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` |
-| 缓冲 / 错误详情 | — | `buffered` / `playerError` |
-| 音高 / VRBox / 多段 / demuxer | — | 见上表 |
-| 部署注意 | — | iOS：真机；macOS 11+；沙盒需 `network.client` |
+| 能力 | Android (GSY) | iOS / macOS (SGPlayer) | Web (Artplayer) |
+|------|---------------|------------------------|-----------------|
+| 循环 | 原生 `isLooping` | 结束时 `seek(0)+play` | Artplayer `loop` / 结束重播 |
+| 截图 overlay | `captureFrame(includeOverlay: true)` 含 UI | `includeOverlay` 无效 | 当前帧 canvas（跨域可能失败） |
+| 换源 | 重建播放器 | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
+| 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()` | Artplayer `fullscreen` 控件 |
+| 画中画 | 默认开启，需 Manifest + `onUserLeaveHint` | 不支持 | `togglePip()` / 浏览器 PiP |
+| 音轨 UI | 齿轮设置面板 | 齿轮设置面板 | `AudioTrack` API（浏览器支持时） |
+| 音量 UI | 喇叭竖向弹窗 | 喇叭竖向弹窗 | Artplayer 音量控件 |
+| 手势调节 | `enableNativeControls` | 同左 | Artplayer gesture（可关） |
+| 画面旋转 / 镜像 | `gsySetRenderRotation` / MirrorH/V | `sgSetRenderRotation` / MirrorH/V | 经 `artplayerOptions` 扩展 |
+| 封面 | `gsySetCoverUrl` | `sgSetCoverUrl` | `poster` / `coverUrl` |
+| 保留最后一帧 | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` | 浏览器默认行为 |
+| 缓冲 / 错误详情 | — | `buffered` / `playerError` | `error` 状态 |
+| 部署注意 | — | iOS：真机；macOS 11+；沙盒需 `network.client` | Chrome / Safari / 移动 Web；注意自动播放策略 |
 
 ## 监听状态
 
@@ -345,3 +418,4 @@ controller.position.addListener(() {
 2. Android Activity 需转发 `onConfigurationChanged`、`onBackPressed`、`onUserLeaveHint`（见上文 Android 集成节）。
 3. iOS 需在真机测试 SGPlayer；macOS 需 11.0+，并开启出站网络 entitlement。
 4. 关闭画中画：`GsyUiConfig(pictureInPictureEnabled: false)`。
+5. Web 使用 Artplayer.js；修改 `web/src` 后执行 `npm run build` 更新 `assets/web/kinetic_artplayer.js`。自动播放受浏览器策略限制，失败时会尝试静音播放。

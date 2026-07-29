@@ -28,13 +28,23 @@ void assertIosPlatform(String feature) {
   }
 }
 
+/// Throws when the current platform is not Flutter Web.
+void assertWebPlatform(String feature) {
+  if (!kIsWeb) {
+    throw UnsupportedError(
+      '$feature is only supported on Flutter Web (Artplayer).',
+    );
+  }
+}
+
 /// Throws when the current platform is not a supported player platform.
 void assertSupportedPlayerPlatform() {
+  if (kIsWeb) return;
   if (defaultTargetPlatform != TargetPlatform.android &&
       defaultTargetPlatform != TargetPlatform.iOS &&
       defaultTargetPlatform != TargetPlatform.macOS) {
     throw UnsupportedError(
-      'This video player plugin supports Android (GSY), iOS and macOS (SGPlayer).',
+      'This video player plugin supports Android (GSY), iOS/macOS (SGPlayer), and Web (Artplayer).',
     );
   }
 }

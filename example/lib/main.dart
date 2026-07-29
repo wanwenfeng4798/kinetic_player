@@ -1,9 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:kinetic_player/kinetic_player.dart';
 import 'package:path_provider/path_provider.dart';
+
+import 'io_shim.dart' if (dart.library.html) 'io_shim_web.dart';
 
 void main() {
   runApp(const KineticPlayerExampleApp());

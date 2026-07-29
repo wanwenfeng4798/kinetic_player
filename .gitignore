@@ -32,3 +32,6 @@ migrate_working_dir/
 /build/
 /coverage/
 /kinetic_player/
+# Web / Artplayer npm
+web/node_modules/
+web/dist/

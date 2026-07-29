@@ -62,6 +62,14 @@ void main() {
       );
     });
 
+    test('ArtplayerVideoControllerImpl throws on non-web', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      expect(
+        () => ArtplayerVideoControllerImpl(9),
+        throwsUnsupportedError,
+      );
+    });
+
     test('viewTypeForCurrentPlatform routes correctly', () {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       expect(

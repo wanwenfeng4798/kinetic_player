@@ -1,5 +1,5 @@
 name: kinetic_player
-description: "Dual-core Flutter video player: GSYVideoPlayer 13.1.0 (Android) + SGPlayer (iOS/macOS). Prebuilt SGPlayer via GitHub Release."
+description: "Multi-core Flutter video player: GSYVideoPlayer 13.1.0 (Android) + SGPlayer (iOS/macOS) + Artplayer.js (Web)."
 version: 1.0.0
 homepage: https://github.com/wanwenfeng4798/kinetic_player
 license: MIT
@@ -11,6 +11,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -35,17 +38,12 @@ flutter:
         pluginClass: KineticPlayerPlugin
       macos:
         pluginClass: KineticPlayerPlugin
+      web:
+        pluginClass: KineticPlayerPlugin
+        fileName: kinetic_player_web.dart
 
-  # To add assets to your plugin package, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
-  #
-  # For details regarding assets in packages, see
-  # https://flutter.dev/to/asset-from-package
-  #
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/resolution-aware-images
+  assets:
+    - assets/web/kinetic_artplayer.js
 
   # To add custom fonts to your plugin package, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

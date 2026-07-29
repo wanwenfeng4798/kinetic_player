@@ -14,3 +14,7 @@ export 'src/gsy/gsy_video_features.dart';
 export 'src/gsy/gsy_video_controller_impl.dart';
 export 'src/sg/sg_video_controller_impl.dart';
 export 'src/sg/sg_video_features.dart';
+export 'src/web/artplayer_constants.dart';
+export 'src/web/artplayer_features.dart';
+export 'src/web/artplayer_ui_config.dart';
+export 'src/web/artplayer_video_controller.dart';

@@ -8,7 +8,7 @@ import 'common_video_player_factory.dart';
 import 'platform_guard.dart';
 import 'player_view_types.dart';
 
-/// Unified player surface: Android → GSY, iOS/macOS → SGPlayer.
+/// Unified player surface: Android → GSY, iOS/macOS → SGPlayer, Web → Artplayer.
 class CommonVideoPlayerView extends StatefulWidget {
   const CommonVideoPlayerView({
     super.key,
@@ -44,6 +44,14 @@ class _CommonVideoPlayerViewState extends State<CommonVideoPlayerView> {
             Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
           }
         : widget.gestureRecognizers;
+
+    if (kIsWeb) {
+      return HtmlElementView(
+        viewType: PlayerViewTypes.art,
+        creationParams: creationParams,
+        onPlatformViewCreated: widget.onPlatformViewCreated,
+      );
+    }
 
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return UiKitView(
