@@ -6,9 +6,6 @@
 
 ```bash
 # 从 example 目录
-bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
-bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
-
 flutter pub get
 flutter run -d macos   # 或真机 iOS / Android
 ```

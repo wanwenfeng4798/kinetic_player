@@ -26,7 +26,7 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   config:
-    # SGPlayer: SPM remote binaryTarget (Package.swift) + spm_prebuild_hook / CocoaPods prepare_command.
+    # SGPlayer: sharedDarwinSource + SPM remote binaryTarget; CocoaPods prepare_command → ensure.
     enable-swift-package-manager: true
 
   plugin:
@@ -36,8 +36,10 @@ flutter:
         pluginClass: KineticPlayerPlugin
       ios:
         pluginClass: KineticPlayerPlugin
+        sharedDarwinSource: true
       macos:
         pluginClass: KineticPlayerPlugin
+        sharedDarwinSource: true
       web:
         pluginClass: KineticPlayerPlugin
         fileName: kinetic_player_web.dart

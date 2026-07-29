@@ -6,7 +6,7 @@
 #   bash darwin/scripts/sgplayer/build_sgplayer.sh ios|macos
 #   bash darwin/scripts/sgplayer/build_sgplayer.sh ios clean   # removes darwin/third_party + ios slice
 #
-# Thin wrappers: ios/scripts/build_sgplayer.sh, macos/scripts/build_sgplayer.sh
+# Thin wrappers were removed; call darwin/scripts/sgplayer/*.sh directly.
 
 set -euo pipefail
 

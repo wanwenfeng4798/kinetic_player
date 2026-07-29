@@ -1,7 +1,0 @@
-.idea/
-.DS_Store
-DerivedData/
-build/
-Frameworks/
-Frameworks/*.zip
-Frameworks/*.zip.sha256

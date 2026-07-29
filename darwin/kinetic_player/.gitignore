@@ -1,0 +1,3 @@
+# Local xcframework copy used only for offline / CocoaPods helper.
+# SPM consumers use Package.swift remote binaryTarget; do not commit this tree.
+SGPlayer.xcframework

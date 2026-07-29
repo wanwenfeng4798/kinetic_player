@@ -19,7 +19,7 @@ English version: [README_EN.md](README_EN.md)
 - Android 画中画（PiP）**默认开启**（API 26+；播放中切后台自动进入，含 GSY 自动播放场景）
 - Web：Video / Document PiP、HLS/DASH、官方 Artplayer 插件（弹幕 / 字幕 / Chromecast 等）
 - 独有功能通过显式向下转型调用（不污染公共接口）
-- iOS / macOS 支持 **CocoaPods** 与 **Swift Package Manager (SPM)**；脚本与产物统一在 `darwin/`
+- iOS / macOS 经 **sharedDarwinSource**（`darwin/`）同时支持 **CocoaPods** 与 **Swift Package Manager (SPM)**
 - 预编译 `SGPlayer.xcframework` 可通过 **GitHub Release** 下载，避免本地编译
 
 ## 文档
@@ -52,27 +52,15 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-### 3. 准备 SGPlayer 二进制（iOS / macOS）
+### 3. iOS / macOS（通常无需额外步骤）
 
 详见 [doc/DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md)。
 
-**SPM（推荐）：** `Package.swift` 远程 `binaryTarget` 由 Xcode 解析时下载；Example Scheme Pre-action 再跑钩子（同步 checksum + ensure 本地产物）。
+**SPM（推荐）：** 插件已随包发布 `Package.swift` + 源码；Xcode 解析时按远程 `binaryTarget` 自动下载 `SGPlayer.xcframework`。宿主 **无需** Scheme Pre-action / 额外脚本。macOS 请将 `MACOSX_DEPLOYMENT_TARGET` 设为 **11.0+**。
 
-**手动 / CI：**
+**CocoaPods：** `pod install` 经 `prepare_command` 调用 `ensure_sgplayer.sh`（下载预编译；失败再本地编译）。
 
-```bash
-bash kinetic_player/darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
-bash kinetic_player/darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
-```
-
-**或** CocoaPods：`pod install` 经 `prepare_command` 调用 `ensure_sgplayer.sh`。
-
-**备选：** 本地源码编译（约 30–60 分钟，仅首次）
-
-```bash
-bash kinetic_player/darwin/scripts/sgplayer/build_sgplayer.sh ios
-bash kinetic_player/darwin/scripts/sgplayer/build_sgplayer.sh macos
-```
+维护者更新 Release / manifest 后重生成 `Package.swift`，或强制本地编译，见 Darwin 文档。
 
 ### 4. 最小示例
 

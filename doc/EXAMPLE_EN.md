@@ -7,9 +7,6 @@ The Example project lives in `kinetic_player/example/` and demonstrates multi-pl
 ```bash
 cd kinetic_player/example
 
-bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
-bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
-
 flutter pub get
 flutter run          # iOS device / Android
 flutter run -d macos
@@ -156,7 +153,7 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-iOS / macOS Scheme Pre-actions are already calling `example/{ios,macos}/scripts/run_kinetic_sgplayer_prebuild.sh` (sync remote binaryTarget + ensure local xcframework). See [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md).
+iOS / macOS use the published `Package.swift` remote `binaryTarget` (Xcode downloads SGPlayer); no Scheme Pre-action. The macOS Example sets `MACOSX_DEPLOYMENT_TARGET = 11.0`. See [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md).
 
 Use a local path dependency:
 

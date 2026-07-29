@@ -2,12 +2,13 @@
 
 English version: [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md)
 
-kinetic_player 在 **iOS** 与 **macOS** 上共用同一套 SGPlayer 集成方案：
+kinetic_player 在 **iOS** 与 **macOS** 上共用同一套 SGPlayer 集成方案（`sharedDarwinSource`）：
 
-- 源码：`darwin/SgNativePlayerBridge`、`darwin/kinetic_player/Sources/SgPlayerKit`
+- 源码：`darwin/kinetic_player/Sources/`（`SgPlayerKit`、`SgNativePlayerBridge`、`kinetic_player`）
 - 脚本：`darwin/scripts/sgplayer/`（统一入口，参数 `ios` | `macos`）
 - 产物：`darwin/Frameworks/{ios,macos}/SGPlayer.xcframework`
 - Manifest：`darwin/sgplayer/manifest.{ios,macos}.json`
+- 配置：`darwin/kinetic_player/Package.swift`、`darwin/kinetic_player.podspec`
 
 内核：[wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master）。
 
@@ -32,6 +33,13 @@ kinetic_player 在 **iOS** 与 **macOS** 上共用同一套 SGPlayer 集成方�
 
 ```
 darwin/
+  kinetic_player.podspec     ← 唯一 CocoaPods（ios + osx）
+  kinetic_player/
+    Package.swift            ← 唯一 SPM（双平台 + 条件 binaryTarget）
+    Sources/
+      kinetic_player/        ← KineticPlayerPlugin + PrivacyInfo
+      SgPlayerKit/           ← Swift UI / 播放逻辑
+      SgNativePlayerBridge/  ← ObjC 桥
   scripts/sgplayer/          ← 统一 bash（build / download / ensure / generate / package / prebuild）
   sgplayer/
     manifest.ios.json
@@ -40,19 +48,15 @@ darwin/
     ios/SGPlayer.xcframework
     macos/SGPlayer.xcframework
   third_party/SGPlayer/      ← 本地编译时的源码克隆（gitignore）
-  SgNativePlayerBridge/      ← ObjC 桥（UIKit / AppKit）
-  kinetic_player/Sources/SgPlayerKit/   ← 共享 Swift UI / 播放逻辑
-
-ios/kinetic_player/          ← Package.swift + KineticPlayerPlugin（+ PrivacyInfo）
-macos/kinetic_player/        ← Package.swift + KineticPlayerPlugin
-ios/kinetic_player.podspec   ← CocoaPods（prepare → ensure ios）
-macos/kinetic_player.podspec ← CocoaPods（prepare → ensure macos）
 ```
 
-统一调用：
+`pubspec.yaml` 中 iOS / macOS 均设置 `sharedDarwinSource: true`，无单独的 `ios/`、`macos/` 插件目录。
+
+统一调用（维护者）：
 
 ```bash
 bash darwin/scripts/sgplayer/<script>.sh ios|macos
+# Package.swift 由 generate_package_swift.sh 一次生成（读两份 manifest）
 ```
 
 ## 能否把 xcframework 提交进 Git？
@@ -69,32 +73,28 @@ bash darwin/scripts/sgplayer/<script>.sh ios|macos
 
 两端流程相同，只改平台参数 `ios` 或 `macos`。
 
-### 方式 A — SPM + 构建前钩子（推荐）
+### 方式 A — SPM（推荐，pub.dev 开箱即用）
 
-1. 应用与插件 `pubspec.yaml`：
+1. 应用 `pubspec.yaml`：
 
 ```yaml
+dependencies:
+  kinetic_player: ^2.0.0   # 或 path / git
+
 flutter:
   config:
     enable-swift-package-manager: true
 ```
 
-2. 宿主 App 的 Xcode Scheme → **Build → Pre-actions**（放在 Flutter `prepare` **之前**）：
+2. `flutter pub get` 后直接 `flutter run`。  
+   - 插件已包含 `Package.swift`（远程 `binaryTarget`）与 SPM 所需源码  
+   - Xcode 解析包时自动下载 `SGPlayer.xcframework`  
+   - **无需**宿主 Scheme Pre-action / 额外脚本  
+   - macOS：将 `MACOSX_DEPLOYMENT_TARGET` 设为 **11.0+**（与插件 `Package.swift` 对齐）
 
-```bash
-/bin/bash "${SRCROOT}/scripts/run_kinetic_sgplayer_prebuild.sh"
-```
+### 方式 B — 维护者手动 / CI（更新 manifest / Frameworks）
 
-- Example 已配置：`example/ios/scripts/`、`example/macos/scripts/`
-- 宿主可复制对应脚本；Pre-action 须勾选 **Provide build settings from** → Runner（否则 `${SRCROOT}` 为空）
-
-3. 钩子会：
-
-1. 按 `darwin/sgplayer/manifest.<platform>.json` 生成 `{ios|macos}/kinetic_player/Package.swift`
-2. `ensure_sgplayer`：已有产物 → 跳过；否则下载；再失败则本地编译
-3. 将共享 Swift/ObjC 源与本地 xcframework **同步进** SPM 包目录（Flutter 会把包软链到 `ephemeral/Packages`，包外相对路径不可用）
-
-### 方式 B — 手动 / CI
+更新 Release 附件或 manifest 后：
 
 ```bash
 bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
@@ -110,9 +110,11 @@ bash darwin/scripts/sgplayer/ensure_sgplayer.sh macos
 
 `ensure` 顺序：
 
-1. 已存在 `darwin/Frameworks/<platform>/SGPlayer.xcframework` → 跳过构建，仍同步 SPM 包内副本  
+1. 已存在 `darwin/Frameworks/<platform>/SGPlayer.xcframework` → 跳过构建  
 2. 读 manifest `download_url` → 下载解压  
 3. 未配置或失败 → 源码编译（首次约 30–60 分钟）
+
+Swift / ObjC 源码直接改 `darwin/kinetic_player/Sources/`（唯一一份），无需再同步副本。
 
 ### 方式 C — 环境变量指定 URL
 
@@ -123,7 +125,7 @@ bash darwin/scripts/sgplayer/ensure_sgplayer.sh ios
 
 ### 方式 D — CocoaPods
 
-关闭 SPM 时，`ios/kinetic_player.podspec` / `macos/kinetic_player.podspec` 的 `prepare_command` 会调用 `ensure_sgplayer.sh`；`vendored_frameworks` 指向 `../darwin/Frameworks/{ios,macos}/...`。
+关闭 SPM 时，`darwin/kinetic_player.podspec` 的 `prepare_command` 会分别 `ensure` ios / macos；`vendored_frameworks` 指向 `Frameworks/{ios,macos}/...`。终端用户只需 `pod install`（或由 Flutter 构建触发）。
 
 ### 方式 E — 本地编译
 
@@ -135,17 +137,6 @@ bash darwin/scripts/sgplayer/build_sgplayer.sh macos
 bash darwin/scripts/sgplayer/build_sgplayer.sh ios clean
 bash darwin/scripts/sgplayer/build_sgplayer.sh macos clean
 ```
-
-## 宿主 App：构建前钩子
-
-| 平台 | 复制脚本 | 环境变量（可选） |
-|------|----------|------------------|
-| iOS | `example/ios/scripts/run_kinetic_sgplayer_prebuild.sh` → `your_app/ios/scripts/` | `KINETIC_PLAYER_IOS_DIR` |
-| macOS | `example/macos/scripts/run_kinetic_sgplayer_prebuild.sh` → `your_app/macos/scripts/` | `KINETIC_PLAYER_MACOS_DIR` |
-
-解析顺序：环境变量 → path 依赖旁的 `../../{ios|macos}` → `.flutter-plugins-dependencies`。
-
-macOS Example 的 Pre-action 还会把 `FlutterGeneratedPluginSwiftPackage` 的最低版本抬到 **11.0**，与插件 `Package.swift` 对齐。
 
 ## 维护者：发布预编译包
 
@@ -165,8 +156,8 @@ bash darwin/scripts/sgplayer/package_sgplayer_release.sh macos
 
 输出示例：
 
-- iOS：`darwin/Frameworks/ios/SGPlayer.xcframework.zip` + `.sha256`，更新 `manifest.ios.json`、`ios/kinetic_player/Package.swift`
-- macOS：`darwin/Frameworks/macos/SGPlayer-macOS.xcframework.zip` + `.sha256`，更新 `manifest.macos.json`、`macos/kinetic_player/Package.swift`
+- iOS：`darwin/Frameworks/ios/SGPlayer.xcframework.zip` + `.sha256`，更新 `manifest.ios.json`，并重写统一的 `darwin/kinetic_player/Package.swift`
+- macOS：`darwin/Frameworks/macos/SGPlayer-macOS.xcframework.zip` + `.sha256`，更新 `manifest.macos.json`，并重写统一的 `darwin/kinetic_player/Package.swift`
 
 ### 3. 创建 GitHub Release
 
@@ -185,7 +176,7 @@ gh release create sgplayer-macos-v1.0.0 \
 ### 4. 提交（不要提交 zip）
 
 - `darwin/sgplayer/manifest.ios.json` / `manifest.macos.json`
-- `ios/kinetic_player/Package.swift` / `macos/kinetic_player/Package.swift`
+- `darwin/kinetic_player/Package.swift`
 
 ### 5. 验证下载
 
@@ -198,8 +189,7 @@ ls darwin/Frameworks/ios/SGPlayer.xcframework
 手动改 manifest 后：
 
 ```bash
-bash darwin/scripts/sgplayer/generate_package_swift.sh ios
-bash darwin/scripts/sgplayer/generate_package_swift.sh macos
+bash darwin/scripts/sgplayer/generate_package_swift.sh
 ```
 
 ## manifest 字段
@@ -210,18 +200,18 @@ bash darwin/scripts/sgplayer/generate_package_swift.sh macos
 | `sgplayer_branch` | SGPlayer 分支（本地编译） |
 | `sgplayer_repository` | SGPlayer git 地址 |
 | `asset_name` | Release 附件名 |
-| `download_url` | HTTPS 下载地址；空则跳过下载、走本地编译（macOS 本地 fallback 时 SPM 使用包内 `SGPlayer.xcframework` path） |
+| `download_url` | HTTPS 下载地址；空则跳过下载、走本地编译 |
 | `sha256` | zip SHA256（与 `swift package compute-checksum` 一致） |
 
-## SPM 包内同步说明
+## SPM 说明（sharedDarwinSource）
 
-Flutter 将 `{ios|macos}/kinetic_player` 软链到 `ephemeral/Packages`。因此：
+Flutter 将 `darwin/kinetic_player` 软链到 `ephemeral/Packages`。因此：
 
-- `Package.swift` 的 `binaryTarget` / `target.path` **不能**使用跳出包根的 `../../darwin/...`
-- `ensure_sgplayer` 会把 `SgPlayerKit`、`SgNativePlayerBridge` 以及（本地 path 模式下的）xcframework **复制**到包内 `Sources/` / `SGPlayer.xcframework`
-- 这些副本已 `.gitignore`；**请只改 `darwin/` 下的权威源码**，再跑 ensure / prebuild
+- 所有源码与 `Package.swift` 都在该包根下（唯一一份）
+- `Package.swift` 含 `SGPlayer_iOS` / `SGPlayer_macOS` 两个 remote `binaryTarget`，按平台条件链接
+- 包内 `SGPlayer.xcframework` 仅作本地 / CocoaPods 回退，仍 `.gitignore`；SPM 消费者走远程 `binaryTarget`
 
-Swift 目标结构：`SgNativePlayerBridge`（ObjC）+ `kinetic_player`（含同步进来的 SgPlayerKit Swift，依赖 `FlutterFramework`）。中间独立 Swift target 拿不到 Flutter 框架搜索路径。
+Swift 目标结构：`SgNativePlayerBridge`（ObjC）+ `kinetic_player`（含 SgPlayerKit Swift，依赖 `FlutterFramework`）。中间独立 Swift target 拿不到 Flutter 框架搜索路径。
 
 ## 平台视图 API（iOS vs macOS）
 
@@ -238,7 +228,7 @@ Swift 目标结构：`SgNativePlayerBridge`（ObjC）+ `kinetic_player`（含同
 ## Example 注意
 
 - **macOS**：`DebugProfile.entitlements` / `Release.entitlements` 需 `com.apple.security.network.client`，否则沙盒下无法拉远程片源。
-- **macOS 部署版本**：插件与 Example 均为 **11.0**；若 Flutter 生成包仍为 10.15，Example Pre-action 会抬到 11.0。
+- **macOS 部署版本**：插件与 Example 均为 **11.0**；宿主 App 请设置 `MACOSX_DEPLOYMENT_TARGET = 11.0`（若 Flutter 生成的 `FlutterGeneratedPluginSwiftPackage` 仍为 10.15，将宿主部署版本抬到 11.0 通常即可对齐）。
 - `Failed to foreground app; open returned 1`：多为 Flutter 拉前台失败，可从 Dock 点开 App，一般与播放无关。
 
 ## 已暴露的 SG 高级能力

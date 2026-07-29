@@ -17,7 +17,7 @@ Repo: [github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng47
 - Android Picture-in-Picture (PiP) **enabled by default** (API 26+)
 - Web: Video / Document PiP, HLS/DASH, official Artplayer plugins (danmaku / subtitles / Chromecast / …)
 - Private platform-only APIs via explicit downcasting (does not pollute the public interface)
-- iOS / macOS integrate via both **CocoaPods** and **Swift Package Manager (SPM)**, with scripts and artifacts unified under `darwin/`
+- iOS / macOS integrate via **sharedDarwinSource** (`darwin/`) with both **CocoaPods** and **Swift Package Manager (SPM)**
 - Prebuilt `SGPlayer.xcframework` download via **GitHub Release** (avoid local building)
 
 ## Docs
@@ -50,27 +50,15 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-### 3. Prepare SGPlayer binaries (iOS / macOS)
+### 3. iOS / macOS (usually no extra steps)
 
 See [doc/DARWIN_SGPLAYER_EN.md](doc/DARWIN_SGPLAYER_EN.md).
 
-**SPM (recommended):** Xcode downloads the remote `binaryTarget` via `Package.swift`. The Example Scheme Pre-action then runs the hook to sync checksum and local artifacts.
+**SPM (recommended):** The published package already includes `Package.swift` + sources; Xcode downloads `SGPlayer.xcframework` via the remote `binaryTarget`. Host apps need **no** Scheme Pre-action / extra scripts. Set macOS `MACOSX_DEPLOYMENT_TARGET` to **11.0+**.
 
-**Manual / CI:**
+**CocoaPods:** `pod install` runs `prepare_command` → `ensure_sgplayer.sh` (download prebuilt; fall back to local build).
 
-```bash
-bash kinetic_player/darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
-bash kinetic_player/darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
-```
-
-**Or** CocoaPods: `pod install` triggers `prepare_command` which calls `ensure_sgplayer.sh`.
-
-**Fallback: local build** (first time only, ~30–60 minutes)
-
-```bash
-bash kinetic_player/darwin/scripts/sgplayer/build_sgplayer.sh ios
-bash kinetic_player/darwin/scripts/sgplayer/build_sgplayer.sh macos
-```
+Maintainers regenerating `Package.swift` after Release / manifest updates, or forcing a local build: see the Darwin guide.
 
 ### 4. Minimal example
 

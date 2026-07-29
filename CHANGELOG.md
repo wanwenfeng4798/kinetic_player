@@ -6,6 +6,7 @@
 - **Web streaming**: HLS / DASH via `hls.js` / `dashjs` with automatic `customType` for `.m3u8` / `.mpd`.
 - **Artplayer plugins**: Bundled official plugins through `artPlugins` / `ArtplayerPluginKeys` (danmuku, HLS/DASH control, VTT thumbnail, subtitles, Chromecast, VAST, chapter, auto-thumbnail, ambilight, Document PiP, audio-track, JASSUB, ASR, ads). `danmukuMask` remains CDN lazy-load (MediaPipe size).
 - **In-process Web bridge**: `ArtplayerViewRegistry` instead of dual-end MethodChannel (avoids conflict on Web).
+- **pub.dev zero-config Darwin**: `sharedDarwinSource` single tree `darwin/kinetic_player` (Package.swift + Sources); remote `binaryTarget` downloads SGPlayer. No host Scheme Pre-action. CocoaPods uses `darwin/kinetic_player.podspec` → `ensure_sgplayer`.
 
 ### Fixes
 
@@ -15,7 +16,7 @@
 
 ### Docs
 
-- Web guides [WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md) / [WEB_ARTPLAYER_EN.md](doc/WEB_ARTPLAYER_EN.md); README / USAGE / EXAMPLE / Darwin docs updated for Web and macOS interaction differences.
+- Web guides [WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md) / [WEB_ARTPLAYER_EN.md](doc/WEB_ARTPLAYER_EN.md); README / USAGE / EXAMPLE / Darwin docs updated for Web, macOS interaction differences, and pub.dev out-of-the-box SPM.
 
 ---
 

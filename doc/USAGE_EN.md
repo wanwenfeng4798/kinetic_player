@@ -97,16 +97,7 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-2. **Prepare binaries** (either one):
-
-```bash
-bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
-bash darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
-```
-
-- SPM: `Package.swift` remote `binaryTarget(url:checksum:)` (downloaded when Xcode resolves the package)
-- Example calls the hook via Scheme **Pre-action** (sync `Package.swift` + `ensure_sgplayer`)
-- CocoaPods: `prepare_command` calls `ensure_sgplayer.sh` as well
+2. **Binaries:** Under SPM, Xcode downloads via the remote `binaryTarget` in `Package.swift`. Under CocoaPods, `prepare_command` runs `ensure_sgplayer.sh`. End users do not need extra scripts.
 
 3. **Run**:
 
@@ -117,7 +108,7 @@ flutter run -d macos
 ```
 
 > iOS Simulator is not supported (prebuilt FFmpeg is arm64 device-only).
-> Host App must add the Pre-action; see [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md).
+> macOS deployment target must be **11.0+** (matches plugin `Package.swift`).
 > macOS Example needs App Sandbox outbound network entitlement `com.apple.security.network.client`.
 > There is no system PiP on iOS / macOS; they share the native bottom bar and SG APIs.
 

@@ -104,16 +104,7 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-2. **准备二进制**（任选其一）：
-
-```bash
-bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
-bash darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
-```
-
-- SPM：`Package.swift` 远程 `binaryTarget(url:checksum:)`，Xcode 解析时下载  
-- Example 已在 Scheme **Pre-action** 中调用钩子（同步 Package.swift + `ensure_sgplayer`）  
-- CocoaPods：`prepare_command` 同样调用 `ensure_sgplayer.sh`  
+2. **二进制**：SPM 下由 `Package.swift` 远程 `binaryTarget` 自动下载；CocoaPods 下 `prepare_command` 调用 `ensure_sgplayer.sh`。终端用户无需再跑脚本。
 
 3. **运行**：
 
@@ -124,7 +115,7 @@ flutter run -d macos
 ```
 
 > iOS 模拟器暂不支持（FFmpeg 预编译仅真机 arm64）。  
-> 宿主 App 请添加 Pre-action，见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)。  
+> macOS 部署版本需 **11.0+**（与插件 `Package.swift` 对齐）。  
 > macOS Example 需 `com.apple.security.network.client` 出站网络权限。  
 > iOS / macOS 均无系统 PiP；原生底栏与 SG API 共用。
 

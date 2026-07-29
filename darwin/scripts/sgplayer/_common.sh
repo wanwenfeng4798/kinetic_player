@@ -19,15 +19,13 @@ kinetic_sgplayer_init() {
   common_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   DARWIN_DIR="$(cd "${common_dir}/../.." && pwd)"
   PLUGIN_ROOT="$(cd "${DARWIN_DIR}/.." && pwd)"
-  IOS_DIR="${PLUGIN_ROOT}/ios"
-  MACOS_DIR="${PLUGIN_ROOT}/macos"
-  PLATFORM_DIR="${PLUGIN_ROOT}/${platform}"
+  # sharedDarwinSource: single SPM / CocoaPods tree under darwin/
+  SPM_PACKAGE_DIR="${DARWIN_DIR}/kinetic_player"
   MANIFEST="${DARWIN_DIR}/sgplayer/manifest.${platform}.json"
   OUTPUT_DIR="${DARWIN_DIR}/Frameworks/${platform}"
   XCFRAMEWORK_OUTPUT="${OUTPUT_DIR}/SGPlayer.xcframework"
-  # Flutter SPM symlinks {ios|macos}/kinetic_player into ephemeral/Packages; relative
-  # paths that leave that package dir resolve incorrectly. Keep a package-local link.
-  SPM_LOCAL_XCFRAMEWORK="${PLATFORM_DIR}/kinetic_player/SGPlayer.xcframework"
+  # Optional local copy inside the SPM package (gitignore'd); remote binaryTarget is primary.
+  SPM_LOCAL_XCFRAMEWORK="${SPM_PACKAGE_DIR}/SGPlayer.xcframework"
   VENDOR_DIR="${DARWIN_DIR}/third_party"
   SGPLAYER_DIR="${VENDOR_DIR}/SGPlayer"
   SGPLAYER_SCRIPTS_DIR="${common_dir}"
@@ -89,36 +87,16 @@ ensure_sgplayer_repo() {
   )
 }
 
-# Flutter SPM forbids target paths outside the package root, and resolves paths via the
-# ephemeral symlink of {ios|macos}/kinetic_player. Canonical sources/artifacts live under
-# darwin/; mirror them into the SPM package before resolve/build.
+# Sources live under darwin/kinetic_player/Sources (sharedDarwinSource). Only mirror a
+# local xcframework into the package when present (offline / CocoaPods helper).
 sync_spm_package_inputs() {
-  local pkg_root="${PLATFORM_DIR}/kinetic_player"
-  local pkg_sources="${pkg_root}/Sources"
-  local src_kit="${DARWIN_DIR}/kinetic_player/Sources/SgPlayerKit"
-  local src_bridge="${DARWIN_DIR}/SgNativePlayerBridge"
-  local dest_kit="${pkg_sources}/SgPlayerKit"
-  local dest_bridge="${pkg_sources}/SgNativePlayerBridge"
+  local pkg_root="${SPM_PACKAGE_DIR}"
+  local dest_bridge="${pkg_root}/Sources/SgNativePlayerBridge"
+  local dest_kit="${pkg_root}/Sources/SgPlayerKit"
 
-  [[ -d "${src_kit}" ]] || sgplayer_fail "Missing shared sources: ${src_kit}"
-  [[ -d "${src_bridge}" ]] || sgplayer_fail "Missing shared sources: ${src_bridge}"
+  [[ -d "${dest_kit}" ]] || sgplayer_fail "Missing SPM sources: ${dest_kit}"
+  [[ -d "${dest_bridge}" ]] || sgplayer_fail "Missing SPM sources: ${dest_bridge}"
 
-  mkdir -p "${pkg_sources}"
-  rm -rf "${dest_kit}" "${dest_bridge}"
-  # Prefer APFS clone when available (near-instant); fall back to ditto.
-  if cp -cR "${src_kit}" "${dest_kit}" 2>/dev/null; then
-    :
-  else
-    ditto "${src_kit}" "${dest_kit}"
-  fi
-  if cp -cR "${src_bridge}" "${dest_bridge}" 2>/dev/null; then
-    :
-  else
-    ditto "${src_bridge}" "${dest_bridge}"
-  fi
-  sgplayer_log "SPM sources synced -> ${dest_kit}, ${dest_bridge}"
-
-  # Local binaryTarget (macos without remote URL, or ios offline fallback).
   if [[ -d "${XCFRAMEWORK_OUTPUT}" ]]; then
     SPM_LOCAL_XCFRAMEWORK="${pkg_root}/SGPlayer.xcframework"
     if [[ -L "${SPM_LOCAL_XCFRAMEWORK}" ]]; then

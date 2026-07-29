@@ -6,6 +6,7 @@
 - **Web 流媒体**：HLS / DASH（`hls.js` / `dashjs`），`.m3u8` / `.mpd` 自动 `customType`。
 - **Artplayer 官方插件**：经 `artPlugins` / `ArtplayerPluginKeys` 打包（弹幕、HLS/DASH 控制、VTT 缩略图、字幕、Chromecast、VAST、章节、自动缩略图、氛围光、Document PiP、外挂音轨、JASSUB、ASR、广告等）。`danmukuMask` 仍走 CDN 懒加载（MediaPipe 体积过大）。
 - **Web 进程内桥**：使用 `ArtplayerViewRegistry`，避免 Web 上双端 MethodChannel 冲突。
+- **pub.dev Darwin 开箱即用**：`sharedDarwinSource` 下唯一 `darwin/kinetic_player`（Package.swift + Sources）；远程 `binaryTarget` 自动下载 SGPlayer。宿主无需 Scheme Pre-action。CocoaPods 走 `darwin/kinetic_player.podspec` → `ensure_sgplayer`。
 
 ### 修复
 
@@ -15,7 +16,7 @@
 
 ### 文档
 
-- 新增 Web 说明 [WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md) / [WEB_ARTPLAYER_EN.md](doc/WEB_ARTPLAYER_EN.md)；README / USAGE / EXAMPLE / Darwin 文档补充 Web 与 macOS 交互差异。
+- 新增 Web 说明 [WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md) / [WEB_ARTPLAYER_EN.md](doc/WEB_ARTPLAYER_EN.md)；README / USAGE / EXAMPLE / Darwin 文档补充 Web、macOS 交互差异，以及 pub.dev SPM 开箱即用说明。
 
 ---
 

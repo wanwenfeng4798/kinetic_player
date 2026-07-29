@@ -9,9 +9,6 @@ Example 项目位于 `kinetic_player/example/`，演示多平台播放器的集�
 ```bash
 cd kinetic_player/example
 
-bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
-bash ../darwin/scripts/sgplayer/spm_prebuild_hook.sh macos
-
 flutter pub get
 flutter run          # iOS 真机 / Android
 flutter run -d macos
@@ -158,7 +155,7 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-iOS / macOS Scheme Pre-action 已分别调用 `example/{ios,macos}/scripts/run_kinetic_sgplayer_prebuild.sh`（同步远程 binaryTarget + ensure 本地 xcframework）。详见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)。
+iOS / macOS 使用已发布的 `Package.swift` 远程 `binaryTarget`（Xcode 自动下载 SGPlayer）；无需 Scheme Pre-action。macOS Example 已设 `MACOSX_DEPLOYMENT_TARGET = 11.0`。详见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)。
 
 依赖本地 path 插件：
 
