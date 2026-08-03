@@ -1,3 +1,15 @@
+## 2.0.1
+
+### 修复
+
+- **macOS 中央播放/暂停图标**：播放与暂停 SF Symbol 均绘制到固定方画布，并将 `imageScaling` / cell 设为 `.scaleNone`，避免 AppKit 把 `pause.fill` 拉胖变形。
+
+### 文档
+
+- 补充 **Linux / Windows** 场景选用 **GstPlayer**：[GitHub](https://github.com/wanwenfeng4798/GstPlayer)、[pub.dev](https://pub.dev/packages/gstplayer)。README / USAGE（中英文）已同步。
+
+---
+
 ## 2.0.0
 
 ### 新功能

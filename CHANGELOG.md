@@ -1,3 +1,15 @@
+## 2.0.1
+
+### Fixes
+
+- **macOS center play/pause icon**: Bake play and pause SF Symbols into a fixed square canvas and set `imageScaling` / cell to `.scaleNone`, so AppKit no longer fattens `pause.fill` inside the 60×60 hit target.
+
+### Docs
+
+- Document **GstPlayer** selection for **Linux / Windows**: [GitHub](https://github.com/wanwenfeng4798/GstPlayer), [pub.dev](https://pub.dev/packages/gstplayer). README / USAGE (EN + ZH) updated.
+
+---
+
 ## 2.0.0
 
 ### Features
