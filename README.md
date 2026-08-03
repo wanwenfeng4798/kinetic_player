@@ -6,14 +6,14 @@
 
 English version: [README_EN.md](README_EN.md)
 
-最强大的跨平台 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master），**Web** 使用 [Artplayer.js 5.4.0](https://artplayer.org)。
+最强大的跨平台 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master），**Web** 使用 [Artplayer.js 5.4.0](https://artplayer.org)；需要 **Linux / Windows** 时使用 [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)（[pub.dev](https://pub.dev/packages/gstplayer)，GStreamer）。
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
 ## 特性
 
 - 统一的 `CommonVideoController` API（播放 / 暂停 / 跳转 / 缩放 / 倍速 / 音量 / 音轨 / 循环 / 截图等）
-- 平台自动选型：Android → GSY，iOS / macOS → SGPlayer，Web → Artplayer
+- 平台自动选型：Android → GSY，iOS / macOS → SGPlayer，Web → Artplayer；**Linux / Windows → GstPlayer**
 - B 站风格原生控制栏：竖向音量弹窗（拖动显示百分比）、设置面板选音轨、统一进度条与底栏图标尺寸
 - iOS / macOS 支持滑动手势调进度 / 音量 / 亮度（与 Android 共用 `enableNativeControls`）
 - Android 画中画（PiP）**默认开启**（API 26+；播放中切后台自动进入，含 GSY 自动播放场景）
@@ -89,6 +89,24 @@ CommonVideoPlayerViewBuilder(
 - 中文： [doc/HDR_TEST_LINKS.md](doc/HDR_TEST_LINKS.md)
 - English: [doc/HDR_TEST_LINKS_EN.md](doc/HDR_TEST_LINKS_EN.md)
 
+## 内核选型
+
+按目标平台选内核即可；**需要支持 Linux 或 Windows 时，使用 [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)**（[pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)）。
+
+| 目标平台 | 选用内核 | 说明 |
+|----------|----------|------|
+| Android | GSYVideoPlayer | 默认自动选型 |
+| iOS / macOS | SGPlayer | 默认自动选型 |
+| Web | Artplayer.js | 默认自动选型 |
+| **Linux / Windows** | **[GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)** | 仅在需要 Linux 或 Windows 时选用（GStreamer；[pub.dev](https://pub.dev/packages/gstplayer)） |
+
+仅做移动端 + Web 时用默认内核；一旦产品要覆盖 Linux / Windows 桌面，应走 GstPlayer，而不是 GSY / SGPlayer。
+
+```yaml
+dependencies:
+  gstplayer: ^0.0.1   # https://pub.dev/packages/gstplayer
+```
+
 ## 平台支持
 
 | 平台 | 内核 | 真机 / 桌面 | 模拟器 / 浏览器 | 画中画 |
@@ -97,6 +115,7 @@ CommonVideoPlayerViewBuilder(
 | iOS | SGPlayer master | ✅ | ❌（FFmpeg 预编译仅 arm64 真机） | ❌ |
 | macOS | SGPlayer master | ✅ | ✅（`macosx` xcframework） | ❌ |
 | Web | Artplayer.js 5.4.0 | — | ✅ Chrome / Safari / 移动 Web | ✅ Video PiP；Document PiP 可选 |
+| Linux / Windows | [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) | ✅（需系统 GStreamer） | — | 视实现而定 |
 
 ## 许可证
 

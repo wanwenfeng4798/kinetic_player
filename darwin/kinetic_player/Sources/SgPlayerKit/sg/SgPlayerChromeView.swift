@@ -1067,9 +1067,13 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         centerPlayButton.isBordered = false
         centerPlayButton.setButtonType(.momentaryChange)
         centerPlayButton.imagePosition = .imageOnly
-        // Prevent AppKit from stretching the SF Symbol into the full 60×60 hit target
-        // (that squashes/distorts play.fill / pause.fill on macOS).
-        centerPlayButton.imageScaling = .scaleProportionallyDown
+        // AppKit's default (.scaleAxesIndependently) stretches SF Symbols to the full
+        // 60×60 hit target — pause.fill becomes fat bars. Keep the square canvas we
+        // bake in updateCenterPlayIcon() at its intrinsic size.
+        centerPlayButton.imageScaling = .scaleNone
+        if let cell = centerPlayButton.cell as? NSButtonCell {
+            cell.imageScaling = .scaleNone
+        }
         centerPlayButton.contentTintColor = .white
         centerPlayButton.wantsLayer = true
         centerPlayButton.layer?.backgroundColor = NSColor(white: 0, alpha: 0.45).cgColor
@@ -1138,27 +1142,27 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             pointSize: Self.centerPlayIconPointSize,
             weight: .semibold,
         )
-        guard var image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+        guard let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
             .withSymbolConfiguration(symbolConfig) else {
             centerPlayButton.image = nil
             return
         }
-        image.isTemplate = true
-        // play.fill is optically left-heavy; nudge it slightly so it looks centered
-        // inside the circular hit target (pause.fill stays centered).
-        if !isPlaying {
-            image = Self.opticallyCenteredPlayImage(image)
-        }
-        centerPlayButton.image = image
+        // Always bake into a square canvas so NSButton never stretches non-square
+        // SF Symbol bounds (pause.fill is especially prone to this). play.fill gets
+        // a small +x nudge for optical centering inside the circle.
+        let xOffset: CGFloat = isPlaying ? 0 : 2
+        centerPlayButton.image = Self.squareCenteredSymbolImage(image, xOffset: xOffset)
     }
 
-    /// Draws the play glyph into a square canvas with a small +x offset for optical balance.
-    private static func opticallyCenteredPlayImage(_ symbol: NSImage) -> NSImage {
-        let size = NSSize(width: centerPlayIconPointSize + 4, height: centerPlayIconPointSize + 4)
+    /// Draws an SF Symbol into a fixed square canvas, preserving aspect ratio.
+    private static func squareCenteredSymbolImage(_ symbol: NSImage, xOffset: CGFloat) -> NSImage {
+        let canvasSide = centerPlayIconPointSize + 4
+        let size = NSSize(width: canvasSide, height: canvasSide)
         let canvas = NSImage(size: size, flipped: false) { bounds in
             let drawSize = symbol.size
+            guard drawSize.width > 0, drawSize.height > 0 else { return false }
             let origin = NSPoint(
-                x: (bounds.width - drawSize.width) / 2 + 2,
+                x: (bounds.width - drawSize.width) / 2 + xOffset,
                 y: (bounds.height - drawSize.height) / 2,
             )
             symbol.draw(

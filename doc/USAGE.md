@@ -8,12 +8,34 @@ English version: [USAGE_EN.md](USAGE_EN.md)
 Dart 层
   CommonVideoController          ← 纯公共 API
   CommonVideoPlayerView          ← 平台原生视图
-  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer
+  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer / Linux·Windows→GstPlayer
        │
        ├── GSYVideoControllerImpl        (Android 独有 API)
        ├── SGVideoControllerImpl         (iOS / macOS 独有 API)
-       └── ArtplayerVideoControllerImpl  (Web 独有 API)
+       ├── ArtplayerVideoControllerImpl  (Web 独有 API)
+       └── [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)（Linux / Windows；[pub.dev](https://pub.dev/packages/gstplayer)）
 ```
+
+## 内核选型：什么时候用 GstPlayer
+
+默认按平台自动选型即可。**只有在你需要支持 Linux 或 Windows 时，才应使用 [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)**（[pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)）。
+
+| 目标平台 | 选用内核 | 何时选用 |
+|----------|----------|----------|
+| Android | GSYVideoPlayer | 默认 |
+| iOS / macOS | SGPlayer | 默认 |
+| Web | Artplayer.js | 默认 |
+| **Linux / Windows** | **[GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)** | **需要 Linux / Windows 桌面支持时** |
+
+- 产品仅覆盖 Android / iOS / macOS / Web → 用默认内核，不必引入 GstPlayer。
+- 产品需要 Linux 或 Windows → 使用 GstPlayer（GStreamer），不要用 GSY / SGPlayer 硬撑这两端。
+
+```yaml
+dependencies:
+  gstplayer: ^0.0.1   # https://pub.dev/packages/gstplayer
+```
+
+仓库：[github.com/wanwenfeng4798/GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) · 包：[pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)
 
 Channel 命名：
 

@@ -1,17 +1,18 @@
 # kinetic_player
 
-The strongest cross-platform Flutter video player plugin for **Android / iOS / macOS / Web**.
+The strongest cross-platform Flutter video player plugin for **Android / iOS / macOS / Web**, plus **Linux / Windows** via [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer).
 
 - **Android**: [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)
 - **iOS / macOS**: [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) (**master**)
 - **Web**: [Artplayer.js 5.4.0](https://artplayer.org)
+- **Linux / Windows**: [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) ([pub.dev](https://pub.dev/packages/gstplayer), GStreamer) — use this when you need those platforms
 
 Repo: [github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
 ## Features
 
 - Unified `CommonVideoController` API (play / pause / seek / scale / rate / volume / tracks / loop / screenshot / etc.)
-- Platform auto-selection: Android → GSY, iOS / macOS → SGPlayer, Web → Artplayer
+- Platform auto-selection: Android → GSY, iOS / macOS → SGPlayer, Web → Artplayer; **Linux / Windows → GstPlayer**
 - Bilibili-style native control bar (vertical volume popup with percentage while dragging, settings panel for audio tracks, consistent progress bar + bottom bar icon sizing)
 - iOS / macOS native gesture controls (seek / brightness / volume) with the shared `enableNativeControls` flag
 - Android Picture-in-Picture (PiP) **enabled by default** (API 26+)
@@ -87,6 +88,24 @@ To avoid duplicated maintenance, HDR test streams are maintained in dedicated do
 - Chinese: [doc/HDR_TEST_LINKS.md](doc/HDR_TEST_LINKS.md)
 - English: [doc/HDR_TEST_LINKS_EN.md](doc/HDR_TEST_LINKS_EN.md)
 
+## Backend selection
+
+Pick the backend by target platform. **If you need Linux or Windows, use [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)** ([pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)).
+
+| Target platforms | Backend | Notes |
+|---|---|---|
+| Android | GSYVideoPlayer | Default auto-selection |
+| iOS / macOS | SGPlayer | Default auto-selection |
+| Web | Artplayer.js | Default auto-selection |
+| **Linux / Windows** | **[GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)** | Choose this only when Linux or Windows is required (GStreamer; [pub.dev](https://pub.dev/packages/gstplayer)) |
+
+Mobile + Web alone can stay on the defaults. Once the product must cover Linux / Windows desktops, use GstPlayer — not GSY or SGPlayer.
+
+```yaml
+dependencies:
+  gstplayer: ^0.0.1   # https://pub.dev/packages/gstplayer
+```
+
 ## Platform support
 
 | Platform | Core | Device / desktop | Simulator / browser | PiP |
@@ -95,6 +114,7 @@ To avoid duplicated maintenance, HDR test streams are maintained in dedicated do
 | iOS | SGPlayer master | ✅ | ❌ (prebuilt FFmpeg is arm64 only) | ❌ |
 | macOS | SGPlayer master | ✅ | ✅ (macosx xcframework) | ❌ |
 | Web | Artplayer.js 5.4.0 | — | ✅ Chrome / Safari / mobile Web | ✅ Video PiP; Document PiP optional |
+| Linux / Windows | [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) | ✅ (system GStreamer required) | — | depends on implementation |
 
 ## License
 

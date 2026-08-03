@@ -8,12 +8,34 @@ Chinese version: [USAGE.md](USAGE.md)
 Dart layer
   CommonVideoController          ← Public API
   CommonVideoPlayerView          ← Platform view
-  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer
+  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer / Linux·Windows→GstPlayer
        │
        ├── GSYVideoControllerImpl        (Android-only)
        ├── SGVideoControllerImpl         (iOS / macOS-only)
-       └── ArtplayerVideoControllerImpl  (Web-only)
+       ├── ArtplayerVideoControllerImpl  (Web-only)
+       └── [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) (Linux / Windows; [pub.dev](https://pub.dev/packages/gstplayer))
 ```
+
+## Backend selection: when to use GstPlayer
+
+Keep the default auto-selection for most apps. **Use [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) only when you need Linux or Windows support** ([pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)).
+
+| Target platforms | Backend | When to choose |
+|---|---|---|
+| Android | GSYVideoPlayer | Default |
+| iOS / macOS | SGPlayer | Default |
+| Web | Artplayer.js | Default |
+| **Linux / Windows** | **[GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)** | **When Linux / Windows desktop support is required** |
+
+- Android / iOS / macOS / Web only → stay on the defaults; no need for GstPlayer.
+- Need Linux or Windows → use GstPlayer (GStreamer); do not stretch GSY / SGPlayer onto those platforms.
+
+```yaml
+dependencies:
+  gstplayer: ^0.0.1   # https://pub.dev/packages/gstplayer
+```
+
+Repo: [github.com/wanwenfeng4798/GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) · Package: [pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)
 
 Channel / view names:
 
