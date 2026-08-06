@@ -97,9 +97,7 @@ final class SgGestureOverlayView: NSView {
     }
 
     func show(symbolName: String, text: String) {
-        let config = NSImage.SymbolConfiguration(pointSize: 28, weight: .medium)
-        let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
-            .withSymbolConfiguration(config)
+        let image = KineticPlayerSymbols.image(systemName: symbolName, pointSize: 28, weight: .medium)
         image?.isTemplate = true
         iconView.image = image
         valueLabel.stringValue = text

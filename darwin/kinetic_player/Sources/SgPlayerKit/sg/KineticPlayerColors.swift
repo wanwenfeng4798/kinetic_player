@@ -48,4 +48,17 @@ enum KineticPlayerColors {
         accent = NSColor(red: r, green: g, blue: b, alpha: a > 0 ? a : 1)
     }
 }
+
+/// SF Symbols helper for macOS 11+ chrome icons.
+enum KineticPlayerSymbols {
+    static func image(
+        systemName: String,
+        pointSize: CGFloat,
+        weight: NSFont.Weight = .regular,
+    ) -> NSImage? {
+        let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: weight)
+        return NSImage(systemSymbolName: systemName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(config)
+    }
+}
 #endif

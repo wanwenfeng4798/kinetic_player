@@ -84,11 +84,10 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-2. Run `flutter pub get` then `flutter run`.
-   - The package already ships `Package.swift` (remote `binaryTarget`) and SPM sources
-   - Xcode downloads `SGPlayer.xcframework` when resolving the package
-   - **No** host Scheme Pre-action / extra scripts
-   - macOS: set `MACOSX_DEPLOYMENT_TARGET` to **11.0+** (matches plugin `Package.swift`)
+2. Run `flutter pub get` then `flutter run` (or `flutter build macos` / `flutter build ios`).
+   - **SPM**: remote `binaryTarget` in `Package.swift`; Xcode downloads SGPlayer automatically — **no** host Scheme Pre-action / extra scripts
+   - **CocoaPods**: `prepare_command` runs `ensure_sgplayer` (prebuilt download → local build fallback)
+   - macOS minimum **11.0** (SF Symbols chrome); set host `MACOSX_DEPLOYMENT_TARGET = 11.0` (see [SPM wrapper minimum OS](#spm-wrapper-minimum-os) below)
 
 ### Method B — Maintainer manual / CI (update manifests / Frameworks)
 
@@ -223,10 +222,58 @@ Both iOS and macOS support Flutter platform views, but the native API shapes are
 
 Implementation: `darwin/.../SgVideoPlatformView.swift` (`#if os` branches).
 
+## SPM wrapper minimum OS
+
+`flutter pub get` generates `FlutterGeneratedPluginSwiftPackage` with macOS **10.15** / iOS **12.0** by default, while this plugin’s `Package.swift` requires **macOS 11.0** / **iOS 13.0**. Building directly in Xcode may fail with:
+
+```text
+The package product 'kinetic-player' requires minimum platform version 11.0 for the macOS platform,
+but this target supports 10.15
+```
+
+Pick one:
+
+### Option 1 — Edit the wrapper manually (before Xcode-only builds)
+
+Edit the ephemeral file under your app (**may be reset after each `flutter pub get`**):
+
+| Platform | Path |
+|----------|------|
+| macOS | `macos/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift` |
+| iOS | `ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift` |
+
+Update `platforms`, e.g. for macOS:
+
+```swift
+    platforms: [
+        .macOS("11.0")   // was "10.15"
+    ],
+```
+
+For iOS, change `.iOS("12.0")` to `.iOS("13.0")` if needed.
+
+### Option 2 — Let Flutter sync (recommended)
+
+With `MACOSX_DEPLOYMENT_TARGET = 11.0` in the host app, run once:
+
+```bash
+flutter build macos --config-only   # or flutter run -d macos
+flutter build ios --config-only     # or flutter run (iOS)
+```
+
+Flutter bumps the wrapper minimum OS to match the host deployment target.
+
+### Option 3 — Plugin script (maintainers / CI)
+
+```bash
+bash darwin/scripts/sgplayer/sync_flutter_spm_wrapper.sh [flutter_app_root]
+```
+
 ## Example notes
 
 - **macOS**: `DebugProfile.entitlements` / `Release.entitlements` must include `com.apple.security.network.client`, otherwise sandbox outbound network fetch fails.
-- **macOS deployment**: plugin + Example are **11.0**; host apps should set `MACOSX_DEPLOYMENT_TARGET = 11.0` (if Flutter’s generated `FlutterGeneratedPluginSwiftPackage` is still 10.15, raising the host deployment target usually aligns it).
+- **Example integration**: the Example uses **SPM** by default (`enable-swift-package-manager: true`), with no Podfile; SGPlayer is fetched via the remote `binaryTarget` in `Package.swift`.
+- **macOS deployment**: plugin `Package.swift` / podspec minimum **11.0**; set host `MACOSX_DEPLOYMENT_TARGET = 11.0`. See [SPM wrapper minimum OS](#spm-wrapper-minimum-os) for the generated wrapper file.
 - `Failed to foreground app; open returned 1`: usually Flutter failing to bring the app to foreground; try opening via Dock. Usually unrelated to playback.
 
 ## Third-party licensing

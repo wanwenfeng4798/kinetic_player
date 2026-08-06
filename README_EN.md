@@ -56,7 +56,7 @@ flutter:
 
 See [doc/DARWIN_SGPLAYER_EN.md](doc/DARWIN_SGPLAYER_EN.md).
 
-**SPM (recommended):** The published package already includes `Package.swift` + sources; Xcode downloads `SGPlayer.xcframework` via the remote `binaryTarget`. Host apps need **no** Scheme Pre-action / extra scripts. Set macOS `MACOSX_DEPLOYMENT_TARGET` to **11.0+**.
+**SPM (recommended):** The published package already includes `Package.swift` + sources; Xcode downloads `SGPlayer.xcframework` via the remote `binaryTarget`. Set macOS `MACOSX_DEPLOYMENT_TARGET` to **11.0+**. If Xcode reports an SPM wrapper version mismatch, see [DARWIN_SGPLAYER_EN.md](doc/DARWIN_SGPLAYER_EN.md#spm-wrapper-minimum-os) to edit `FlutterGeneratedPluginSwiftPackage` manually.
 
 **CocoaPods:** `pod install` runs `prepare_command` → `ensure_sgplayer.sh` (download prebuilt; fall back to local build).
 

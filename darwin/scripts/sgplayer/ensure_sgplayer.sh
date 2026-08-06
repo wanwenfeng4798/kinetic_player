@@ -23,14 +23,17 @@ kinetic_sgplayer_init "${PLATFORM_ARG}"
 if [[ -d "${XCFRAMEWORK_OUTPUT}" ]]; then
   sgplayer_log "Using existing ${XCFRAMEWORK_OUTPUT}"
   sync_spm_package_inputs
+  sync_flutter_spm_wrapper_if_needed
   exit 0
 fi
 
 if bash "${SCRIPT_DIR}/download_sgplayer.sh" "${KINETIC_SGPLAYER_PLATFORM}"; then
   sync_spm_package_inputs
+  sync_flutter_spm_wrapper_if_needed
   exit 0
 fi
 
 sgplayer_log "Prebuilt download unavailable; building from source..."
 bash "${SCRIPT_DIR}/build_sgplayer.sh" "${KINETIC_SGPLAYER_PLATFORM}" "$@"
 sync_spm_package_inputs
+sync_flutter_spm_wrapper_if_needed

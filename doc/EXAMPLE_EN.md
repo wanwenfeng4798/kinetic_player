@@ -6,6 +6,8 @@ The sample under `kinetic_player/example/` demos **fully delivered** features by
 
 ## Run
 
+Darwin (iOS / macOS) uses **Swift Package Manager** by default (same as the plugin). No Podfile or extra scripts:
+
 ```bash
 cd kinetic_player/example
 flutter pub get
@@ -13,6 +15,8 @@ flutter run
 flutter run -d macos
 flutter run -d chrome
 ```
+
+macOS requires `MACOSX_DEPLOYMENT_TARGET = 11.0` (already set in the Example). For Xcode-only build errors about SPM platform versions, see [DARWIN_SGPLAYER_EN.md — SPM wrapper minimum OS](DARWIN_SGPLAYER_EN.md#spm-wrapper-minimum-os) (edit `FlutterGeneratedPluginSwiftPackage/Package.swift` manually, or run `flutter run -d macos` first).
 
 ## Structure
 

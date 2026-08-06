@@ -57,7 +57,7 @@ flutter:
 
 详见 [doc/DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md)。
 
-**SPM（推荐）：** 插件已随包发布 `Package.swift` + 源码；Xcode 解析时按远程 `binaryTarget` 自动下载 `SGPlayer.xcframework`。宿主 **无需** Scheme Pre-action / 额外脚本。macOS 请将 `MACOSX_DEPLOYMENT_TARGET` 设为 **11.0+**。
+**SPM（推荐）：** 插件已随包发布 `Package.swift` + 源码；Xcode 解析时按远程 `binaryTarget` 自动下载 `SGPlayer.xcframework`。macOS 请将 `MACOSX_DEPLOYMENT_TARGET` 设为 **11.0+**。若 Xcode 直编报包装包版本冲突，见 [DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md#spm-包装包最低版本) 手动修改 `FlutterGeneratedPluginSwiftPackage`。
 
 **CocoaPods：** `pod install` 经 `prepare_command` 调用 `ensure_sgplayer.sh`（下载预编译；失败再本地编译）。
 

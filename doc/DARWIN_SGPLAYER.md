@@ -86,11 +86,10 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-2. `flutter pub get` 后直接 `flutter run`。  
-   - 插件已包含 `Package.swift`（远程 `binaryTarget`）与 SPM 所需源码  
-   - Xcode 解析包时自动下载 `SGPlayer.xcframework`  
-   - **无需**宿主 Scheme Pre-action / 额外脚本  
-   - macOS：将 `MACOSX_DEPLOYMENT_TARGET` 设为 **11.0+**（与插件 `Package.swift` 对齐）
+2. `flutter pub get` 后直接 `flutter run`（或 `flutter build macos` / `flutter build ios`）。  
+   - **SPM**：`Package.swift` 远程 `binaryTarget` 由 Xcode 自动下载 SGPlayer；宿主 **无需** Scheme Pre-action / 额外脚本  
+   - **CocoaPods**：`prepare_command` 自动 `ensure_sgplayer`（下载预编译 → 本地编译回退）  
+   - macOS 最低版本 **11.0**（SF Symbols 底栏）；宿主请设置 `MACOSX_DEPLOYMENT_TARGET = 11.0`（见下方 [SPM 包装包最低版本](#spm-包装包最低版本)）
 
 ### 方式 B — 维护者手动 / CI（更新 manifest / Frameworks）
 
@@ -225,10 +224,58 @@ Swift 目标结构：`SgNativePlayerBridge`（ObjC）+ `kinetic_player`（含 Sg
 
 实现见 `darwin/.../SgVideoPlatformView.swift`（`#if os` 分支）。
 
+## SPM 包装包最低版本
+
+`flutter pub get` 会生成 `FlutterGeneratedPluginSwiftPackage`，其中 macOS 默认为 **10.15**、iOS 默认为 **12.0**，而本插件 `Package.swift` 要求 **macOS 11.0** / **iOS 13.0**。若直接在 Xcode 构建出现类似：
+
+```text
+The package product 'kinetic-player' requires minimum platform version 11.0 for the macOS platform,
+but this target supports 10.15
+```
+
+请任选其一：
+
+### 方式 1 — 手动改包装包（Xcode 直编前）
+
+编辑宿主 App 下的 ephemeral 文件（**每次 `flutter pub get` 后可能被重置，需重新改**）：
+
+| 平台 | 路径 |
+|------|------|
+| macOS | `macos/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift` |
+| iOS | `ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift` |
+
+将 `platforms` 中的默认值改为与宿主一致，例如 macOS：
+
+```swift
+    platforms: [
+        .macOS("11.0")   // 原为 "10.15"
+    ],
+```
+
+iOS 若遇同类错误，将 `.iOS("12.0")` 改为 `.iOS("13.0")`。
+
+### 方式 2 — 用 Flutter 命令自动同步（推荐）
+
+宿主已设 `MACOSX_DEPLOYMENT_TARGET = 11.0` 时，先执行一次：
+
+```bash
+flutter build macos --config-only   # 或 flutter run -d macos
+flutter build ios --config-only     # 或 flutter run（iOS）
+```
+
+Flutter 会把包装包最低版本抬升到与宿主 deployment target 一致。
+
+### 方式 3 — 插件脚本（维护者 / CI）
+
+```bash
+bash darwin/scripts/sgplayer/sync_flutter_spm_wrapper.sh [flutter_app_root]
+```
+
 ## Example 注意
 
 - **macOS**：`DebugProfile.entitlements` / `Release.entitlements` 需 `com.apple.security.network.client`，否则沙盒下无法拉远程片源。
-- **macOS 部署版本**：插件与 Example 均为 **11.0**；宿主 App 请设置 `MACOSX_DEPLOYMENT_TARGET = 11.0`（若 Flutter 生成的 `FlutterGeneratedPluginSwiftPackage` 仍为 10.15，将宿主部署版本抬到 11.0 通常即可对齐）。
+- **Example 集成**：Example 与终端用户一致，默认 **SPM**（`enable-swift-package-manager: true`），无 Podfile；SGPlayer 由 `Package.swift` 远程 `binaryTarget` 自动下载。
+- **macOS 部署版本**：插件 `Package.swift` / podspec 均为 **11.0**；宿主 App 设置 `MACOSX_DEPLOYMENT_TARGET = 11.0`。SPM 包装包版本见 [SPM 包装包最低版本](#spm-包装包最低版本)。
 - `Failed to foreground app; open returned 1`：多为 Flutter 拉前台失败，可从 Dock 点开 App，一般与播放无关。
 
 ## 已暴露的 SG 高级能力

@@ -21,10 +21,14 @@ CocoaPods prepare_command → ensure_sgplayer.sh (30-60 min only if local build)
   s.ios.deployment_target = '13.0'
   s.osx.deployment_target = '11.0'
 
+  # CocoaPods prepare: SGPlayer ensure + align FlutterGeneratedPluginSwiftPackage OS mins.
+  # SPM: remote binaryTarget in Package.swift; wrapper OS sync on `flutter run` / `flutter build`
+  # when host MACOSX_DEPLOYMENT_TARGET >= 11.0 (Flutter updateMinimumDeployment).
   s.prepare_command = <<-CMD
     set -e
     export LANG=en_US.UTF-8
     export LC_ALL=en_US.UTF-8
+    bash scripts/sgplayer/sync_flutter_spm_wrapper.sh || true
     bash scripts/sgplayer/ensure_sgplayer.sh ios
     bash scripts/sgplayer/ensure_sgplayer.sh macos
   CMD

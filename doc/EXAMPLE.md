@@ -6,6 +6,8 @@ Example 位于 `kinetic_player/example/`，按平台演示已完整交付的能�
 
 ## 运行
 
+Darwin（iOS / macOS）默认使用 **Swift Package Manager**（与插件一致），无需 Podfile / 额外脚本：
+
 ```bash
 cd kinetic_player/example
 flutter pub get
@@ -13,6 +15,8 @@ flutter run          # Android / iOS 真机
 flutter run -d macos
 flutter run -d chrome
 ```
+
+macOS 需 `MACOSX_DEPLOYMENT_TARGET = 11.0`（Example 已配置）。若在 Xcode 直编遇 SPM 版本冲突，见 [DARWIN_SGPLAYER.md — SPM 包装包最低版本](DARWIN_SGPLAYER.md#spm-包装包最低版本)（可手动改 `FlutterGeneratedPluginSwiftPackage/Package.swift`，或先 `flutter run -d macos`）。
 
 ## 界面结构
 

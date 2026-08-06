@@ -1346,7 +1346,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
         rateButton.isBordered = false
         rateButton.setButtonType(.momentaryChange)
-        rateButton.imagePosition = .titleOnly
+        rateButton.imagePosition = .noImage
         rateButton.contentTintColor = .white
         rateButton.font = .systemFont(ofSize: 12, weight: .semibold)
         rateButton.setContentHuggingPriority(.required, for: .horizontal)
@@ -1549,12 +1549,11 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private func updateCenterPlayIcon() {
         let symbol = isPlaying ? "pause.fill" : "play.fill"
-        let symbolConfig = NSImage.SymbolConfiguration(
+        guard let image = KineticPlayerSymbols.image(
+            systemName: symbol,
             pointSize: Self.centerPlayIconPointSize,
             weight: .semibold,
-        )
-        guard let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-            .withSymbolConfiguration(symbolConfig) else {
+        ) else {
             centerPlayButton.image = nil
             return
         }
@@ -1595,9 +1594,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private func updateLockIcon() {
         let symbol = isScreenLocked ? "lock.fill" : "lock.open.fill"
-        let symbolConfig = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-            .withSymbolConfiguration(symbolConfig)
+        let image = KineticPlayerSymbols.image(systemName: symbol, pointSize: 16)
         image?.isTemplate = true
         lockButton.image = image
     }
@@ -1701,9 +1698,10 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     }
 
     private func setToolbarSymbol(_ button: NSButton, systemName: String) {
-        let symbolConfig = NSImage.SymbolConfiguration(pointSize: Self.toolbarIconPointSize, weight: .regular)
-        let image = NSImage(systemSymbolName: systemName, accessibilityDescription: nil)?
-            .withSymbolConfiguration(symbolConfig)
+        let image = KineticPlayerSymbols.image(
+            systemName: systemName,
+            pointSize: Self.toolbarIconPointSize,
+        )
         image?.isTemplate = true
         button.image = image
     }

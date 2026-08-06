@@ -13,5 +13,5 @@ PRODUCT_BUNDLE_IDENTIFIER = com.example.kineticPlayerExample
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
 
-// Must match kinetic_player Package.swift (.macOS(.v11)) / SF Symbols chrome.
+// Must match kinetic_player Package.swift (.macOS(.v11)).
 MACOSX_DEPLOYMENT_TARGET = 11.0

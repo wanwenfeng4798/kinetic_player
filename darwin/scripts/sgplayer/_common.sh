@@ -115,3 +115,10 @@ sync_spm_package_inputs() {
 sync_spm_local_xcframework() {
   sync_spm_package_inputs
 }
+
+sync_flutter_spm_wrapper_if_needed() {
+  local script="${SGPLAYER_SCRIPTS_DIR}/sync_flutter_spm_wrapper.sh"
+  if [[ -x "${script}" || -f "${script}" ]]; then
+    bash "${script}" || true
+  fi
+}
