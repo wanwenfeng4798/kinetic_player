@@ -9,6 +9,16 @@ The strongest cross-platform Flutter video player plugin for **Android / iOS / m
 
 Repo: [github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
+## Platform previews
+
+| Android | iOS |
+|:-------:|:---:|
+| <img src="doc/android.jpg" alt="Android" width="240" /> | <img src="doc/ios.jpg" alt="iOS" width="240" /> |
+
+| macOS | Web |
+|:-----:|:---:|
+| <img src="doc/macos.png" alt="macOS" width="420" /> | <img src="doc/web.png" alt="Web" width="240" /> |
+
 ## Features
 
 - Unified `CommonVideoController` API (play / pause / seek / scale / rate / volume / tracks / loop / screenshot / etc.)

@@ -10,6 +10,16 @@ English version: [README_EN.md](README_EN.md)
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
+## 平台预览
+
+| Android | iOS |
+|:-------:|:---:|
+| <img src="doc/android.jpg" alt="Android" width="240" /> | <img src="doc/ios.jpg" alt="iOS" width="240" /> |
+
+| macOS | Web |
+|:-----:|:---:|
+| <img src="doc/macos.png" alt="macOS" width="420" /> | <img src="doc/web.png" alt="Web" width="240" /> |
+
 ## 特性
 
 - 统一的 `CommonVideoController` API（播放 / 暂停 / 跳转 / 缩放 / 倍速 / 音量 / 音轨 / 循环 / 截图等）
