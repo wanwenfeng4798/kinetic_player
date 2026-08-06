@@ -379,7 +379,7 @@ final class SgSettingsPanelView: NSView {
         level2.isHidden = true
         contentStack.setVisibilityPriority(.mustHold, for: level1)
         contentStack.setVisibilityPriority(.notVisible, for: level2)
-        needsLayout = true
+        refreshPanelHeightIfNeeded()
     }
 
     func showLevel2() {
@@ -388,22 +388,12 @@ final class SgSettingsPanelView: NSView {
         level2.isHidden = false
         contentStack.setVisibilityPriority(.notVisible, for: level1)
         contentStack.setVisibilityPriority(.mustHold, for: level2)
-        needsLayout = true
-    }
-
-    /// Keep panel height at max(level1, level2) so bottom-anchored popover stays put when switching levels.
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: 200, height: maxLevelContentHeight() + 24)
-    }
-
-    func maxLevelContentHeight() -> CGFloat {
-        level1.layoutSubtreeIfNeeded()
-        level2.layoutSubtreeIfNeeded()
-        return max(level1.fittingSize.height, level2.fittingSize.height)
+        refreshPanelHeightIfNeeded()
     }
 
     func refreshPanelHeightIfNeeded() {
-        invalidateIntrinsicContentSize()
+        needsLayout = true
+        layoutSubtreeIfNeeded()
         superview?.needsLayout = true
         superview?.layoutSubtreeIfNeeded()
     }
@@ -418,20 +408,25 @@ final class SgSettingsPanelView: NSView {
         contentStack.orientation = .vertical
         contentStack.spacing = 0
         contentStack.detachesHiddenViews = true
+        contentStack.alignment = .leading
+        contentStack.setContentHuggingPriority(.required, for: .vertical)
         contentStack.translatesAutoresizingMaskIntoConstraints = false
 
         level1.orientation = .vertical
         level1.spacing = 6
         level1.alignment = .width
+        level1.setContentHuggingPriority(.required, for: .vertical)
 
         level2.orientation = .vertical
         level2.spacing = 4
         level2.alignment = .width
         level2.isHidden = true
+        level2.setContentHuggingPriority(.required, for: .vertical)
 
         tracksStack.orientation = .vertical
         tracksStack.spacing = 4
         tracksStack.alignment = .width
+        tracksStack.setContentHuggingPriority(.required, for: .vertical)
 
         contentStack.addArrangedSubview(level1)
         contentStack.addArrangedSubview(level2)
@@ -441,7 +436,7 @@ final class SgSettingsPanelView: NSView {
             contentStack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
             contentStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             contentStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -12),
+            contentStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
         ])
         rebuildLevel1()
         rebuildLevel2()
@@ -478,6 +473,7 @@ final class SgSettingsPanelView: NSView {
         let label = NSTextField(labelWithString: text)
         label.font = .boldSystemFont(ofSize: 14)
         label.textColor = .white
+        label.setContentHuggingPriority(.required, for: .vertical)
         return label
     }
 
@@ -485,6 +481,7 @@ final class SgSettingsPanelView: NSView {
         let label = NSTextField(labelWithString: text)
         label.font = .systemFont(ofSize: 12)
         label.textColor = NSColor(white: 1, alpha: 0.8)
+        label.setContentHuggingPriority(.required, for: .vertical)
         return label
     }
 
@@ -492,6 +489,7 @@ final class SgSettingsPanelView: NSView {
         let label = NSTextField(labelWithString: text)
         label.font = .systemFont(ofSize: 12)
         label.textColor = NSColor(white: 1, alpha: 0.6)
+        label.setContentHuggingPriority(.required, for: .vertical)
         return label
     }
 
@@ -501,6 +499,7 @@ final class SgSettingsPanelView: NSView {
         button.setButtonType(.momentaryChange)
         button.alignment = .left
         button.tag = tag
+        button.setContentHuggingPriority(.required, for: .vertical)
         let color: NSColor = selected ? KineticPlayerColors.seekActive : .white
         button.attributedTitle = NSAttributedString(
             string: title,

@@ -1516,7 +1516,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
             settingsPanel.trailingAnchor.constraint(equalTo: settingsButton.trailingAnchor),
             settingsPanel.bottomAnchor.constraint(equalTo: settingsButton.topAnchor, constant: -6),
-            settingsPanel.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8),
 
             ratePanel.centerXAnchor.constraint(equalTo: rateButton.centerXAnchor),
             ratePanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),

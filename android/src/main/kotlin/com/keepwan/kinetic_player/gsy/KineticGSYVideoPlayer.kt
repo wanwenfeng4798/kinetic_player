@@ -100,6 +100,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     private var ratePanel: View? = null
     private var qualityPanel: View? = null
     private var volumeTrigger: ImageView? = null
+    private var toolbarPlayButton: ImageView? = null
     private var settingsTrigger: ImageView? = null
     private var rateTrigger: TextView? = null
     private var qualityTrigger: TextView? = null
@@ -115,7 +116,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     private var subtitleToggle: ImageView? = null
     private var danmakuInput: EditText? = null
     private var danmakuSend: TextView? = null
-    private var toolbarSpacer: View? = null
     private var blackoutOverlay: View? = null
     private var audioPanelVisible = false
     private var settingsPanelVisible = false
@@ -264,7 +264,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         subtitleToggle = findViewById(R.id.subtitle_toggle)
         danmakuInput = findViewById(R.id.danmaku_input)
         danmakuSend = findViewById(R.id.danmaku_send)
-        toolbarSpacer = findViewById(R.id.toolbar_spacer)
         blackoutOverlay = findViewById(R.id.kinetic_blackout_overlay)
         danmakuToggle?.setOnClickListener {
             val next = !overlayDanmakuVisible
@@ -702,16 +701,15 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         val showInput = overlayDanmakuVisible && showDanmakuChrome
         danmakuInput?.visibility = if (showInput) View.VISIBLE else View.GONE
         danmakuSend?.visibility = if (showInput) View.VISIBLE else View.GONE
-        // Input expands when open; otherwise spacer keeps trailing controls on the right.
-        val spacerLp = toolbarSpacer?.layoutParams as? LinearLayout.LayoutParams
-        if (spacerLp != null) {
-            spacerLp.weight = if (showInput) 0f else 1f
-            toolbarSpacer?.layoutParams = spacerLp
-            toolbarSpacer?.visibility = if (showInput) View.GONE else View.VISIBLE
-        }
         val danmakuVisible = if (showDanmakuChrome) View.VISIBLE else View.GONE
         danmakuToggle?.visibility = danmakuVisible
         subtitleToggle?.visibility = danmakuVisible
+        danmakuBar?.visibility =
+            if ((storedUiConfig?.enableNativeControls != false) && showDanmakuChrome) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
     }
 
     fun syncVolumeToolbar(
@@ -766,6 +764,26 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         fullscreenButton?.setOnClickListener {
             toggleWindowFullscreen()
         }
+        toolbarPlayButton = findViewById(R.id.toolbar_play)
+        toolbarPlayButton?.setOnClickListener {
+            clickStartIcon()
+        }
+        updateToolbarPlayIcon()
+    }
+
+    override fun updateStartImage() {
+        super.updateStartImage()
+        updateToolbarPlayIcon()
+    }
+
+    private fun updateToolbarPlayIcon() {
+        val iconRes =
+            if (currentState == CURRENT_STATE_PLAYING) {
+                R.drawable.kinetic_ic_pause
+            } else {
+                R.drawable.kinetic_ic_play
+            }
+        toolbarPlayButton?.setImageResource(iconRes)
     }
 
     private fun applyAccentToChrome() {
@@ -814,14 +832,14 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             setSeekOnStart(config.seekOnStartMs)
         }
         titleTextView?.text = config.videoTitle
+        toolbarPlayButton?.visibility =
+            if (config.enableNativeControls) View.VISIBLE else View.GONE
         volumeTrigger?.visibility =
             if (config.showVolumeToolbar) View.VISIBLE else View.GONE
         settingsTrigger?.visibility =
             if (config.showSettingsButton) View.VISIBLE else View.GONE
         rateTrigger?.visibility = View.VISIBLE
-        // Control row hosts danmaku + trailing actions; always show with native chrome.
-        danmakuBar?.visibility =
-            if (config.enableNativeControls) View.VISIBLE else View.GONE
+        // Danmaku row visibility is driven by showDanmakuChrome in refreshDanmakuBar().
         if (!config.showVolumeToolbar) {
             hideAudioPanel()
         }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="kinetic_volume_icon">Volume</string>
+    <string name="kinetic_play_pause_icon">Play or pause</string>
     <string name="kinetic_settings_icon">Settings</string>
     <string name="kinetic_fullscreen_icon">Fullscreen</string>
     <string name="kinetic_rate_icon">Playback rate</string>

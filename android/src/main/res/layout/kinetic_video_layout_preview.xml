@@ -75,20 +75,29 @@
         android:paddingBottom="4dp"
         android:visibility="invisible">
 
-        <!-- Progress row (Bilibili: time + seek) -->
+        <!-- Progress row: play | time | seek | time | rate | settings | volume | fullscreen -->
         <LinearLayout
+            android:id="@+id/progress_row"
             android:layout_width="match_parent"
             android:layout_height="36dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="8dp"
-            android:paddingEnd="8dp">
+            android:paddingEnd="4dp">
+
+            <ImageView
+                android:id="@+id/toolbar_play"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:contentDescription="@string/kinetic_play_pause_icon"
+                android:scaleType="center"
+                android:src="@drawable/kinetic_ic_play" />
 
             <TextView
                 android:id="@+id/current"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="4dp"
                 android:text="00:00"
                 android:textColor="#ffffff"
                 android:textSize="12sp" />
@@ -112,13 +121,65 @@
                 android:id="@+id/total"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="4dp"
                 android:text="00:00"
                 android:textColor="#ffffff"
                 android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/rate_trigger"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/kinetic_rate_icon"
+                android:gravity="center"
+                android:minWidth="36dp"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:text="1.0x"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/quality_trigger"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/kinetic_quality_icon"
+                android:gravity="center"
+                android:minWidth="36dp"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:text="@string/kinetic_quality_auto"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/settings_trigger"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:contentDescription="@string/kinetic_settings_icon"
+                android:scaleType="center"
+                android:src="@drawable/kinetic_ic_settings" />
+
+            <ImageView
+                android:id="@+id/volume_trigger"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:contentDescription="@string/kinetic_volume_icon"
+                android:scaleType="center"
+                android:src="@drawable/kinetic_ic_volume_on" />
+
+            <ImageView
+                android:id="@+id/fullscreen"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:contentDescription="@string/kinetic_fullscreen_icon"
+                android:paddingEnd="4dp"
+                android:scaleType="center"
+                android:src="@drawable/video_enlarge" />
         </LinearLayout>
 
-        <!-- Control row (Bilibili: 弹幕 | 输入 | 发送 | 字幕 | … | 全屏) -->
+        <!-- Danmaku row: 弹幕 | 输入 | 发送 | 字幕 -->
         <LinearLayout
             android:id="@+id/danmaku_bar"
             android:layout_width="match_parent"
@@ -177,67 +238,6 @@
                 android:padding="7dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/kinetic_ic_subtitle_on" />
-
-            <!-- Pushes rate/quality/… to the trailing edge (Bilibili). -->
-            <View
-                android:id="@+id/toolbar_spacer"
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-
-            <TextView
-                android:id="@+id/rate_trigger"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/kinetic_rate_icon"
-                android:gravity="center"
-                android:minWidth="36dp"
-                android:paddingStart="4dp"
-                android:paddingEnd="4dp"
-                android:text="1.0x"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/quality_trigger"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/kinetic_quality_icon"
-                android:gravity="center"
-                android:minWidth="36dp"
-                android:paddingStart="4dp"
-                android:paddingEnd="4dp"
-                android:text="@string/kinetic_quality_auto"
-                android:textColor="#FFFFFF"
-                android:textSize="12sp"
-                android:visibility="gone" />
-
-            <ImageView
-                android:id="@+id/settings_trigger"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/kinetic_settings_icon"
-                android:paddingEnd="4dp"
-                android:scaleType="center"
-                android:src="@drawable/kinetic_ic_settings" />
-
-            <ImageView
-                android:id="@+id/volume_trigger"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/kinetic_volume_icon"
-                android:paddingEnd="4dp"
-                android:scaleType="center"
-                android:src="@drawable/kinetic_ic_volume_on" />
-
-            <ImageView
-                android:id="@+id/fullscreen"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:contentDescription="@string/kinetic_fullscreen_icon"
-                android:paddingEnd="12dp"
-                android:scaleType="center"
-                android:src="@drawable/video_enlarge" />
         </LinearLayout>
     </LinearLayout>
 
