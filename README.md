@@ -122,3 +122,9 @@ dependencies:
 本插件代码采用 [MIT License](LICENSE)。
 
 SGPlayer 为独立第三方项目，其许可证以 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) 仓库为准（fork 自 libobjc/SGPlayer）。
+
+## 支持
+
+如果你觉得这个项目对你有帮助请支持我
+
+![支持](doc/pay.jpg)

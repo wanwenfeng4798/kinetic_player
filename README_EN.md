@@ -122,3 +122,9 @@ This plugin code is under the [MIT License](LICENSE).
 
 SGPlayer is a standalone third-party project; its license follows the [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) repository (fork from libobjc/SGPlayer).
 
+## Support
+
+If you find this project helpful, please support me.
+
+![Support](doc/pay.jpg)
+
