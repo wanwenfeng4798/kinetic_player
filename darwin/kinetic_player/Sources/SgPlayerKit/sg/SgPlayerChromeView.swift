@@ -9,6 +9,7 @@ protocol SgPlayerChromeDelegate: AnyObject {
     func chromeDidChangeRate(_ rate: Double)
     func chromeDidChangeMirror(_ enabled: Bool)
     func chromeDidChangeLooping(_ looping: Bool)
+    func chromeDidChangeAutoPlayNext(_ enabled: Bool)
     /// 0 auto, 1 16:9, 2 4:3, 3 fill/hide bars
     func chromeDidChangeScaleMode(_ mode: Int)
     func chromeDidChangeBlackout(_ enabled: Bool)
@@ -77,6 +78,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private var currentRate: Double = 1
     private var mirrorEnabled = false
     private var loopingEnabled = false
+    private var autoPlayNextEnabled = true
     private var aspectMode = 0
     private var hideBlackBars = false
     private var blackoutEnabled = false
@@ -356,6 +358,11 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             self.loopingEnabled = looping
             self.delegate?.chromeDidChangeLooping(looping)
         }
+        settingsPanel.onAutoPlayNextChanged = { [weak self] enabled in
+            guard let self else { return }
+            self.autoPlayNextEnabled = enabled
+            self.delegate?.chromeDidChangeAutoPlayNext(enabled)
+        }
         settingsPanel.onAspectChanged = { [weak self] mode in
             guard let self else { return }
             if mode == 3 {
@@ -632,7 +639,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             mirror: mirrorEnabled,
             looping: loopingEnabled,
             autoPlay: true,
-            autoPlayNext: true,
+            autoPlayNext: autoPlayNextEnabled,
             aspect: aspectMode,
             hideBlackBars: hideBlackBars,
             blackout: blackoutEnabled,
@@ -1129,6 +1136,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private var currentRate: Double = 1
     private var mirrorEnabled = false
     private var loopingEnabled = false
+    private var autoPlayNextEnabled = true
     private var aspectMode = 0
     private var hideBlackBars = false
     private var blackoutEnabled = false
@@ -1402,6 +1410,11 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             guard let self else { return }
             self.loopingEnabled = looping
             self.delegate?.chromeDidChangeLooping(looping)
+        }
+        settingsPanel.onAutoPlayNextChanged = { [weak self] enabled in
+            guard let self else { return }
+            self.autoPlayNextEnabled = enabled
+            self.delegate?.chromeDidChangeAutoPlayNext(enabled)
         }
         settingsPanel.onAspectChanged = { [weak self] mode in
             guard let self else { return }
@@ -1743,7 +1756,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             mirror: mirrorEnabled,
             looping: loopingEnabled,
             autoPlay: true,
-            autoPlayNext: true,
+            autoPlayNext: autoPlayNextEnabled,
             aspect: aspectMode,
             hideBlackBars: hideBlackBars,
             blackout: blackoutEnabled,

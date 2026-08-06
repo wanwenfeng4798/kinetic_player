@@ -115,7 +115,7 @@ class GsyNativePlayer(
                     adMode != AdMode.NONE && pendingContentUrl != null -> {
                         finishAdAndResumeContent()
                     }
-                    autoPlayNext && playlistIndex < playlist.lastIndex -> {
+                    autoPlayNext && playlist.size > 1 && playlistIndex < playlist.lastIndex -> {
                         playlistIndex++
                         setUrl(playlist[playlistIndex])
                         startPlayLogic()
@@ -405,6 +405,10 @@ class GsyNativePlayer(
         url: String,
         autoPlay: Boolean,
     ) {
+        val idx = playlist.indexOf(url)
+        if (idx >= 0) {
+            playlistIndex = idx
+        }
         setUrl(url)
         if (autoPlay) {
             startPlayLogic()

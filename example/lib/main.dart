@@ -26,44 +26,123 @@ class KineticPlayerExampleApp extends StatelessWidget {
 }
 
 class _DemoSource {
-  const _DemoSource(this.label, this.url);
+  const _DemoSource(this.label, this.url, {this.format = 'MP4'});
 
   final String label;
   final String url;
+  /// Container / protocol tag shown in the source picker.
+  final String format;
+
+  String get menuLabel => '[$format] $label';
 }
 
-/// Demo media URLs (Android GSY).
+/// Demo media URLs — only sources that respond HTTP 200 in smoke checks.
 class _DemoMedia {
   static final sources = <_DemoSource>[
-    _DemoSource(
-      'Big Buck Bunny (demo)',
+    // Progressive — short clips first (also used as continuous playlist)
+    const _DemoSource(
+      'Sample 5s',
+      'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
+      format: 'MP4',
+    ),
+    const _DemoSource(
+      'Flower',
+      'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+      format: 'MP4',
+    ),
+    const _DemoSource(
+      'Flower',
+      'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm',
+      format: 'WebM',
+    ),
+    const _DemoSource(
+      'Big Buck Bunny (短)',
       'https://www.w3schools.com/html/mov_bbb.mp4',
+      format: 'MP4',
     ),
-    _DemoSource(
-      'Jellyfish 140 Mbps 4K HEVC',
-      'http://www.thismonkey.com/files/2160p/jellyfish-140-mbps-4k-uhd-hevc-10bit.mkv',
+    const _DemoSource(
+      'XGPlayer Demo 360p',
+      'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/mp4/xgplayer-demo-360p.mp4',
+      format: 'MP4',
     ),
-    _DemoSource(
-      'Jellyfish 400 Mbps 4K HEVC',
-      'http://www.thismonkey.com/files/2160p/jellyfish-400-mbps-4k-uhd-hevc-10bit.mkv',
+    const _DemoSource(
+      'Sintel Trailer',
+      'https://media.w3.org/2010/05/sintel/trailer.mp4',
+      format: 'MP4',
     ),
-    _DemoSource(
-      'Dredd 测试片段 1',
-      'http://www.thismonkey.com/files/2160p/dredd-1.mkv',
+    const _DemoSource(
+      'Big Buck Bunny',
+      'https://cdn.jsdelivr.net/gh/mediaelement/mediaelement-files@master/big_buck_bunny.mp4',
+      format: 'MP4',
     ),
-    _DemoSource(
-      'Dredd 测试片段 2',
-      'http://www.thismonkey.com/files/2160p/dredd-2.mkv',
+    const _DemoSource(
+      '640x360 sample',
+      'https://filesamples.com/samples/video/mp4/sample_640x360.mp4',
+      format: 'MP4',
     ),
-    _DemoSource(
-      '虚拟频道 (45s 无缝切换) HLS',
-      'https://virtual-channel.unified-streaming.com/demo_channel-stable.isml/.m3u8',
+    // Adaptive streaming
+    const _DemoSource(
+      'Apple BipBop fMP4',
+      'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
+      format: 'HLS',
     ),
-    _DemoSource(
-      '标准 4K VOD 点播 (Tears of Steel),HLS',
+    const _DemoSource(
+      'Mux Big Buck Bunny',
+      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      format: 'HLS',
+    ),
+    const _DemoSource(
+      'Tears of Steel VOD',
       'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8',
+      format: 'HLS',
+    ),
+    const _DemoSource(
+      'XGPlayer HLS Demo',
+      'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/xgplayer-demo.m3u8',
+      format: 'HLS',
+    ),
+    const _DemoSource(
+      'Envivio MultiRate',
+      'https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd',
+      format: 'DASH',
+    ),
+    const _DemoSource(
+      'BBB 30fps MultiRate',
+      'https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd',
+      format: 'DASH',
+    ),
+    const _DemoSource(
+      'Shaka Angel One',
+      'https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd',
+      format: 'DASH',
+    ),
+    // Other containers
+    const _DemoSource(
+      'ExoPlayer lavf sample',
+      'https://storage.googleapis.com/exoplayer-test-media-1/mkv/android-screens-lavf-56.36.100-aac-avc-main-1280x720.mkv',
+      format: 'MKV',
+    ),
+    const _DemoSource(
+      'XGPlayer Demo 360p',
+      'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-360p.flv',
+      format: 'FLV',
     ),
   ];
+
+  /// Short progressive clips for「播完切下一集」smoke tests.
+  static List<_DemoSource> get continuousPlaylist => sources
+      .where(
+        (s) =>
+            s.url.contains('sample-5s') ||
+            s.url.contains('flower.mp4') ||
+            s.url.contains('flower.webm') ||
+            s.url.contains('mov_bbb') ||
+            s.url.contains('xgplayer-demo-360p.mp4'),
+      )
+      .toList(growable: false);
+
+  static List<String> get continuousPlaylistUrls =>
+      continuousPlaylist.map((s) => s.url).toList(growable: false);
 
   /// Demo cover / poster image.
   static const coverUrl = 'https://www.gstatic.com/webp/gallery/1.jpg';
@@ -149,7 +228,7 @@ class _DemoMedia {
     _DanmakuCue(2, 'DanmakuFlameMaster + B 站 XML'),
     _DanmakuCue(4, '从右向左滚动弹幕'),
     _DanmakuCue(6, '支持加载本地 XML 文件'),
-    _DanmakuCue(8, '也可在下方输入框发送弹幕'),
+    _DanmakuCue(8, '支持加载本地 XML 文件'),
     _DanmakuCue(10, 'gsySetDanmakuUrl / gsyToggleDanmaku'),
   ];
 
@@ -203,7 +282,8 @@ class PlayerDemoPage extends StatefulWidget {
 class _PlayerDemoPageState extends State<PlayerDemoPage> {
   String? _previewVttUri;
   CommonVideoController? _controller;
-  _DemoSource _selectedSource = _DemoMedia.sources.first;
+  _DemoSource _selectedSource = _DemoMedia.continuousPlaylist.first;
+  bool _playlistReady = false;
 
   @override
   void initState() {
@@ -221,6 +301,19 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
     super.dispose();
   }
 
+  Future<void> _ensureContinuousPlaylist(CommonVideoController controller) async {
+    if (_playlistReady) return;
+    if (controller is! GSYVideoControllerImpl) {
+      // Darwin / Web: still pass playlist via creationParams when supported.
+      _playlistReady = true;
+      return;
+    }
+    final urls = _DemoMedia.continuousPlaylistUrls;
+    final idx = urls.indexOf(_selectedSource.url);
+    await controller.gsySetPlaylist(urls, startIndex: idx < 0 ? 0 : idx);
+    _playlistReady = true;
+  }
+
   Future<void> _onSourceChanged(_DemoSource source) async {
     if (source.url == _selectedSource.url) return;
     final controller = _controller;
@@ -229,6 +322,74 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
     setState(() => _selectedSource = source);
     if (controller == null) return;
     await controller.switchVideoSource(source.url, autoPlay: wasPlaying);
+    // Keep native playlist index aligned; outside the continuous list → single-item playlist.
+    if (controller is GSYVideoControllerImpl) {
+      final urls = _DemoMedia.continuousPlaylistUrls;
+      final idx = urls.indexOf(source.url);
+      if (idx >= 0) {
+        await controller.gsySetPlaylist(urls, startIndex: idx);
+      } else {
+        await controller.gsySetPlaylist([source.url], startIndex: 0);
+      }
+    }
+  }
+
+  Map<String, dynamic> _creationParams({
+    required bool isAndroid,
+    required bool isWeb,
+  }) {
+    final ui = isWeb
+        ? ArtplayerUiConfig(
+            ui: GsyUiConfig(
+              enableNativeControls: true,
+              showFullscreenButton: true,
+              showVolumeToolbar: true,
+              showSettingsButton: true,
+              pictureInPictureEnabled: true,
+              coverUrl: _DemoMedia.coverUrl,
+              videoTitle: _selectedSource.label,
+            ),
+            artPlugins: const {
+              ArtplayerPluginKeys.danmuku: true,
+              ArtplayerPluginKeys.documentPip: true,
+              ArtplayerPluginKeys.hlsControl: true,
+              ArtplayerPluginKeys.dashControl: true,
+              ArtplayerPluginKeys.vttThumbnail: true,
+              ArtplayerPluginKeys.multipleSubtitles: true,
+            },
+          ).toCreationParams()
+        : isAndroid
+            ? GsyUiConfig(
+                enableNativeControls: true,
+                showFullscreenButton: true,
+                showDragProgressTextOnSeekBar: true,
+                pictureInPictureEnabled: true,
+                // Large remote MKV: disable HttpProxyCache.
+                cacheWithPlay: false,
+                videoTitle: _selectedSource.label,
+                previewVttUrl: _previewVttUri,
+                coverUrl: _DemoMedia.coverUrl,
+                keepLastFrameWhenComplete: false,
+              ).toCreationParams()
+            : GsyUiConfig(
+                enableNativeControls: true,
+                showFullscreenButton: true,
+                showVolumeToolbar: true,
+                showSettingsButton: true,
+                coverUrl: _DemoMedia.coverUrl,
+                keepLastFrameWhenComplete: false,
+                videoTitle: _selectedSource.label,
+              ).toCreationParams();
+
+    // Seed continuous playlist so「播完切下一集」works out of the box.
+    final urls = _DemoMedia.continuousPlaylistUrls;
+    var start = urls.indexOf(_selectedSource.url);
+    if (start < 0) start = 0;
+    return <String, dynamic>{
+      ...ui,
+      'playlist': urls,
+      'playlistStartIndex': start,
+    };
   }
 
   @override
@@ -262,51 +423,14 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                   flex: 3,
                   child: CommonVideoPlayerViewBuilder(
                     url: _selectedSource.url,
-                    creationParams: kIsWeb
-                        ? ArtplayerUiConfig(
-                            ui: GsyUiConfig(
-                              enableNativeControls: true,
-                              showFullscreenButton: true,
-                              showVolumeToolbar: true,
-                              showSettingsButton: true,
-                              pictureInPictureEnabled: true,
-                              coverUrl: _DemoMedia.coverUrl,
-                              videoTitle: _selectedSource.label,
-                            ),
-                            artPlugins: const {
-                              ArtplayerPluginKeys.danmuku: true,
-                              ArtplayerPluginKeys.documentPip: true,
-                              ArtplayerPluginKeys.hlsControl: true,
-                              ArtplayerPluginKeys.dashControl: true,
-                              ArtplayerPluginKeys.vttThumbnail: true,
-                              ArtplayerPluginKeys.multipleSubtitles: true,
-                            },
-                          ).toCreationParams()
-                        : isAndroid
-                            ? GsyUiConfig(
-                                enableNativeControls: true,
-                                showFullscreenButton: true,
-                                showDragProgressTextOnSeekBar: true,
-                                pictureInPictureEnabled: true,
-                                // Large remote MKV: disable HttpProxyCache.
-                                cacheWithPlay: false,
-                                videoTitle: _selectedSource.label,
-                                previewVttUrl: _previewVttUri,
-                                coverUrl: _DemoMedia.coverUrl,
-                                keepLastFrameWhenComplete: false,
-                              ).toCreationParams()
-                            : GsyUiConfig(
-                                enableNativeControls: true,
-                                showFullscreenButton: true,
-                                showVolumeToolbar: true,
-                                showSettingsButton: true,
-                                coverUrl: _DemoMedia.coverUrl,
-                                keepLastFrameWhenComplete: false,
-                                videoTitle: _selectedSource.label,
-                              ).toCreationParams(),
+                    creationParams: _creationParams(
+                      isAndroid: isAndroid,
+                      isWeb: kIsWeb,
+                    ),
                     builder: (controller) {
                       if (!identical(_controller, controller)) {
                         setState(() => _controller = controller);
+                        _ensureContinuousPlaylist(controller);
                       }
                     },
                   ),
@@ -358,28 +482,17 @@ class _ControlPanelState extends State<_ControlPanel> {
   List<String> _filters = const ['none', 'sepia', 'gaussianBlur', 'greyScale'];
   String _selectedFilter = 'none';
   String? _subtitleVttUri;
-  bool _subtitlesEnabled = true;
   String? _danmakuXmlUri;
-  bool _danmakuVisible = false;
   bool _watermarkEnabled = false;
   bool _purePlay = false;
   bool _gifRecording = false;
-  bool _loopingEnabled = false;
-  bool _muted = false;
-  double _volume = 1;
-  double _rate = 1;
   String? _lastCapturePath;
   String? _lastGifPath;
   String? _netSpeedText;
   int _renderRotation = 0;
-  bool _mirrorHorizontal = false;
-  bool _mirrorVertical = false;
   bool _keepLastFrame = false;
   bool _coverEnabled = true;
-  List<CommonAudioTrack> _audioTracks = const [];
-  int? _selectedAudioTrackIndex;
   GsyRenderCore _selectedRenderCore = GsyRenderCore.ijk;
-  final List<_DanmakuCue> _customDanmaku = [];
   final TextEditingController _subtitleTextController = TextEditingController(
     text: 'Hello from Flutter — gsySetEmbeddedSubtitleText',
   );
@@ -413,13 +526,10 @@ class _ControlPanelState extends State<_ControlPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       _renderRotation = 0;
-      _mirrorHorizontal = false;
-      _mirrorVertical = false;
       _keepLastFrame = false;
       _coverEnabled = true;
       _selectedRenderCore = GsyRenderCore.ijk;
       _loadFilters();
-      _loadAudioTracks();
     }
   }
 
@@ -427,8 +537,6 @@ class _ControlPanelState extends State<_ControlPanel> {
     if (url == null || url == widget.selectedSource.url) return;
     final source = _DemoMedia.sources.firstWhere((s) => s.url == url);
     await widget.onSourceChanged(source);
-    if (!mounted) return;
-    await _loadAudioTracks();
   }
 
   Future<void> _onRenderCoreChanged(GsyRenderCore? core) async {
@@ -450,7 +558,6 @@ class _ControlPanelState extends State<_ControlPanel> {
 
     if (!mounted) return;
     setState(() => _selectedRenderCore = core);
-    await _loadAudioTracks();
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -458,27 +565,6 @@ class _ControlPanelState extends State<_ControlPanel> {
         content: Text('已切换至 ${_renderCoreLabels[core]}，视频已重新加载'),
       ),
     );
-  }
-
-  Future<void> _loadAudioTracks() async {
-    final controller = widget.controller;
-    if (controller == null) return;
-    final tracks = await controller.getAudioTracks();
-    if (!mounted) return;
-    setState(() {
-      _audioTracks = tracks;
-      _selectedAudioTrackIndex =
-          tracks.where((t) => t.selected).map((t) => t.index).firstOrNull;
-    });
-  }
-
-  Future<void> _onAudioTrackChanged(int? index) async {
-    final controller = widget.controller;
-    if (controller == null || index == null) return;
-    await controller.selectAudioTrack(index);
-    if (!mounted) return;
-    setState(() => _selectedAudioTrackIndex = index);
-    await _loadAudioTracks();
   }
 
   Future<void> _loadFilters() async {
@@ -514,7 +600,6 @@ class _ControlPanelState extends State<_ControlPanel> {
     setState(() => _subtitleVttUri = uri);
     await gsy.gsySetSubtitleUrl(uri, mimeType: 'text/vtt');
     await gsy.gsySetSubtitleEnabled(enabled: true);
-    if (mounted) setState(() => _subtitlesEnabled = true);
   }
 
   Future<void> _sendEmbeddedSubtitle(GSYVideoControllerImpl gsy) async {
@@ -525,53 +610,19 @@ class _ControlPanelState extends State<_ControlPanel> {
       await gsy.gsySetEmbeddedSubtitleText(text);
     }
     await gsy.gsySetSubtitleEnabled(enabled: true);
-    if (mounted) setState(() => _subtitlesEnabled = true);
   }
 
   Future<void> _clearSubtitles(GSYVideoControllerImpl gsy) async {
     await gsy.gsySetEmbeddedSubtitleText(null);
     await gsy.gsySetSubtitleEnabled(enabled: false);
-    if (mounted) setState(() => _subtitlesEnabled = false);
-  }
-
-  Future<void> _toggleSubtitles(GSYVideoControllerImpl gsy) async {
-    final enabled = !_subtitlesEnabled;
-    await gsy.gsySetSubtitleEnabled(enabled: enabled);
-    if (mounted) setState(() => _subtitlesEnabled = enabled);
-  }
-
-  Future<void> _reloadDanmakuFile(GSYVideoControllerImpl gsy) async {
-    final uri = await _DemoMedia.prepareDanmakuXmlUri(extra: _customDanmaku);
-    if (!mounted) return;
-    setState(() => _danmakuXmlUri = uri);
-    await gsy.gsySetDanmakuUrl(uri);
-    if (_danmakuVisible) {
-      await gsy.gsyToggleDanmaku(enabled: true);
-    }
   }
 
   Future<void> _loadDemoDanmaku(GSYVideoControllerImpl gsy) async {
-    await _reloadDanmakuFile(gsy);
+    final uri = await _DemoMedia.prepareDanmakuXmlUri();
+    if (!mounted) return;
+    setState(() => _danmakuXmlUri = uri);
+    await gsy.gsySetDanmakuUrl(uri);
     await gsy.gsyToggleDanmaku(enabled: true);
-    if (mounted) setState(() => _danmakuVisible = true);
-  }
-
-  Future<void> _sendDanmaku(GSYVideoControllerImpl gsy) async {
-    final text = _danmakuTextController.text.trim();
-    if (text.isEmpty) return;
-    final timeSec = gsy.position.value.inMilliseconds / 1000.0;
-    setState(() {
-      _customDanmaku.add(_DanmakuCue(timeSec, text));
-    });
-    await _reloadDanmakuFile(gsy);
-    await gsy.gsyToggleDanmaku(enabled: true);
-    if (mounted) setState(() => _danmakuVisible = true);
-  }
-
-  Future<void> _toggleDanmaku(GSYVideoControllerImpl gsy) async {
-    final visible = !_danmakuVisible;
-    await gsy.gsyToggleDanmaku(enabled: visible);
-    if (mounted) setState(() => _danmakuVisible = visible);
   }
 
   Future<void> _toggleWatermark(GSYVideoControllerImpl gsy) async {
@@ -633,71 +684,10 @@ class _ControlPanelState extends State<_ControlPanel> {
     }
   }
 
-  Future<void> _saveScreenshot(GSYVideoControllerImpl gsy) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final path = await gsy.gsySaveScreenshot(withView: true, high: true);
-    if (!mounted) return;
-    setState(() => _lastCapturePath = path);
-    messenger.showSnackBar(
-      SnackBar(content: Text(path == null ? '保存失败' : '已保存: $path')),
-    );
-  }
-
   Future<void> _refreshNetSpeed(GSYVideoControllerImpl gsy) async {
     final speed = await gsy.gsyGetNetSpeed();
     if (!mounted) return;
     setState(() => _netSpeedText = '${speed.text} (${speed.bytesPerSecond} B/s)');
-  }
-
-  Future<void> _listExoTracks(GSYVideoControllerImpl gsy) async {
-    final tracks = await gsy.gsyListExoVideoTracks();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          tracks.isEmpty
-              ? '无 Exo 视频轨（请先切 Media3 内核）'
-              : 'Exo 视频轨 ${tracks.length} 条：${tracks.map((t) => t['label']).join(', ')}',
-        ),
-      ),
-    );
-  }
-
-  Future<void> _setRate(double rate) async {
-    final active = widget.controller;
-    if (active == null) return;
-    await active.setRate(rate);
-    if (mounted) setState(() => _rate = rate);
-  }
-
-  Future<void> _setVolume(double volume) async {
-    final active = widget.controller;
-    if (active == null) return;
-    await active.setVolume(volume);
-    if (mounted) {
-      setState(() {
-        _volume = volume;
-        if (volume > 0) _muted = false;
-      });
-    }
-  }
-
-  Future<void> _toggleMute() async {
-    final active = widget.controller;
-    if (active == null) return;
-    final next = !_muted;
-    await active.setMute(next);
-    if (mounted) setState(() => _muted = next);
-  }
-
-  Future<void> _setShowType(GsyShowType type) async {
-    final gsy = widget.controller;
-    if (gsy is! GSYVideoControllerImpl) return;
-    await gsy.gsySetGsyShowType(type);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('显示比例: $type')),
-    );
   }
 
   Future<void> _rotateBy(int deltaDegrees) async {
@@ -712,32 +702,6 @@ class _ControlPanelState extends State<_ControlPanel> {
       return;
     }
     if (mounted) setState(() => _renderRotation = normalized);
-  }
-
-  Future<void> _toggleMirrorHorizontal() async {
-    final next = !_mirrorHorizontal;
-    final controller = widget.controller;
-    if (controller is GSYVideoControllerImpl) {
-      await controller.gsySetMirrorHorizontal(enabled: next);
-    } else if (controller is SGVideoControllerImpl) {
-      await controller.sgSetMirrorHorizontal(enabled: next);
-    } else {
-      return;
-    }
-    if (mounted) setState(() => _mirrorHorizontal = next);
-  }
-
-  Future<void> _toggleMirrorVertical() async {
-    final next = !_mirrorVertical;
-    final controller = widget.controller;
-    if (controller is GSYVideoControllerImpl) {
-      await controller.gsySetMirrorVertical(enabled: next);
-    } else if (controller is SGVideoControllerImpl) {
-      await controller.sgSetMirrorVertical(enabled: next);
-    } else {
-      return;
-    }
-    if (mounted) setState(() => _mirrorVertical = next);
   }
 
   Future<void> _toggleKeepLastFrame() async {
@@ -838,7 +802,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                         DropdownMenuItem(
                           value: source.url,
                           child: Text(
-                            source.label,
+                            source.menuLabel,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -855,47 +819,9 @@ class _ControlPanelState extends State<_ControlPanel> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Text('音轨：'),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _audioTracks.isEmpty
-                      ? Text(
-                          '暂无可用音轨',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade600,
-                          ),
-                        )
-                      : DropdownButton<int>(
-                          isExpanded: true,
-                          value: _selectedAudioTrackIndex,
-                          items: [
-                            for (final track in _audioTracks)
-                              DropdownMenuItem(
-                                value: track.index,
-                                child: Text(
-                                  track.language == null
-                                      ? track.label
-                                      : '${track.label} (${track.language})',
-                                ),
-                              ),
-                          ],
-                          onChanged: _onAudioTrackChanged,
-                        ),
-                ),
-                IconButton(
-                  tooltip: '刷新音轨',
-                  onPressed: _loadAudioTracks,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
             const SizedBox(height: 4),
             const Text(
-              '音轨请在设置中选择；播放器内齿轮按钮也可切换原生音轨。',
+              '倍速 / 音量 / 循环 / 音轨 / 清晰度请用播放器原生底栏与设置面板。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
@@ -987,21 +913,17 @@ class _ControlPanelState extends State<_ControlPanel> {
                 ),
                 FilledButton.tonal(
                   onPressed: () => _sendEmbeddedSubtitle(active),
-                  child: const Text('发送字幕'),
+                  child: const Text('推送字幕文本'),
                 ),
                 FilledButton.tonal(
                   onPressed: () => _clearSubtitles(active),
                   child: const Text('清除字幕'),
                 ),
-                FilledButton.tonal(
-                  onPressed: () => _toggleSubtitles(active),
-                  child: Text(_subtitlesEnabled ? '关闭显示' : '开启显示'),
-                ),
               ],
             ),
             const SizedBox(height: 4),
             const Text(
-              '「加载 WebVTT」使用外挂轨道；「发送字幕」通过 gsySetEmbeddedSubtitleText 即时显示。',
+              '开关字幕请用底栏 CC 图标。「加载 WebVTT」挂外挂轨；「推送字幕文本」走 gsySetEmbeddedSubtitleText。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 12),
@@ -1010,15 +932,6 @@ class _ControlPanelState extends State<_ControlPanel> {
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
-            TextField(
-              controller: _danmakuTextController,
-              decoration: const InputDecoration(
-                labelText: '弹幕内容',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -1027,21 +940,13 @@ class _ControlPanelState extends State<_ControlPanel> {
                   onPressed: _danmakuXmlUri == null
                       ? null
                       : () => _loadDemoDanmaku(active),
-                  child: const Text('加载弹幕'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _sendDanmaku(active),
-                  child: const Text('发送弹幕'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _toggleDanmaku(active),
-                  child: Text(_danmakuVisible ? '隐藏弹幕' : '显示弹幕'),
+                  child: const Text('加载弹幕 XML'),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             const Text(
-              '「加载弹幕」使用 B 站 XML 本地文件；「发送弹幕」在当前播放时间点追加一条并重新加载。全屏后弹幕/水印仍会跟随。',
+              '开关 / 发送弹幕请用底栏弹幕图标与输入框。此处仅演示加载 B 站 XML。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 12),
@@ -1079,10 +984,6 @@ class _ControlPanelState extends State<_ControlPanel> {
                   child: Text(_gifRecording ? '停止 GIF' : '开始 GIF'),
                 ),
                 FilledButton.tonal(
-                  onPressed: () => _saveScreenshot(active),
-                  child: const Text('保存截图'),
-                ),
-                FilledButton.tonal(
                   onPressed: () async {
                     final ok = await active.gsyEnterPictureInPicture();
                     if (!context.mounted) return;
@@ -1094,26 +995,12 @@ class _ControlPanelState extends State<_ControlPanel> {
                 ),
                 FilledButton.tonal(
                   onPressed: () async {
-                    final idx = _DemoMedia.sources.indexWhere(
-                      (s) => s.url == widget.selectedSource.url,
-                    );
-                    await active.gsySetPlaylist(
-                      _DemoMedia.sources.map((s) => s.url).toList(),
-                      startIndex: idx < 0 ? 0 : idx,
-                    );
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('已设置播放列表（完播自动下一首）')),
-                    );
-                  },
-                  child: const Text('设置播放列表'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () async {
                     final ok = await active.gsyPlayNextInPlaylist();
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(ok ? '已切下一首' : '已是最后一首')),
+                      SnackBar(
+                        content: Text(ok ? '已切下一首' : '已是最后一首'),
+                      ),
                     );
                   },
                   child: const Text('播放下一首'),
@@ -1121,22 +1008,6 @@ class _ControlPanelState extends State<_ControlPanel> {
                 FilledButton.tonal(
                   onPressed: () => _refreshNetSpeed(active),
                   child: const Text('网速'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _listExoTracks(active),
-                  child: const Text('Exo 视频轨'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _setShowType(GsyShowType.ratio16x9),
-                  child: const Text('比例 16:9'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _setShowType(GsyShowType.full),
-                  child: const Text('比例 填充'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _setShowType(GsyShowType.defaultRatio),
-                  child: const Text('比例 默认'),
                 ),
                 FilledButton.tonal(
                   onPressed: () => active.gsyReleaseAllVideos(),
@@ -1160,13 +1031,14 @@ class _ControlPanelState extends State<_ControlPanel> {
             ],
             const SizedBox(height: 4),
             const Text(
-              '右上角列表图标可打开「滑动自动播放」Demo。广告/水印/弹幕在窗口全屏下也会跟随。',
+              '启动已注入短片 playlist；设置→更多→「播完切下一集」可验证连播。'
+              '比例 / 镜像 / 循环请用原生设置。右上角可打开列表自动播 Demo。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
           const SizedBox(height: 12),
           const Text(
-            '公共 · 倍速 / 音量 / 循环 / 截图',
+            '公共 · 截图',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
@@ -1174,45 +1046,6 @@ class _ControlPanelState extends State<_ControlPanel> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              FilledButton.tonal(
-                onPressed: active == null ? null : () => _setRate(0.75),
-                child: Text(_rate == 0.75 ? '0.75x ✓' : '0.75x'),
-              ),
-              FilledButton.tonal(
-                onPressed: active == null ? null : () => _setRate(1),
-                child: Text(_rate == 1 ? '1x ✓' : '1x'),
-              ),
-              FilledButton.tonal(
-                onPressed: active == null ? null : () => _setRate(1.5),
-                child: Text(_rate == 1.5 ? '1.5x ✓' : '1.5x'),
-              ),
-              FilledButton.tonal(
-                onPressed: active == null ? null : () => _setRate(2),
-                child: Text(_rate == 2 ? '2x ✓' : '2x'),
-              ),
-              FilledButton.tonal(
-                onPressed: active == null ? null : () => _setVolume(0.3),
-                child: const Text('音量 30%'),
-              ),
-              FilledButton.tonal(
-                onPressed: active == null ? null : () => _setVolume(1),
-                child: Text('音量 ${(_volume * 100).round()}%'),
-              ),
-              FilledButton.tonal(
-                onPressed: active == null ? null : _toggleMute,
-                child: Text(_muted ? '静音: 开' : '静音: 关'),
-              ),
-              FilledButton.tonal(
-                onPressed: active == null
-                    ? null
-                    : () async {
-                        final next = !_loopingEnabled;
-                        await active.setLooping(next);
-                        if (!mounted) return;
-                        setState(() => _loopingEnabled = next);
-                      },
-                child: Text(_loopingEnabled ? '循环: 开' : '循环: 关'),
-              ),
               FilledButton.tonal(
                 onPressed: active == null
                     ? null
@@ -1246,10 +1079,10 @@ class _ControlPanelState extends State<_ControlPanel> {
           const SizedBox(height: 4),
           Text(
             isAndroidGsy
-                ? '循环走 GSY 原生 isLooping；截图可用 includeOverlay。'
+                ? '截图可用 includeOverlay。倍速/音量/循环请用原生底栏。'
                 : isWebArt
-                    ? 'Web：循环 / 截图返回 data URL；弹幕需创建时启用 artPlugins.danmuku。'
-                    : '循环在结束时 seek(0)+play；截图为临时 PNG。',
+                    ? 'Web：截图返回 data URL；倍速/音量用 Artplayer 控件。'
+                    : '截图为临时 PNG。倍速/音量/循环请用原生底栏。',
             style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
           if (isWebArt) ...[
@@ -1330,7 +1163,7 @@ class _ControlPanelState extends State<_ControlPanel> {
           if (supportsTransform) ...[
             const SizedBox(height: 12),
             const Text(
-              '旋转 / 镜像',
+              '旋转',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
@@ -1358,20 +1191,12 @@ class _ControlPanelState extends State<_ControlPanel> {
                   },
                   child: const Text('复位 0°'),
                 ),
-                FilledButton.tonal(
-                  onPressed: _toggleMirrorHorizontal,
-                  child: Text(_mirrorHorizontal ? '左右镜像: 开' : '左右镜像: 关'),
-                ),
-                FilledButton.tonal(
-                  onPressed: _toggleMirrorVertical,
-                  child: Text(_mirrorVertical ? '上下镜像: 开' : '上下镜像: 关'),
-                ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
-              '当前旋转 $_renderRotation°'
-              '${isAndroidGsy ? '（gsySetRenderRotation / MirrorH/V）' : '（sgSetRenderRotation / MirrorH/V）'}',
+              '当前旋转 $_renderRotation°。镜像请用原生设置面板。'
+              '${isAndroidGsy ? '（gsySetRenderRotation）' : '（sgSetRenderRotation）'}',
               style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
@@ -1531,22 +1356,12 @@ class _ControlPanelState extends State<_ControlPanel> {
                     : () => active.seekTo(const Duration(seconds: 10)),
                 child: const Text('Seek 10s'),
               ),
-              if (isAndroidGsy)
-                FilledButton(
-                  onPressed: () => active.gsyStartFullscreen(),
-                  child: const Text('GSY Fullscreen'),
-                ),
-              if (active is SGVideoControllerImpl) ...[
-                FilledButton(
-                  onPressed: () => active.sgStartFullscreen(),
-                  child: const Text('SG Fullscreen'),
-                ),
-                FilledButton(
-                  onPressed: () => active.sgSetVRMode(enabled: true),
-                  child: const Text('SG VR'),
-                ),
-              ],
             ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '全屏请用播放器底栏按钮。',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
         ],
       ),
@@ -1566,20 +1381,21 @@ class _AutoPlayListDemoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final urls = _DemoMedia.sources.map((s) => s.url).toList();
+    final urls = _DemoMedia.continuousPlaylistUrls;
     return Scaffold(
       appBar: AppBar(title: const Text('列表滑动自动播放')),
       body: GsyAutoPlayVideoList(
         urls: urls,
         aspectRatio: 16 / 9,
         coverBuilder: (context, index) {
+          final label = _DemoMedia.continuousPlaylist[index].menuLabel;
           return ColoredBox(
             color: Colors.black,
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Text(
-                  _DemoMedia.sources[index].label,
+                  label,
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white70),
                 ),

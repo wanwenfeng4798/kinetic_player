@@ -47,14 +47,20 @@ class GsyVideoPlatformView(
     init {
         channel.setMethodCallHandler(this)
         player.applyUiConfig(uiConfig)
-        val url = creationParams?.get("url") as? String
-        if (!url.isNullOrEmpty()) {
-            player.switchVideoSource(url, autoPlay = false)
-        }
         @Suppress("UNCHECKED_CAST")
-        val playlist = creationParams?.get("playlist") as? List<String>
-        if (!playlist.isNullOrEmpty()) {
-            player.setPlaylist(playlist)
+        val playlist = creationParams?.get("playlist") as? List<*>
+        val playlistUrls =
+            playlist?.mapNotNull { it as? String }?.filter { it.isNotEmpty() }.orEmpty()
+        val startIndex =
+            (creationParams?.get("playlistStartIndex") as? Number)?.toInt()
+                ?: 0
+        if (playlistUrls.isNotEmpty()) {
+            player.setPlaylist(playlistUrls, startIndex)
+        } else {
+            val url = creationParams?.get("url") as? String
+            if (!url.isNullOrEmpty()) {
+                player.switchVideoSource(url, autoPlay = false)
+            }
         }
     }
 

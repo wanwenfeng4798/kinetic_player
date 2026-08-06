@@ -22,6 +22,9 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
     private var isPlaying = false
     private var keepLastFrameWhenComplete = false
     private var latestState: CommonPlayerState = .idle
+    private var playlist: [String] = []
+    private var playlistIndex = 0
+    private var autoPlayNext = true
 
     init(
         frame: CGRect,
@@ -84,7 +87,11 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             chrome.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
 
-        if let url = params?["url"] as? String {
+        let playlistArgs = (params?["playlist"] as? [String]) ?? []
+        let startIndex = params?["playlistStartIndex"] as? Int ?? 0
+        if !playlistArgs.isEmpty {
+            setPlaylist(playlistArgs, startIndex: startIndex, autoPlay: false)
+        } else if let url = params?["url"] as? String, !url.isEmpty {
             player.switchVideoSource(url, autoPlay: false)
         }
         player.setLooping(uiConfig.looping)
@@ -133,7 +140,30 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
         if state == .paused || state == .completed || state == .idle {
             chrome.setControlsVisible(true, animated: true)
         }
+        if state == .completed {
+            maybePlayNextInPlaylist()
+        }
         syncCoverVisibility()
+    }
+
+    private func setPlaylist(_ urls: [String], startIndex: Int, autoPlay: Bool) {
+        playlist = urls.filter { !$0.isEmpty }
+        guard !playlist.isEmpty else { return }
+        playlistIndex = min(max(0, startIndex), playlist.count - 1)
+        player.switchVideoSource(playlist[playlistIndex], autoPlay: autoPlay)
+    }
+
+    @discardableResult
+    private func playNextInPlaylist() -> Bool {
+        guard playlist.count > 1, playlistIndex < playlist.count - 1 else { return false }
+        playlistIndex += 1
+        player.switchVideoSource(playlist[playlistIndex], autoPlay: true)
+        return true
+    }
+
+    private func maybePlayNextInPlaylist() {
+        guard autoPlayNext else { return }
+        _ = playNextInPlaylist()
     }
 
     private func syncCoverVisibility() {
@@ -210,6 +240,10 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
         player.setLooping(looping)
     }
 
+    func chromeDidChangeAutoPlayNext(_ enabled: Bool) {
+        autoPlayNext = enabled
+    }
+
     func chromeDidChangeScaleMode(_ mode: Int) {
         // Chrome modes: 0 auto, 1 16:9, 2 4:3, 3 fill/hide bars.
         // SG renderer maps to ResizeAspect / ResizeAspectFill / Resize.
@@ -271,10 +305,21 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             let args = call.arguments as? [String: Any]
             let url = args?["url"] as? String ?? ""
             let autoPlay = args?["autoPlay"] as? Bool ?? true
+            if let idx = playlist.firstIndex(of: url) {
+                playlistIndex = idx
+            }
             player.switchVideoSource(url, autoPlay: autoPlay)
             latestState = .idle
             syncCoverVisibility()
             result(nil)
+        case "gsySetPlaylist":
+            let args = call.arguments as? [String: Any]
+            let urls = args?["urls"] as? [String] ?? []
+            let startIndex = args?["startIndex"] as? Int ?? 0
+            setPlaylist(urls, startIndex: startIndex, autoPlay: false)
+            result(nil)
+        case "gsyPlayNextInPlaylist":
+            result(playNextInPlaylist())
         case "getAudioTracks":
             result(player.getAudioTracks())
         case "selectAudioTrack":
