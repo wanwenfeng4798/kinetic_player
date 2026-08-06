@@ -12,6 +12,7 @@ final class SgSettingsPanelView: UIView {
     var onHideBlackBarsChanged: ((Bool) -> Void)?
     var onBlackoutChanged: ((Bool) -> Void)?
 
+    private let contentStack = UIStackView()
     private let level1 = UIStackView()
     private let level2 = UIStackView()
     private let tracksStack = UIStackView()
@@ -73,12 +74,16 @@ final class SgSettingsPanelView: UIView {
     func showLevel1() {
         level1.isHidden = false
         level2.isHidden = true
+        setNeedsLayout()
+        invalidateIntrinsicContentSize()
     }
 
     func showLevel2() {
         rebuildLevel2()
         level1.isHidden = true
         level2.isHidden = false
+        setNeedsLayout()
+        invalidateIntrinsicContentSize()
     }
 
     private func setup() {
@@ -86,30 +91,34 @@ final class SgSettingsPanelView: UIView {
         layer.cornerRadius = 8
         clipsToBounds = true
 
+        // Keep only one level in layout; pinning both level stacks to the panel
+        // top+bottom made the panel as tall as level2 and stretched level1 rows.
+        contentStack.axis = .vertical
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+
         level1.axis = .vertical
         level1.spacing = 6
-        level1.translatesAutoresizingMaskIntoConstraints = false
+        level1.alignment = .fill
+        level1.distribution = .fill
 
         level2.axis = .vertical
         level2.spacing = 4
+        level2.alignment = .fill
+        level2.distribution = .fill
         level2.isHidden = true
-        level2.translatesAutoresizingMaskIntoConstraints = false
 
         tracksStack.axis = .vertical
         tracksStack.spacing = 4
 
-        addSubview(level1)
-        addSubview(level2)
+        contentStack.addArrangedSubview(level1)
+        contentStack.addArrangedSubview(level2)
+        addSubview(contentStack)
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: 200),
-            level1.topAnchor.constraint(equalTo: topAnchor, constant: 12),
-            level1.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            level1.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            level1.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
-            level2.topAnchor.constraint(equalTo: topAnchor, constant: 12),
-            level2.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            level2.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            level2.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+            contentStack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            contentStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            contentStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            contentStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
         ])
         rebuildLevel1()
         rebuildLevel2()
@@ -147,6 +156,7 @@ final class SgSettingsPanelView: UIView {
         label.text = text
         label.font = .boldSystemFont(ofSize: 14)
         label.textColor = .white
+        label.setContentHuggingPriority(.required, for: .vertical)
         return label
     }
 
@@ -155,6 +165,7 @@ final class SgSettingsPanelView: UIView {
         label.text = text
         label.font = .systemFont(ofSize: 12)
         label.textColor = UIColor(white: 1, alpha: 0.8)
+        label.setContentHuggingPriority(.required, for: .vertical)
         return label
     }
 
@@ -188,8 +199,10 @@ final class SgSettingsPanelView: UIView {
             stack.trailingAnchor.constraint(equalTo: row.trailingAnchor),
             stack.topAnchor.constraint(equalTo: row.topAnchor, constant: 4),
             stack.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -4),
-            row.heightAnchor.constraint(greaterThanOrEqualToConstant: 28),
+            row.heightAnchor.constraint(equalToConstant: 28),
         ])
+        row.setContentHuggingPriority(.required, for: .vertical)
+        row.setContentCompressionResistancePriority(.required, for: .vertical)
         row.addTarget(self, action: action, for: .touchUpInside)
         return row
     }
@@ -201,6 +214,8 @@ final class SgSettingsPanelView: UIView {
         button.setTitle(title, for: .normal)
         button.setTitleColor(selected ? KineticPlayerColors.seekActive : .white, for: .normal)
         button.tag = tag
+        button.setContentHuggingPriority(.required, for: .vertical)
+        button.setContentCompressionResistancePriority(.required, for: .vertical)
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
     }
@@ -297,6 +312,7 @@ final class SgSettingsPanelView: NSView {
     var onHideBlackBarsChanged: ((Bool) -> Void)?
     var onBlackoutChanged: ((Bool) -> Void)?
 
+    private let contentStack = NSStackView()
     private let level1 = NSStackView()
     private let level2 = NSStackView()
     private let tracksStack = NSStackView()
@@ -360,12 +376,16 @@ final class SgSettingsPanelView: NSView {
     func showLevel1() {
         level1.isHidden = false
         level2.isHidden = true
+        needsLayout = true
+        invalidateIntrinsicContentSize()
     }
 
     func showLevel2() {
         rebuildLevel2()
         level1.isHidden = true
         level2.isHidden = false
+        needsLayout = true
+        invalidateIntrinsicContentSize()
     }
 
     private func setup() {
@@ -374,30 +394,33 @@ final class SgSettingsPanelView: NSView {
         layer?.cornerRadius = 8
         layer?.masksToBounds = true
 
+        // Same as iOS: only the visible level should drive panel height.
+        contentStack.orientation = .vertical
+        contentStack.spacing = 0
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+
         level1.orientation = .vertical
         level1.spacing = 6
-        level1.translatesAutoresizingMaskIntoConstraints = false
+        level1.alignment = .width
 
         level2.orientation = .vertical
         level2.spacing = 4
+        level2.alignment = .width
         level2.isHidden = true
-        level2.translatesAutoresizingMaskIntoConstraints = false
 
         tracksStack.orientation = .vertical
         tracksStack.spacing = 4
+        tracksStack.alignment = .width
 
-        addSubview(level1)
-        addSubview(level2)
+        contentStack.addArrangedSubview(level1)
+        contentStack.addArrangedSubview(level2)
+        addSubview(contentStack)
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: 200),
-            level1.topAnchor.constraint(equalTo: topAnchor, constant: 12),
-            level1.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            level1.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            level1.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
-            level2.topAnchor.constraint(equalTo: topAnchor, constant: 12),
-            level2.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            level2.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            level2.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+            contentStack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            contentStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            contentStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            contentStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
         ])
         rebuildLevel1()
         rebuildLevel2()
