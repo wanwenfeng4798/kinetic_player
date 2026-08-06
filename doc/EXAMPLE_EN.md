@@ -1,165 +1,25 @@
-# Example App
+# Example app
 
-The Example project lives in `kinetic_player/example/` and demonstrates multi-platform player integration.
+Chinese: [EXAMPLE.md](EXAMPLE.md)
+
+The sample under `kinetic_player/example/` demos **fully delivered** features by platform.
 
 ## Run
 
 ```bash
 cd kinetic_player/example
-
 flutter pub get
-flutter run          # iOS device / Android
+flutter run
 flutter run -d macos
-flutter run -d chrome   # Web (Artplayer)
+flutter run -d chrome
 ```
 
-Android can run directly with `flutter run`. iOS / macOS details: [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md). Web: [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md).
+## Structure
 
-## UI layout
+1. **Player surface** — `CommonVideoPlayerViewBuilder` with platform `GsyUiConfig` / `ArtplayerUiConfig`
+2. **Common** — source, audio tracks, rate, volume/mute, loop, screenshot, Play/Pause/Seek
+3. **Android GSY** — render core, GL filters, subtitles, danmaku, watermark, pre/mid-roll ads, GIF, save frame, manual PiP, playlist, net speed, Exo video tracks, show type, pure play, fullscreen; AppBar opens **scroll auto-play list**
+4. **iOS / macOS SG** — rotation/mirror, cover/last frame, pitch, VR modes/viewport, background policy (iOS), demuxer, video tracks, segments, seekable, fullscreen
+5. **Web Artplayer** — plugins enabled at create (danmuku, Document PiP, HLS/DASH, …); panel: Video PiP, Document PiP, emit danmaku, list plugins
 
-`example/lib/main.dart` includes:
-
-1. **Video area** — `CommonVideoPlayerViewBuilder` loads remote sources; Android includes `GsyUiConfig` (native controls, preview thumbnails, etc.).
-2. **Settings / Source / Audio tracks** — demo sources can be selected via dropdown (includes Big Buck Bunny and 4K HEVC test streams); audio tracks can be selected via `getAudioTracks` / `selectAudioTrack`; there is also a gear button in the native UI.
-3. **Android-only** — GL filters, subtitles (WebVTT / pushed text), danmaku (Bilibili XML).
-4. **Loop / Screenshot** — `setLooping`, `captureFrame`.
-5. **Common controls** — Play / Pause / Seek 10s and state/progress display.
-6. **Platform-only buttons** — Android: `GSY Fullscreen`; iOS: `SG Fullscreen`, `SG VR`.
-
-## Native control bar (enabled in Example)
-
-| Interaction | Description |
-|---|---|
-| Tap on video | Show/hide control bar and center play button |
-| Speaker | Popup vertical volume bar (Bilibili style); **while dragging, show percentage on the left side of the slider** |
-| Gear | Popup settings panel to select audio track |
-| Fullscreen | Window-level fullscreen (icon size matches settings/volume icons) |
-| Swipe gestures | **Android / iOS**: horizontal seek; left half brightness; right half volume (`enableNativeControls`). **macOS**: no pans — seek via progress slider, volume via speaker popup (same pattern as gear / audio tracks) |
-| Rotate / Mirror | Rotate left/right by 90°, reset, left/right mirror, up/down mirror (Android / iOS) |
-| Cover / Keep last frame | Toggle cover and keep last frame after playing finished (Android / iOS) |
-| Advanced (iOS) | Pitch, VR/VRBox, background playback, demuxer options, video track selection; buffering and error display |
-
-**Picture-in-Picture (Android)**: while playing (including auto-play or starting from native button), pressing **Home** or switching to another app will automatically enter PiP. Example is configured in `MainActivity` and `AndroidManifest`; `GsyUiConfig(pictureInPictureEnabled: true)` is explicitly enabled.
-
-## Core code
-
-```dart
-CommonVideoPlayerViewBuilder(
-  url: _selectedSource.url,
-  creationParams: isAndroid
-      ? GsyUiConfig(
-          enableNativeControls: true,
-          showFullscreenButton: true,
-          showVolumeToolbar: true,
-          showSettingsButton: true,
-          pictureInPictureEnabled: true,
-          showDragProgressTextOnSeekBar: true,
-          videoTitle: 'GSY Demo',
-          previewVttUrl: _previewVttUri,
-        ).toCreationParams()
-      : null,
-  builder: (controller) {
-    setState(() => _controller = controller);
-  },
-)
-```
-
-## Control panel logic
-
-```dart
-// Common controls
-await controller?.play();
-await controller?.pause();
-await controller?.seekTo(const Duration(seconds: 10));
-await controller?.setLooping(true);
-final path = await controller?.captureFrame(highQuality: true, includeOverlay: true);
-
-// Audio tracks
-final tracks = await controller?.getAudioTracks();
-await controller?.selectAudioTrack(tracks.first.index);
-
-// Listen state
-ValueListenableBuilder<CommonPlayerState>(
-  valueListenable: controller!.playerState,
-  builder: (_, state, __) => Text('State: $state'),
-);
-
-// GSY-only (Android)
-if (controller is GSYVideoControllerImpl) {
-  await controller.gsyToggleDanmaku(enabled: true);
-  await controller.gsyStartFullscreen();
-}
-
-// SG-only (iOS)
-if (controller is SGVideoControllerImpl) {
-  await controller.sgSetVRMode(enabled: true);
-  await controller.sgStartFullscreen();
-}
-```
-
-## Android host configuration (already included in Example)
-
-`example/android/app/src/main/AndroidManifest.xml`:
-
-- `android:supportsPictureInPicture="true"`
-- `android:resizeableActivity="true"`
-
-`MainActivity.kt`:
-
-```kotlin
-override fun onConfigurationChanged(newConfig: Configuration) {
-  super.onConfigurationChanged(newConfig)
-  KineticPlayerPlugin.handleConfigurationChanged(this, newConfig)
-}
-
-override fun onBackPressed() {
-  if (KineticPlayerPlugin.handleBackPressed(this)) return
-  super.onBackPressed()
-}
-
-override fun onUserLeaveHint() {
-  super.onUserLeaveHint()
-  KineticPlayerPlugin.handleUserLeaveHint(this)
-}
-```
-
-## Demo URLs
-
-Default uses W3Schools public MP4:
-
-```text
-https://www.w3schools.com/html/mov_bbb.mp4
-```
-
-You can replace it in `main.dart` inside `_DemoMedia.videoUrl`.
-
-## Test
-
-```bash
-cd kinetic_player
-flutter analyze
-flutter test
-```
-
-Integration test is under `example/integration_test/`.
-
-## pubspec configuration
-
-Example enables SPM:
-
-```yaml
-flutter:
-  config:
-    enable-swift-package-manager: true
-```
-
-iOS / macOS use the published `Package.swift` remote `binaryTarget` (Xcode downloads SGPlayer); no Scheme Pre-action. The macOS Example sets `MACOSX_DEPLOYMENT_TARGET = 11.0`. See [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md).
-
-Use a local path dependency:
-
-```yaml
-dependencies:
-  kinetic_player:
-    path: ../
-```
-
+See feature docs for the full matrix.

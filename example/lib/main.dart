@@ -238,7 +238,23 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
     final previewReady = !isAndroid || _previewVttUri != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Kinetic Player Demo')),
+      appBar: AppBar(
+        title: const Text('Kinetic Player Demo'),
+        actions: [
+          if (isAndroid)
+            IconButton(
+              tooltip: '列表自动播放',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const _AutoPlayListDemoPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.view_list),
+            ),
+        ],
+      ),
       body: previewReady
           ? Column(
               children: [
@@ -246,25 +262,48 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                   flex: 3,
                   child: CommonVideoPlayerViewBuilder(
                     url: _selectedSource.url,
-                    creationParams: isAndroid
-                        ? GsyUiConfig(
-                            enableNativeControls: true,
-                            showFullscreenButton: true,
-                            showDragProgressTextOnSeekBar: true,
-                            pictureInPictureEnabled: true,
-                            // Large remote MKV: disable HttpProxyCache to avoid
-                            // many proxy connections / SocketTimeoutException.
-                            cacheWithPlay: false,
-                            videoTitle: _selectedSource.label,
-                            previewVttUrl: _previewVttUri,
-                            coverUrl: _DemoMedia.coverUrl,
-                            keepLastFrameWhenComplete: false,
+                    creationParams: kIsWeb
+                        ? ArtplayerUiConfig(
+                            ui: GsyUiConfig(
+                              enableNativeControls: true,
+                              showFullscreenButton: true,
+                              showVolumeToolbar: true,
+                              showSettingsButton: true,
+                              pictureInPictureEnabled: true,
+                              coverUrl: _DemoMedia.coverUrl,
+                              videoTitle: _selectedSource.label,
+                            ),
+                            artPlugins: const {
+                              ArtplayerPluginKeys.danmuku: true,
+                              ArtplayerPluginKeys.documentPip: true,
+                              ArtplayerPluginKeys.hlsControl: true,
+                              ArtplayerPluginKeys.dashControl: true,
+                              ArtplayerPluginKeys.vttThumbnail: true,
+                              ArtplayerPluginKeys.multipleSubtitles: true,
+                            },
                           ).toCreationParams()
-                        : GsyUiConfig(
-                            enableNativeControls: true,
-                            coverUrl: _DemoMedia.coverUrl,
-                            keepLastFrameWhenComplete: false,
-                          ).toCreationParams(),
+                        : isAndroid
+                            ? GsyUiConfig(
+                                enableNativeControls: true,
+                                showFullscreenButton: true,
+                                showDragProgressTextOnSeekBar: true,
+                                pictureInPictureEnabled: true,
+                                // Large remote MKV: disable HttpProxyCache.
+                                cacheWithPlay: false,
+                                videoTitle: _selectedSource.label,
+                                previewVttUrl: _previewVttUri,
+                                coverUrl: _DemoMedia.coverUrl,
+                                keepLastFrameWhenComplete: false,
+                              ).toCreationParams()
+                            : GsyUiConfig(
+                                enableNativeControls: true,
+                                showFullscreenButton: true,
+                                showVolumeToolbar: true,
+                                showSettingsButton: true,
+                                coverUrl: _DemoMedia.coverUrl,
+                                keepLastFrameWhenComplete: false,
+                                videoTitle: _selectedSource.label,
+                              ).toCreationParams(),
                     builder: (controller) {
                       if (!identical(_controller, controller)) {
                         setState(() => _controller = controller);
@@ -322,8 +361,16 @@ class _ControlPanelState extends State<_ControlPanel> {
   bool _subtitlesEnabled = true;
   String? _danmakuXmlUri;
   bool _danmakuVisible = false;
+  bool _watermarkEnabled = false;
+  bool _purePlay = false;
+  bool _gifRecording = false;
   bool _loopingEnabled = false;
+  bool _muted = false;
+  double _volume = 1;
+  double _rate = 1;
   String? _lastCapturePath;
+  String? _lastGifPath;
+  String? _netSpeedText;
   int _renderRotation = 0;
   bool _mirrorHorizontal = false;
   bool _mirrorVertical = false;
@@ -527,6 +574,132 @@ class _ControlPanelState extends State<_ControlPanel> {
     if (mounted) setState(() => _danmakuVisible = visible);
   }
 
+  Future<void> _toggleWatermark(GSYVideoControllerImpl gsy) async {
+    final next = !_watermarkEnabled;
+    await gsy.gsySetWatermarkUrl(next ? _DemoMedia.coverUrl : null);
+    if (mounted) setState(() => _watermarkEnabled = next);
+  }
+
+  Future<void> _togglePurePlay(GSYVideoControllerImpl gsy) async {
+    final next = !_purePlay;
+    await gsy.gsySetPurePlayMode(enabled: next);
+    if (mounted) setState(() => _purePlay = next);
+  }
+
+  Future<void> _playPreRollAd(GSYVideoControllerImpl gsy) async {
+    final messenger = ScaffoldMessenger.of(context);
+    await gsy.gsyPlayWithPreRollAd(
+      adUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+      contentUrl: widget.selectedSource.url,
+      skipAfter: const Duration(seconds: 3),
+    );
+    if (!mounted) return;
+    messenger.showSnackBar(
+      const SnackBar(content: Text('片头广告：约 3 秒后可跳过')),
+    );
+  }
+
+  Future<void> _armMidRollAds(GSYVideoControllerImpl gsy) async {
+    await gsy.gsySetMidRollAds([
+      {
+        'positionMs': 8000,
+        'adUrl': 'https://www.w3schools.com/html/mov_bbb.mp4',
+        'contentUrl': widget.selectedSource.url,
+      },
+    ]);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已设置中插：约 8s 触发广告')),
+    );
+  }
+
+  Future<void> _toggleGif(GSYVideoControllerImpl gsy) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (_gifRecording) {
+      final path = await gsy.gsyStopGifRecording();
+      if (!mounted) return;
+      setState(() {
+        _gifRecording = false;
+        _lastGifPath = path;
+      });
+      messenger.showSnackBar(
+        SnackBar(content: Text(path == null ? 'GIF 失败' : 'GIF: $path')),
+      );
+    } else {
+      await gsy.gsyStartGifRecording();
+      if (!mounted) return;
+      setState(() => _gifRecording = true);
+      messenger.showSnackBar(const SnackBar(content: Text('正在录制 GIF…')));
+    }
+  }
+
+  Future<void> _saveScreenshot(GSYVideoControllerImpl gsy) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final path = await gsy.gsySaveScreenshot(withView: true, high: true);
+    if (!mounted) return;
+    setState(() => _lastCapturePath = path);
+    messenger.showSnackBar(
+      SnackBar(content: Text(path == null ? '保存失败' : '已保存: $path')),
+    );
+  }
+
+  Future<void> _refreshNetSpeed(GSYVideoControllerImpl gsy) async {
+    final speed = await gsy.gsyGetNetSpeed();
+    if (!mounted) return;
+    setState(() => _netSpeedText = '${speed.text} (${speed.bytesPerSecond} B/s)');
+  }
+
+  Future<void> _listExoTracks(GSYVideoControllerImpl gsy) async {
+    final tracks = await gsy.gsyListExoVideoTracks();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          tracks.isEmpty
+              ? '无 Exo 视频轨（请先切 Media3 内核）'
+              : 'Exo 视频轨 ${tracks.length} 条：${tracks.map((t) => t['label']).join(', ')}',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setRate(double rate) async {
+    final active = widget.controller;
+    if (active == null) return;
+    await active.setRate(rate);
+    if (mounted) setState(() => _rate = rate);
+  }
+
+  Future<void> _setVolume(double volume) async {
+    final active = widget.controller;
+    if (active == null) return;
+    await active.setVolume(volume);
+    if (mounted) {
+      setState(() {
+        _volume = volume;
+        if (volume > 0) _muted = false;
+      });
+    }
+  }
+
+  Future<void> _toggleMute() async {
+    final active = widget.controller;
+    if (active == null) return;
+    final next = !_muted;
+    await active.setMute(next);
+    if (mounted) setState(() => _muted = next);
+  }
+
+  Future<void> _setShowType(GsyShowType type) async {
+    final gsy = widget.controller;
+    if (gsy is! GSYVideoControllerImpl) return;
+    await gsy.gsySetGsyShowType(type);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('显示比例: $type')),
+    );
+  }
+
   Future<void> _rotateBy(int deltaDegrees) async {
     final next = (_renderRotation + deltaDegrees) % 360;
     final normalized = next < 0 ? next + 360 : next;
@@ -598,8 +771,8 @@ class _ControlPanelState extends State<_ControlPanel> {
   Widget build(BuildContext context) {
     final active = widget.controller;
     final isAndroidGsy = active is GSYVideoControllerImpl;
-    final isIosSg = active is SGVideoControllerImpl;
-    final isAppleSg = isIosSg;
+    final isAppleSg = active is SGVideoControllerImpl;
+    final isWebArt = active is ArtplayerVideoControllerImpl;
     final supportsTransform = isAndroidGsy || isAppleSg;
     final supportsCover = isAndroidGsy || isAppleSg;
 
@@ -868,13 +1041,132 @@ class _ControlPanelState extends State<_ControlPanel> {
             ),
             const SizedBox(height: 4),
             const Text(
-              '「加载弹幕」使用 B 站 XML 本地文件；「发送弹幕」在当前播放时间点追加一条并重新加载。',
+              '「加载弹幕」使用 B 站 XML 本地文件；「发送弹幕」在当前播放时间点追加一条并重新加载。全屏后弹幕/水印仍会跟随。',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Android · 水印 / 广告 / GIF / 其它',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: () => _toggleWatermark(active),
+                  child: Text(_watermarkEnabled ? '水印: 开' : '水印: 关'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _togglePurePlay(active),
+                  child: Text(_purePlay ? '纯播放: 开' : '纯播放: 关'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _playPreRollAd(active),
+                  child: const Text('片头广告'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _armMidRollAds(active),
+                  child: const Text('设置中插(8s)'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.gsySkipAd(),
+                  child: const Text('跳过广告'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _toggleGif(active),
+                  child: Text(_gifRecording ? '停止 GIF' : '开始 GIF'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _saveScreenshot(active),
+                  child: const Text('保存截图'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    final ok = await active.gsyEnterPictureInPicture();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(ok ? '已请求 PiP' : 'PiP 不可用')),
+                    );
+                  },
+                  child: const Text('手动 PiP'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    final idx = _DemoMedia.sources.indexWhere(
+                      (s) => s.url == widget.selectedSource.url,
+                    );
+                    await active.gsySetPlaylist(
+                      _DemoMedia.sources.map((s) => s.url).toList(),
+                      startIndex: idx < 0 ? 0 : idx,
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('已设置播放列表（完播自动下一首）')),
+                    );
+                  },
+                  child: const Text('设置播放列表'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    final ok = await active.gsyPlayNextInPlaylist();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(ok ? '已切下一首' : '已是最后一首')),
+                    );
+                  },
+                  child: const Text('播放下一首'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _refreshNetSpeed(active),
+                  child: const Text('网速'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _listExoTracks(active),
+                  child: const Text('Exo 视频轨'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _setShowType(GsyShowType.ratio16x9),
+                  child: const Text('比例 16:9'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _setShowType(GsyShowType.full),
+                  child: const Text('比例 填充'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _setShowType(GsyShowType.defaultRatio),
+                  child: const Text('比例 默认'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.gsyReleaseAllVideos(),
+                  child: const Text('释放全部'),
+                ),
+              ],
+            ),
+            if (_netSpeedText != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                '网速: $_netSpeedText',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+            if (_lastGifPath != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                '最近 GIF: $_lastGifPath',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+            const SizedBox(height: 4),
+            const Text(
+              '右上角列表图标可打开「滑动自动播放」Demo。广告/水印/弹幕在窗口全屏下也会跟随。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
           const SizedBox(height: 12),
           const Text(
-            '循环 / 截图',
+            '公共 · 倍速 / 音量 / 循环 / 截图',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
@@ -882,6 +1174,34 @@ class _ControlPanelState extends State<_ControlPanel> {
             spacing: 8,
             runSpacing: 8,
             children: [
+              FilledButton.tonal(
+                onPressed: active == null ? null : () => _setRate(0.75),
+                child: Text(_rate == 0.75 ? '0.75x ✓' : '0.75x'),
+              ),
+              FilledButton.tonal(
+                onPressed: active == null ? null : () => _setRate(1),
+                child: Text(_rate == 1 ? '1x ✓' : '1x'),
+              ),
+              FilledButton.tonal(
+                onPressed: active == null ? null : () => _setRate(1.5),
+                child: Text(_rate == 1.5 ? '1.5x ✓' : '1.5x'),
+              ),
+              FilledButton.tonal(
+                onPressed: active == null ? null : () => _setRate(2),
+                child: Text(_rate == 2 ? '2x ✓' : '2x'),
+              ),
+              FilledButton.tonal(
+                onPressed: active == null ? null : () => _setVolume(0.3),
+                child: const Text('音量 30%'),
+              ),
+              FilledButton.tonal(
+                onPressed: active == null ? null : () => _setVolume(1),
+                child: Text('音量 ${(_volume * 100).round()}%'),
+              ),
+              FilledButton.tonal(
+                onPressed: active == null ? null : _toggleMute,
+                child: Text(_muted ? '静音: 开' : '静音: 关'),
+              ),
               FilledButton.tonal(
                 onPressed: active == null
                     ? null
@@ -926,10 +1246,87 @@ class _ControlPanelState extends State<_ControlPanel> {
           const SizedBox(height: 4),
           Text(
             isAndroidGsy
-                ? '循环走 GSY 原生 isLooping；截图可用 includeOverlay 包含控制栏。'
-                : '循环在 iOS 播放结束时自动 seek(0)+play；截图保存到临时目录 PNG。',
+                ? '循环走 GSY 原生 isLooping；截图可用 includeOverlay。'
+                : isWebArt
+                    ? 'Web：循环 / 截图返回 data URL；弹幕需创建时启用 artPlugins.danmuku。'
+                    : '循环在结束时 seek(0)+play；截图为临时 PNG。',
             style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
+          if (isWebArt) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Web · Artplayer',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: () async {
+                    try {
+                      await active.togglePip();
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('PiP: $e')),
+                      );
+                    }
+                  },
+                  child: const Text('Video PiP'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    try {
+                      await active.artToggleDocumentPip();
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Document PiP: $e')),
+                      );
+                    }
+                  },
+                  child: const Text('Document PiP'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    await active.artEmitDanmuku({
+                      'text': _danmakuTextController.text.trim().isEmpty
+                          ? 'Hello Web Danmaku'
+                          : _danmakuTextController.text.trim(),
+                      'time': active.position.value.inSeconds,
+                    });
+                  },
+                  child: const Text('发送弹幕'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    final keys = await active.artAvailablePlugins();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('插件: ${keys.join(', ')}')),
+                    );
+                  },
+                  child: const Text('可用插件'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _danmakuTextController,
+              decoration: const InputDecoration(
+                labelText: 'Web 弹幕内容',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '创建已启用 danmuku / documentPip / hlsControl / dashControl 等插件。',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
           if (supportsTransform) ...[
             const SizedBox(height: 12),
             const Text(
@@ -1076,11 +1473,42 @@ class _ControlPanelState extends State<_ControlPanel> {
                   },
                   child: const Text('视频轨'),
                 ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    await active.sgReplaceWithSegments([
+                      SgMediaSegment(url: widget.selectedSource.url),
+                      const SgMediaSegment(
+                        url: 'https://www.w3schools.com/html/mov_bbb.mp4',
+                      ),
+                    ]);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('已替换为两段资源')),
+                    );
+                  },
+                  child: const Text('多段资源'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.sgSetVrViewport(
+                    const SgVrViewport(degrees: 75, sensorEnable: true),
+                  ),
+                  child: const Text('VR 视口'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    final seekable = await active.sgIsSeekable();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('可 seek: $seekable')),
+                    );
+                  },
+                  child: const Text('是否可 Seek'),
+                ),
               ],
             ),
             const SizedBox(height: 4),
             const Text(
-              '缓冲/错误见上方；多段资源用 sgReplaceWithSegments。',
+              '缓冲/错误见上方。macOS 无滑动手势与后台策略；VR/sensor 请用真机。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
@@ -1129,5 +1557,37 @@ class _ControlPanelState extends State<_ControlPanel> {
     final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
+  }
+}
+
+/// Android list auto-play demo (visibility-based; not detail seamless).
+class _AutoPlayListDemoPage extends StatelessWidget {
+  const _AutoPlayListDemoPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = _DemoMedia.sources.map((s) => s.url).toList();
+    return Scaffold(
+      appBar: AppBar(title: const Text('列表滑动自动播放')),
+      body: GsyAutoPlayVideoList(
+        urls: urls,
+        aspectRatio: 16 / 9,
+        coverBuilder: (context, index) {
+          return ColoredBox(
+            color: Colors.black,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  _DemoMedia.sources[index].label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
