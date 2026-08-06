@@ -255,7 +255,7 @@
     <include
         android:id="@+id/settings_panel"
         layout="@layout/kinetic_settings_panel"
-        android:layout_width="@dimen/kinetic_settings_panel_width"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_above="@id/layout_bottom"
         android:layout_alignParentEnd="true"

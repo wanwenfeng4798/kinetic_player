@@ -424,10 +424,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     private fun showAudioPanel() {
         audioPanel?.visibility = View.VISIBLE
         audioPanelVisible = true
-        positionPanelCenteredAboveAnchor(
+        positionPanelAboveAnchor(
             panel = audioPanel,
             anchor = volumeTrigger,
-            panelWidthRes = R.dimen.kinetic_audio_panel_width,
+            fixedWidthRes = R.dimen.kinetic_audio_panel_width,
         )
         audioPanel?.bringToFront()
         showVolumeValueLabel(audioPanelVolumeSeekBar?.progress ?: (volumeToolbarLevel * 100).toInt())
@@ -448,7 +448,11 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         refreshSettingsTracks()
         settingsPanel?.visibility = View.VISIBLE
         settingsPanelVisible = true
-        positionSettingsPanelAboveBottomBar()
+        positionPanelAboveAnchor(
+            panel = settingsPanel,
+            anchor = settingsTrigger,
+            align = PanelHorizontalAlign.TRAILING,
+        )
         settingsPanel?.bringToFront()
     }
 
@@ -461,10 +465,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         refreshRateList()
         ratePanel?.visibility = View.VISIBLE
         ratePanelVisible = true
-        positionPanelCenteredAboveAnchor(
+        positionPanelAboveAnchor(
             panel = ratePanel,
             anchor = rateTrigger,
-            panelWidthRes = R.dimen.kinetic_option_panel_width,
+            fixedWidthRes = R.dimen.kinetic_option_panel_width,
         )
         ratePanel?.bringToFront()
     }
@@ -478,10 +482,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         refreshQualityList()
         qualityPanel?.visibility = View.VISIBLE
         qualityPanelVisible = true
-        positionPanelCenteredAboveAnchor(
+        positionPanelAboveAnchor(
             panel = qualityPanel,
             anchor = qualityTrigger,
-            panelWidthRes = R.dimen.kinetic_option_panel_width,
+            fixedWidthRes = R.dimen.kinetic_option_panel_width,
         )
         qualityPanel?.bringToFront()
     }
@@ -494,6 +498,14 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     private fun showSettingsLevel(level: Int) {
         settingsLevel1?.visibility = if (level == 1) View.VISIBLE else View.GONE
         settingsLevel2?.visibility = if (level == 2) View.VISIBLE else View.GONE
+        if (settingsPanelVisible) {
+            settingsPanel?.requestLayout()
+            positionPanelAboveAnchor(
+                panel = settingsPanel,
+                anchor = settingsTrigger,
+                align = PanelHorizontalAlign.TRAILING,
+            )
+        }
     }
 
     private fun refreshSettingsLevel1() {
@@ -940,99 +952,104 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         mLoadingProgressBar?.bringToFront()
         if (audioPanelVisible) {
             audioPanel?.bringToFront()
-            positionPanelCenteredAboveAnchor(
+            positionPanelAboveAnchor(
                 panel = audioPanel,
                 anchor = volumeTrigger,
-                panelWidthRes = R.dimen.kinetic_audio_panel_width,
+                fixedWidthRes = R.dimen.kinetic_audio_panel_width,
             )
         }
         if (settingsPanelVisible) {
             settingsPanel?.bringToFront()
-            positionSettingsPanelAboveBottomBar()
+            positionPanelAboveAnchor(
+                panel = settingsPanel,
+                anchor = settingsTrigger,
+                align = PanelHorizontalAlign.TRAILING,
+            )
         }
         if (ratePanelVisible) {
             ratePanel?.bringToFront()
-            positionPanelCenteredAboveAnchor(
+            positionPanelAboveAnchor(
                 panel = ratePanel,
                 anchor = rateTrigger,
-                panelWidthRes = R.dimen.kinetic_option_panel_width,
+                fixedWidthRes = R.dimen.kinetic_option_panel_width,
             )
         }
         if (qualityPanelVisible) {
             qualityPanel?.bringToFront()
-            positionPanelCenteredAboveAnchor(
+            positionPanelAboveAnchor(
                 panel = qualityPanel,
                 anchor = qualityTrigger,
-                panelWidthRes = R.dimen.kinetic_option_panel_width,
+                fixedWidthRes = R.dimen.kinetic_option_panel_width,
             )
         }
         syncBottomChromeTouchPassthrough()
     }
 
-    /** Centers popup horizontally over an anchor in the bottom control row. */
-    private fun positionPanelCenteredAboveAnchor(
+    private enum class PanelHorizontalAlign {
+        CENTER,
+        TRAILING,
+    }
+
+    /** Positions popup above a bottom-toolbar anchor; re-run on layout / resize. */
+    private fun positionPanelAboveAnchor(
         panel: View?,
         anchor: View?,
-        panelWidthRes: Int,
+        align: PanelHorizontalAlign = PanelHorizontalAlign.CENTER,
+        fixedWidthRes: Int? = null,
     ) {
         val panelView = panel ?: return
         val anchorView = anchor ?: return
         val host = panelView.parent as? RelativeLayout ?: return
-        val panelWidthPx = resources.getDimensionPixelSize(panelWidthRes)
+        val fixedWidthPx =
+            fixedWidthRes?.let { resources.getDimensionPixelSize(it) }
         val bottomMarginPx =
             resources.getDimensionPixelSize(R.dimen.kinetic_panel_popup_margin_bottom)
         panelView.post {
             if (!panelView.isShown) return@post
             if (host.width == 0 || anchorView.width == 0) {
                 panelView.post {
-                    positionPanelCenteredAboveAnchor(panel, anchor, panelWidthRes)
+                    positionPanelAboveAnchor(panel, anchor, align, fixedWidthRes)
                 }
                 return@post
             }
-            val measuredWidth = if (panelView.width > 0) panelView.width else panelWidthPx
+            val measuredWidth =
+                if (fixedWidthPx != null) {
+                    fixedWidthPx
+                } else {
+                    val maxWidth = host.width.coerceAtLeast(1)
+                    panelView.measure(
+                        View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    )
+                    panelView.measuredWidth.coerceAtLeast(1)
+                }
             val hostLoc = IntArray(2)
             val anchorLoc = IntArray(2)
             host.getLocationInWindow(hostLoc)
             anchorView.getLocationInWindow(anchorLoc)
             val anchorLeft = anchorLoc[0] - hostLoc[0]
-            val centeredLeft = anchorLeft + (anchorView.width - measuredWidth) / 2
+            val anchorTop = anchorLoc[1] - hostLoc[1]
+            val targetLeft =
+                when (align) {
+                    PanelHorizontalAlign.CENTER ->
+                        anchorLeft + (anchorView.width - measuredWidth) / 2
+                    PanelHorizontalAlign.TRAILING ->
+                        anchorLeft + anchorView.width - measuredWidth
+                }
             val maxLeft = (host.width - measuredWidth).coerceAtLeast(0)
+            val panelBottom = anchorTop - bottomMarginPx
             val lp = panelView.layoutParams as RelativeLayout.LayoutParams
-            lp.width = panelWidthPx
-            lp.addRule(RelativeLayout.ABOVE, R.id.layout_bottom)
-            lp.addRule(RelativeLayout.ALIGN_PARENT_START)
+            lp.width = fixedWidthPx ?: ViewGroup.LayoutParams.WRAP_CONTENT
+            lp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+            lp.removeRule(RelativeLayout.ABOVE)
+            lp.removeRule(RelativeLayout.ALIGN_PARENT_START)
             lp.removeRule(RelativeLayout.ALIGN_START)
             lp.removeRule(RelativeLayout.ALIGN_PARENT_END)
             lp.removeRule(RelativeLayout.ALIGN_PARENT_LEFT)
             lp.removeRule(RelativeLayout.ALIGN_PARENT_RIGHT)
-            lp.leftMargin = centeredLeft.coerceIn(0, maxLeft)
+            lp.leftMargin = targetLeft.coerceIn(0, maxLeft)
             lp.rightMargin = 0
-            lp.bottomMargin = bottomMarginPx
-            panelView.layoutParams = lp
-            panelView.requestLayout()
-        }
-    }
-
-    /** Matches iOS: settings sheet trailing inset 12dp, above bottom bar. */
-    private fun positionSettingsPanelAboveBottomBar() {
-        val panelView = settingsPanel ?: return
-        val host = panelView.parent as? RelativeLayout ?: return
-        val panelWidthPx =
-            resources.getDimensionPixelSize(R.dimen.kinetic_settings_panel_width)
-        val marginEndPx = CommonUtil.dip2px(context, 12f)
-        val bottomMarginPx =
-            resources.getDimensionPixelSize(R.dimen.kinetic_panel_popup_margin_bottom)
-        panelView.post {
-            if (!panelView.isShown) return@post
-            val lp = panelView.layoutParams as RelativeLayout.LayoutParams
-            lp.width = panelWidthPx
-            lp.addRule(RelativeLayout.ABOVE, R.id.layout_bottom)
-            lp.addRule(RelativeLayout.ALIGN_PARENT_END)
-            lp.removeRule(RelativeLayout.ALIGN_START)
-            lp.removeRule(RelativeLayout.ALIGN_PARENT_START)
-            lp.leftMargin = 0
-            lp.rightMargin = marginEndPx
-            lp.bottomMargin = bottomMarginPx
+            lp.bottomMargin = (host.height - panelBottom).coerceAtLeast(bottomMarginPx)
             panelView.layoutParams = lp
             panelView.requestLayout()
         }
@@ -1067,9 +1084,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         bottom: Int,
     ) {
         super.onLayout(changed, left, top, right, bottom)
-        if (renderProxy?.showView is GLSurfaceView) {
-            post { fixControlOverlayLayering() }
-        }
+        post { fixControlOverlayLayering() }
     }
 
     override fun changeUiToPlayingShow() {

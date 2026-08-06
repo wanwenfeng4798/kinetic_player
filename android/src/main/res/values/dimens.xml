@@ -4,7 +4,6 @@
     <dimen name="kinetic_audio_panel_slider_height">120dp</dimen>
     <dimen name="kinetic_panel_padding_vertical">12dp</dimen>
     <dimen name="kinetic_panel_popup_margin_bottom">6dp</dimen>
-    <dimen name="kinetic_settings_panel_width">200dp</dimen>
     <dimen name="kinetic_option_panel_width">120dp</dimen>
     <dimen name="kinetic_settings_panel_padding">12dp</dimen>
     <dimen name="kinetic_control_icon_size">14dp</dimen>

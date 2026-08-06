@@ -113,8 +113,9 @@ final class SgSettingsPanelView: UIView {
         contentStack.addArrangedSubview(level1)
         contentStack.addArrangedSubview(level2)
         addSubview(contentStack)
+        contentStack.setContentHuggingPriority(.required, for: .horizontal)
+        contentStack.setContentCompressionResistancePriority(.required, for: .horizontal)
         NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: 200),
             contentStack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
             contentStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             contentStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
@@ -431,8 +432,9 @@ final class SgSettingsPanelView: NSView {
         contentStack.addArrangedSubview(level1)
         contentStack.addArrangedSubview(level2)
         addSubview(contentStack)
+        contentStack.setContentHuggingPriority(.required, for: .horizontal)
+        contentStack.setContentCompressionResistancePriority(.required, for: .horizontal)
         NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: 200),
             contentStack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
             contentStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             contentStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),

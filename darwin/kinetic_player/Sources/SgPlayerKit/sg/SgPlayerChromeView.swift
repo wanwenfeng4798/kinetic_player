@@ -433,13 +433,13 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             progressRow.heightAnchor.constraint(equalToConstant: 36),
 
             audioPanel.centerXAnchor.constraint(equalTo: volumeButton.centerXAnchor),
-            audioPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
+            audioPanel.bottomAnchor.constraint(equalTo: volumeButton.topAnchor, constant: -6),
 
-            settingsPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            settingsPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
+            settingsPanel.trailingAnchor.constraint(equalTo: settingsButton.trailingAnchor),
+            settingsPanel.bottomAnchor.constraint(equalTo: settingsButton.topAnchor, constant: -6),
 
             ratePanel.centerXAnchor.constraint(equalTo: rateButton.centerXAnchor),
-            ratePanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
+            ratePanel.bottomAnchor.constraint(equalTo: rateButton.topAnchor, constant: -6),
 
             centerPlayButton.centerXAnchor.constraint(equalTo: centerXAnchor),
             centerPlayButton.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -1177,6 +1177,77 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         seekHoldTimer?.invalidate()
     }
 
+    override func layout() {
+        super.layout()
+        repositionToolbarPanels()
+    }
+
+    private enum ToolbarPanelAlign {
+        case center
+        case trailing
+    }
+
+    /// NSStackView does not expose stable Auto Layout anchors for arranged buttons on macOS.
+    private func repositionToolbarPanels() {
+        let gap: CGFloat = 6
+        let edgeInset: CGFloat = 8
+        if audioPanelVisible, !audioPanel.isHidden {
+            layoutToolbarPanel(
+                audioPanel,
+                above: volumeButton,
+                width: 44,
+                align: .center,
+                gap: gap,
+                edgeInset: edgeInset,
+            )
+        }
+        if settingsPanelVisible, !settingsPanel.isHidden {
+            settingsPanel.refreshPanelHeightIfNeeded()
+            layoutToolbarPanel(
+                settingsPanel,
+                above: settingsButton,
+                align: .trailing,
+                gap: gap,
+                edgeInset: edgeInset,
+            )
+        }
+        if ratePanelVisible, !ratePanel.isHidden {
+            layoutToolbarPanel(
+                ratePanel,
+                above: rateButton,
+                width: 120,
+                align: .center,
+                gap: gap,
+                edgeInset: edgeInset,
+            )
+        }
+    }
+
+    private func layoutToolbarPanel(
+        _ panel: NSView,
+        above anchor: NSView,
+        width: CGFloat? = nil,
+        align: ToolbarPanelAlign,
+        gap: CGFloat,
+        edgeInset: CGFloat,
+    ) {
+        guard anchor.superview != nil, bounds.width > 0 else { return }
+        let anchorFrame = anchor.convert(anchor.bounds, to: self)
+        panel.layoutSubtreeIfNeeded()
+        let resolvedWidth = width ?? max(panel.fittingSize.width, 1)
+        let height = max(panel.fittingSize.height, 1)
+        let originX: CGFloat
+        switch align {
+        case .center:
+            originX = anchorFrame.midX - resolvedWidth / 2
+        case .trailing:
+            originX = anchorFrame.maxX - resolvedWidth
+        }
+        let clampedX = min(max(originX, edgeInset), max(edgeInset, bounds.width - resolvedWidth - edgeInset))
+        let originY = anchorFrame.minY - gap - height
+        panel.frame = NSRect(x: clampedX, y: originY, width: resolvedWidth, height: height)
+    }
+
     /// No system brightness API on macOS; kept for call-site parity with iOS.
     func restoreBrightnessIfNeeded() {}
 
@@ -1395,7 +1466,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
         bottomPanel.addSubview(progressRow)
 
-        audioPanel.translatesAutoresizingMaskIntoConstraints = false
+        audioPanel.translatesAutoresizingMaskIntoConstraints = true
         audioPanel.isHidden = true
         audioPanel.onVolumeChanged = { [weak self] volume in
             guard let self else { return }
@@ -1407,7 +1478,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         }
         addSubview(audioPanel)
 
-        settingsPanel.translatesAutoresizingMaskIntoConstraints = false
+        settingsPanel.translatesAutoresizingMaskIntoConstraints = true
         settingsPanel.isHidden = true
         settingsPanel.onSelectTrack = { [weak self] index in
             guard let self else { return }
@@ -1450,7 +1521,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         }
         addSubview(settingsPanel)
 
-        ratePanel.translatesAutoresizingMaskIntoConstraints = false
+        ratePanel.translatesAutoresizingMaskIntoConstraints = true
         ratePanel.isHidden = true
         ratePanel.onSelect = { [weak self] index in
             guard let self, Self.rateOptions.indices.contains(index) else { return }
@@ -1510,15 +1581,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             progressRow.bottomAnchor.constraint(equalTo: bottomPanel.bottomAnchor, constant: -4),
             progressRow.heightAnchor.constraint(equalToConstant: 36),
             progressSlider.heightAnchor.constraint(equalToConstant: 20),
-
-            audioPanel.centerXAnchor.constraint(equalTo: volumeButton.centerXAnchor),
-            audioPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
-
-            settingsPanel.trailingAnchor.constraint(equalTo: settingsButton.trailingAnchor),
-            settingsPanel.bottomAnchor.constraint(equalTo: settingsButton.topAnchor, constant: -6),
-
-            ratePanel.centerXAnchor.constraint(equalTo: rateButton.centerXAnchor),
-            ratePanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
 
             centerPlayButton.centerXAnchor.constraint(equalTo: centerXAnchor),
             centerPlayButton.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -1756,6 +1818,9 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         audioPanel.isHidden = false
         audioPanelVisible = true
         bringToFront(audioPanel)
+        needsLayout = true
+        layoutSubtreeIfNeeded()
+        repositionToolbarPanels()
         hideTimer?.invalidate()
     }
 
@@ -1780,7 +1845,9 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         settingsPanel.isHidden = false
         settingsPanelVisible = true
         bringToFront(settingsPanel)
-        settingsPanel.refreshPanelHeightIfNeeded()
+        needsLayout = true
+        layoutSubtreeIfNeeded()
+        repositionToolbarPanels()
         hideTimer?.invalidate()
     }
 
@@ -1795,6 +1862,9 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         ratePanel.isHidden = false
         ratePanelVisible = true
         bringToFront(ratePanel)
+        needsLayout = true
+        layoutSubtreeIfNeeded()
+        repositionToolbarPanels()
         hideTimer?.invalidate()
     }
 
