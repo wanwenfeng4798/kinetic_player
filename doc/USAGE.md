@@ -380,19 +380,26 @@ if (controller is ArtplayerVideoControllerImpl) {
 
 | 能力 | Android (GSY) | iOS / macOS (SGPlayer) | Web (Artplayer) |
 |------|---------------|------------------------|-----------------|
-| 循环 | 原生 `isLooping` | 结束时 `seek(0)+play` | Artplayer `loop` / 结束重播 |
+| 循环 | 原生 `isLooping`；`GsyUiConfig.looping` 创建生效 | 结束时 `seek(0)+play`；`GsyUiConfig.looping` / `speed` 创建生效 | Artplayer `loop` / 结束重播 |
 | 截图 overlay | `captureFrame(includeOverlay: true)` 含 UI | `includeOverlay` 无效 | 当前帧 canvas（跨域可能失败） |
 | 换源 | 重建播放器 | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
-| 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()` | Artplayer `fullscreen` 控件 |
+| 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()`（应用内 overlay） | Artplayer `fullscreen` 控件 |
 | 画中画 | 默认开启，需 Manifest + `onUserLeaveHint` | 不支持 | `togglePip()` / Document PiP（见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)） |
+| 弹幕 | `gsySetDanmakuUrl` / `gsyToggleDanmaku`（含全屏） | ❌ | `artPlugins.danmuku` |
+| 字幕 | `gsySetSubtitleUrl` 等（含全屏） | ❌ | `multipleSubtitles` / `jassub` 等插件 |
+| 水印 / 滤镜 / GIF / 广告 | 见 [GSY_FEATURES.md](GSY_FEATURES.md) | ❌ | 广告等见 Web 插件 |
+| 列表滑动自动播放 | `GsyAutoPlayVideoList` | ❌ | 自行实现 |
 | 音轨 UI | 齿轮设置面板 | 齿轮设置面板 | `AudioTrack` API（浏览器支持时） |
 | 音量 UI | 喇叭竖向弹窗 | 喇叭竖向弹窗 | Artplayer 音量控件 |
 | 手势调节 | `enableNativeControls` | iOS 同左；macOS 用进度条 + 喇叭/齿轮按钮 | Artplayer gesture（可关） |
-| 画面旋转 / 镜像 | `gsySetRenderRotation` / MirrorH/V | `sgSetRenderRotation` / MirrorH/V | 经 `artplayerOptions` 扩展 |
+| 画面旋转 / 镜像 | `gsySetRenderRotation` / MirrorH/V（含全屏） | `sgSetRenderRotation` / MirrorH/V | 经 `artplayerOptions` 扩展 |
 | 封面 | `gsySetCoverUrl` | `sgSetCoverUrl` | `poster` / `coverUrl` |
 | 保留最后一帧 | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` | 浏览器默认行为 |
 | 缓冲 / 错误详情 | — | `buffered` / `playerError` | `error` 状态 |
-| 部署注意 | — | iOS：真机；macOS 11+；沙盒需 `network.client` | Chrome / Safari / 移动 Web；注意自动播放策略 |
+| 部署注意 | IJK 默认 arm64；混淆需宿主 ProGuard 规则；需转发 `handleBackPressed` | iOS：真机；macOS 11+；沙盒需 `network.client` | Chrome / Safari / 移动 Web；注意自动播放策略 |
+
+`GsyUiConfig` 字段中，Darwin（SG）实际生效的主要有：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`coverUrl`、`keepLastFrameWhenComplete`、`speed`、`looping`。`pictureInPictureEnabled` 在 Apple 端**无效**（无系统 PiP）。`previewVttUrl` / `cacheWithPlay` / `rotateViewAuto` / `thumbPlay` 等为 **Android 专用**。
+
 
 ## 监听状态
 

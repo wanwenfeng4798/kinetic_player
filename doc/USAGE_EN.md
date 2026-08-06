@@ -371,19 +371,25 @@ if (controller is ArtplayerVideoControllerImpl) {
 
 | Capability | Android (GSY) | iOS / macOS (SGPlayer) | Web (Artplayer) |
 |---|---|---|---|
-| Loop | native `isLooping` | seek(0)+play after completion | Artplayer `loop` / replay on ended |
+| Loop | native `isLooping`; `GsyUiConfig.looping` at create | seek(0)+play; `speed`/`looping` at create | Artplayer `loop` / replay on ended |
 | Screenshot overlay | `captureFrame(includeOverlay: true)` includes UI | `includeOverlay` ineffective | canvas frame (CORS may fail) |
 | Switch source | rebuild player | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
-| Fullscreen | `gsyStartFullscreen()` | `sgStartFullscreen()` | Artplayer fullscreen control |
+| Fullscreen | `gsyStartFullscreen()` | `sgStartFullscreen()` (in-app overlay) | Artplayer fullscreen control |
 | PiP | enabled by default (manifest + `onUserLeaveHint`) | not supported | `togglePip()` / Document PiP |
+| Danmaku | `gsySetDanmakuUrl` / `gsyToggleDanmaku` (incl. fullscreen) | ❌ | `artPlugins.danmuku` |
+| Subtitles | `gsySetSubtitleUrl` etc. | ❌ | subtitle plugins |
+| Watermark / filters / GIF / ads | see [GSY_FEATURES_EN.md](GSY_FEATURES_EN.md) | ❌ | Web plugins where applicable |
+| List scroll auto-play | `GsyAutoPlayVideoList` | ❌ | app-owned |
 | Audio tracks UI | gear settings panel | gear settings panel | browser `AudioTrack` when available |
 | Volume UI | vertical volume popup | vertical volume popup | Artplayer volume control |
 | Gesture controls | `enableNativeControls` | iOS same; macOS uses progress slider + speaker/gear buttons | Artplayer gesture (optional) |
-| Render rotation / mirror | `gsySetRenderRotation` / MirrorH/V | `sgSetRenderRotation` / MirrorH/V | via `artplayerOptions` |
+| Render rotation / mirror | `gsySetRenderRotation` / MirrorH/V (incl. fullscreen) | `sgSetRenderRotation` / MirrorH/V | via `artplayerOptions` |
 | Cover | `gsySetCoverUrl` | `sgSetCoverUrl` | `poster` / `coverUrl` |
 | Keep last frame | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` | browser default |
 | Buffered / error details | — | `buffered` / `playerError` | `error` state |
-| Deployment notes | — | iOS device; macOS 11+; sandbox `network.client` | Chrome / Safari / mobile Web; autoplay policy |
+| Deployment notes | Default IJK is arm64; host ProGuard / `handleBackPressed` | iOS device; macOS 11+; sandbox `network.client` | Chrome / Safari / mobile Web; autoplay policy |
+
+`GsyUiConfig` fields actually applied on Darwin (SG): `enableNativeControls`, `showVolumeToolbar`, `showSettingsButton`, `showFullscreenButton`, `dismissControlTime`, `coverUrl`, `keepLastFrameWhenComplete`, `speed`, `looping`. `pictureInPictureEnabled` is **ignored** on Apple. `previewVttUrl` / `cacheWithPlay` / rotate / `thumbPlay` are **Android-only**.
 
 ## Listeners
 

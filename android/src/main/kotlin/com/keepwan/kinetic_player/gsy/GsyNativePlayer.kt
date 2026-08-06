@@ -7,15 +7,12 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Rational
 import android.view.View
-import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageView
 import kotlin.math.roundToInt
 import com.keepwan.kinetic_player.CommonPlayerState
 import com.keepwan.kinetic_player.ThrottledProgressReporter
@@ -26,10 +23,8 @@ import com.shuyu.gsyvideoplayer.listener.GSYVideoGifSaveListener
 import com.shuyu.gsyvideoplayer.listener.GSYVideoShotListener
 import com.shuyu.gsyvideoplayer.listener.GSYVideoShotSaveListener
 import com.shuyu.gsyvideoplayer.player.IjkPlayerManager
-import com.shuyu.gsyvideoplayer.player.IPlayerManager
 import com.shuyu.gsyvideoplayer.player.PlayerFactory
 import com.shuyu.gsyvideoplayer.player.SystemPlayerManager
-import com.shuyu.gsyvideoplayer.subtitle.GSYSubtitleSource
 import com.shuyu.gsyvideoplayer.utils.CommonUtil
 import com.shuyu.gsyvideoplayer.utils.GSYVideoType
 import com.shuyu.gsyvideoplayer.utils.GifCreateHelper
@@ -37,8 +32,6 @@ import tv.danmaku.ijk.media.exo2.Exo2PlayerManager
 import com.shuyu.gsyvideoplayer.video.base.GSYVideoView
 import java.io.File
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.UUID
 
 interface GsyPlayerCallbacks {
@@ -55,29 +48,43 @@ class GsyNativePlayer(
     private val appContext = context.applicationContext
     private val container = FrameLayout(context)
     private val playerView = KineticPreViewGSYVideoPlayer(context)
-    private val danmakuController = GsyDanmakuController(container, playerView)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val cacheDir = File(appContext.cacheDir, "kinetic_player").apply { mkdirs() }
 
     private var uiConfig = initialUiConfig
-    private var danmakuVisible = false
-    private var danmakuUrl: String? = null
-    private var watermarkView: ImageView? = null
-    private val midRollQueue = mutableListOf<Pair<Long, String>>()
+    private var midRollQueue = mutableListOf<MidRollAd>()
     private var isPlaying = false
     private var currentUrl: String? = null
     private var playlist: List<String> = emptyList()
     private var playlistIndex = 0
     private var pendingContentUrl: String? = null
+    private var pendingContentPositionMs: Long = 0L
+    private var adMode = AdMode.NONE
+    private var adSkipAfterMs = 5_000L
     private var gifHelper: GifCreateHelper? = null
     private var gifResultCallback: ((String?) -> Unit)? = null
     private var renderRotation = 0
     private var mirrorHorizontal = false
     private var mirrorVertical = false
-    private var renderTransformLayoutListenerAttached = false
+    private var effectFilterName = "none"
+    private var subtitleUrl: String? = null
+    private var subtitleMime: String? = null
+    private var subtitleEnabled = true
     private var activeRenderType: Int? = null
     private var savedVolume = 1f
     private var muted = false
+
+    private data class MidRollAd(
+        val atMs: Long,
+        val adUrl: String,
+        val contentUrl: String?,
+    )
+
+    private enum class AdMode {
+        NONE,
+        PRE_ROLL,
+        MID_ROLL,
+    }
 
     private val progressReporter = ThrottledProgressReporter { positionMs, durationMs ->
         callbacks.onPositionChanged(positionMs, durationMs)
@@ -103,11 +110,8 @@ class GsyNativePlayer(
             override fun onAutoComplete(url: String?, vararg objects: Any?) {
                 isPlaying = false
                 when {
-                    pendingContentUrl != null -> {
-                        val content = pendingContentUrl!!
-                        pendingContentUrl = null
-                        setUrl(content)
-                        startPlayLogic()
+                    adMode != AdMode.NONE && pendingContentUrl != null -> {
+                        finishAdAndResumeContent()
                     }
                     playlistIndex < playlist.lastIndex -> {
                         playlistIndex++
@@ -115,7 +119,7 @@ class GsyNativePlayer(
                         startPlayLogic()
                     }
                     else -> {
-                        danmakuController.onPlaybackComplete()
+                        activePlayer().getOverlayDanmaku()?.onPlaybackComplete()
                         callbacks.onPlayerStateChanged(CommonPlayerState.COMPLETED)
                         reportProgress(force = true)
                     }
@@ -127,8 +131,12 @@ class GsyNativePlayer(
                 applyRenderTransform()
                 applySavedVolume()
                 playerView.fixControlOverlayLayering()
-                danmakuController.onPrepared()
-                danmakuUrl?.let { danmakuController.loadFromUrl(it) }
+                activePlayer().getOverlayDanmaku()?.onPrepared()
+                if (adMode != AdMode.NONE) {
+                    activePlayer().showAdChrome(adSkipAfterMs) { skipAd() }
+                } else {
+                    activePlayer().hideAdChrome()
+                }
                 reportProgress(force = true)
                 syncPictureInPictureParams()
             }
@@ -137,16 +145,16 @@ class GsyNativePlayer(
     init {
         playerView.uiConfig = initialUiConfig
         playerView.onDanmakuPlaybackStart = {
-            danmakuController.onPlaybackStart()
+            activePlayer().getOverlayDanmaku()?.onPlaybackStart()
             applySavedVolume()
             onPlaybackStarted()
         }
         playerView.onDanmakuPlaybackPause = {
-            danmakuController.onPause()
+            activePlayer().getOverlayDanmaku()?.onPause()
             onPlaybackPaused()
         }
         playerView.onDanmakuPlaybackComplete = {
-            danmakuController.onPlaybackComplete()
+            activePlayer().getOverlayDanmaku()?.onPlaybackComplete()
             onPlaybackPaused()
         }
         container.addView(
@@ -156,7 +164,6 @@ class GsyNativePlayer(
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ),
         )
-        ensureRenderTransformLayoutListener()
         playerView.onVolumeChanged = { setVolume(it) }
         playerView.onMuteToggle = { setMute(it) }
         playerView.onRequestAudioTracks = { listAudioTracks() }
@@ -241,9 +248,38 @@ class GsyNativePlayer(
     fun playWithPreRollAd(
         adUrl: String,
         contentUrl: String,
+        skipAfterMs: Long = 5_000L,
     ) {
+        if (adUrl.isEmpty() || contentUrl.isEmpty()) return
+        adMode = AdMode.PRE_ROLL
+        adSkipAfterMs = skipAfterMs.coerceAtLeast(0L)
         pendingContentUrl = contentUrl
+        pendingContentPositionMs = 0L
         setUrl(adUrl)
+        startPlayLogic()
+        activePlayer().showAdChrome(adSkipAfterMs) { skipAd() }
+    }
+
+    fun skipAd() {
+        if (adMode == AdMode.NONE) return
+        finishAdAndResumeContent()
+    }
+
+    private fun finishAdAndResumeContent() {
+        val content = pendingContentUrl ?: return
+        val resumeAt = pendingContentPositionMs
+        pendingContentUrl = null
+        pendingContentPositionMs = 0L
+        adMode = AdMode.NONE
+        activePlayer().hideAdChrome()
+        playerView.hideAdChrome()
+        setUrl(content)
+        startPlayLogic()
+        if (resumeAt > 0) {
+            mainHandler.postDelayed({
+                seekTo(resumeAt.toInt())
+            }, 400L)
+        }
     }
 
     fun setPurePlayMode(enabled: Boolean) {
@@ -253,6 +289,9 @@ class GsyNativePlayer(
                 enableNativeControlsFullscreen = !enabled,
                 showFullscreenButton = !enabled,
                 showLockButton = !enabled,
+                showVolumeToolbar = !enabled,
+                showSettingsButton = !enabled,
+                videoTitle = if (enabled) "" else uiConfig.videoTitle,
             ),
         )
     }
@@ -308,8 +347,11 @@ class GsyNativePlayer(
 
     fun stop() {
         isPlaying = false
+        adMode = AdMode.NONE
+        pendingContentUrl = null
+        activePlayer().hideAdChrome()
         playerView.onVideoReset()
-        danmakuController.onPlaybackComplete()
+        activePlayer().getOverlayDanmaku()?.onPlaybackComplete()
         callbacks.onPlayerStateChanged(CommonPlayerState.IDLE)
         reportProgress(force = true)
         syncPictureInPictureParams()
@@ -371,7 +413,7 @@ class GsyNativePlayer(
 
     fun seekTo(positionMs: Int) {
         GSYVideoManager.instance().seekTo(positionMs.toLong())
-        danmakuController.onSeek(positionMs.toLong())
+        activePlayer().getOverlayDanmaku()?.onSeek(positionMs.toLong())
         reportProgress(force = true)
     }
 
@@ -387,15 +429,8 @@ class GsyNativePlayer(
         GSYVideoType.setShowType(gsyMode)
     }
 
-    fun setGsyShowType(
-        mode: Int,
-        customRatio: Float?,
-    ) {
-        if (customRatio != null && mode == 6) {
-            GsyScaleModeMapper.setCustomRatio(customRatio)
-        } else {
-            GSYVideoType.setShowType(GsyScaleModeMapper.toGsyShowType(mode))
-        }
+    fun setGsyShowType(mode: Int) {
+        GSYVideoType.setShowType(GsyScaleModeMapper.toGsyShowType(mode))
     }
 
     fun setRenderType(renderType: Int) {
@@ -407,8 +442,9 @@ class GsyNativePlayer(
     }
 
     fun setEffectFilter(name: String) {
-        val effect = GsyEffectRegistry.resolve(name)
-        playerView.setEffectFilter(effect)
+        effectFilterName = name
+        playerView.setOverlayEffectName(name)
+        activePlayer().setOverlayEffectName(name)
         scheduleControlOverlayFix()
     }
 
@@ -433,62 +469,9 @@ class GsyNativePlayer(
         applyRenderTransform()
     }
 
-    private fun ensureRenderTransformLayoutListener() {
-        if (renderTransformLayoutListenerAttached) return
-        renderTransformLayoutListenerAttached = true
-        playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            // Only refresh pivot after size changes; avoid requestLayout loops.
-            val renderView = playerView.getRenderProxy()?.showView ?: return@addOnLayoutChangeListener
-            if (renderView.width <= 0 || renderView.height <= 0) return@addOnLayoutChangeListener
-            renderView.pivotX = renderView.width / 2f
-            renderView.pivotY = renderView.height / 2f
-            if (renderView.rotation != renderRotation.toFloat() ||
-                renderView.scaleX != (if (mirrorHorizontal) -1f else 1f) ||
-                renderView.scaleY != (if (mirrorVertical) -1f else 1f)
-            ) {
-                applyRenderTransform()
-            }
-        }
-    }
-
-    /**
-     * Rotate / mirror via the render [View] (GSY MeasureHelper reads [View.getRotation]).
-     * Avoid TextureView.setTransform with the outer player size — that mis-pivots and
-     * pushes frames off-screen (90°/270° flush to an edge, 180°/vertical-mirror blank).
-     */
     private fun applyRenderTransform() {
-        ensureRenderTransformLayoutListener()
-        val proxy = playerView.getRenderProxy()
-        val renderView = proxy?.showView
-        if (proxy == null || renderView == null) {
-            playerView.post { applyRenderTransform() }
-            return
-        }
-        if (renderView.width <= 0 || renderView.height <= 0) {
-            playerView.post { applyRenderTransform() }
-            return
-        }
-
-        // Clear any leftover TextureView content matrix.
-        proxy.setTransform(Matrix())
-
-        val targetRotation = renderRotation.toFloat()
-        val targetScaleX = if (mirrorHorizontal) -1f else 1f
-        val targetScaleY = if (mirrorVertical) -1f else 1f
-        val rotationChanged = renderView.rotation != targetRotation
-
-        renderView.pivotX = renderView.width / 2f
-        renderView.pivotY = renderView.height / 2f
-        // MeasureHelper.prepareMeasure(..., getRotation()) re-layouts for 90/270.
-        proxy.setRotation(targetRotation)
-        renderView.scaleX = targetScaleX
-        renderView.scaleY = targetScaleY
-        if (rotationChanged) {
-            renderView.requestLayout()
-        }
-
-        (renderView.parent as? ViewGroup)?.clipChildren = true
-        playerView.clipChildren = true
+        playerView.setOverlayRenderTransform(renderRotation, mirrorHorizontal, mirrorVertical)
+        activePlayer().setOverlayRenderTransform(renderRotation, mirrorHorizontal, mirrorVertical)
     }
 
     fun getNetSpeedBytesPerSecond(): Long = playerView.getNetSpeed()
@@ -519,22 +502,25 @@ class GsyNativePlayer(
         url: String,
         mimeType: String?,
     ) {
-        val builder = GSYSubtitleSource.Builder(url)
-        if (!mimeType.isNullOrEmpty()) {
-            builder.setMimeType(mimeType)
-        }
-        playerView.setSubtitleSource(builder.build())
-        playerView.setSubtitleEnabled(true)
+        subtitleUrl = url
+        subtitleMime = mimeType
+        subtitleEnabled = true
+        playerView.setOverlaySubtitle(url, mimeType, true)
+        activePlayer().setOverlaySubtitle(url, mimeType, true)
     }
 
     fun setSubtitleEnabled(enabled: Boolean) {
-        playerView.setSubtitleEnabled(enabled)
+        subtitleEnabled = enabled
+        playerView.setOverlaySubtitle(subtitleUrl, subtitleMime, enabled)
+        activePlayer().setOverlaySubtitle(subtitleUrl, subtitleMime, enabled)
     }
 
     fun setEmbeddedSubtitleText(text: String?) {
         if (text.isNullOrEmpty()) {
+            activePlayer().clearSubtitleTextFromPlayer()
             playerView.clearSubtitleTextFromPlayer()
         } else {
+            activePlayer().setSubtitleTextFromPlayer(text)
             playerView.setSubtitleTextFromPlayer(text)
         }
     }
@@ -544,6 +530,7 @@ class GsyNativePlayer(
         high: Boolean,
         callback: (String?) -> Unit,
     ) {
+        val target = activePlayer()
         val output = File(cacheDir, "shot_${System.currentTimeMillis()}.png")
         val listener =
             object : GSYVideoShotListener {
@@ -563,9 +550,9 @@ class GsyNativePlayer(
                 }
             }
         if (withView) {
-            playerView.taskShotPicWithView(listener, high)
+            target.taskShotPicWithView(listener, high)
         } else {
-            playerView.taskShotPic(listener, high)
+            target.taskShotPic(listener, high)
         }
     }
 
@@ -574,6 +561,7 @@ class GsyNativePlayer(
         high: Boolean,
         callback: (String?) -> Unit,
     ) {
+        val target = activePlayer()
         val output = File(cacheDir, "frame_${System.currentTimeMillis()}.png")
         val listener =
             GSYVideoShotSaveListener { success, _ ->
@@ -582,17 +570,18 @@ class GsyNativePlayer(
                 }
             }
         if (withView) {
-            playerView.saveFrameWithView(output, high, listener)
+            target.saveFrameWithView(output, high, listener)
         } else {
-            playerView.saveFrame(output, high, listener)
+            target.saveFrame(output, high, listener)
         }
     }
 
     fun startGifRecording() {
         stopGifRecordingInternal(save = false)
+        val target = activePlayer()
         gifHelper =
             GifCreateHelper(
-                playerView,
+                target,
                 object : GSYVideoGifSaveListener {
                     override fun process(
                         curPosition: Int,
@@ -632,28 +621,32 @@ class GsyNativePlayer(
     }
 
     fun toggleDanmaku(enabled: Boolean) {
-        danmakuVisible = enabled
-        danmakuController.attachIfNeeded()
-        danmakuController.setVisible(enabled)
+        playerView.setOverlayDanmakuVisible(enabled)
+        activePlayer().setOverlayDanmakuVisible(enabled)
     }
 
     fun setDanmakuUrl(url: String?) {
-        danmakuUrl = url
-        if (!url.isNullOrEmpty()) {
-            danmakuController.attachIfNeeded()
-            danmakuController.loadFromUrl(url)
-            danmakuController.setVisible(danmakuVisible)
+        playerView.setOverlayDanmakuUrl(url)
+        if (activePlayer() !== playerView) {
+            activePlayer().setOverlayDanmakuUrl(url)
         }
     }
 
     fun setMidRollAds(ads: List<Map<String, Any>>) {
         midRollQueue.clear()
         for (ad in ads) {
-            val atMs = (ad["atMs"] as? Number)?.toLong() ?: continue
-            val url = ad["url"] as? String ?: continue
-            midRollQueue.add(atMs to url)
+            val atMs =
+                (ad["positionMs"] as? Number)?.toLong()
+                    ?: (ad["atMs"] as? Number)?.toLong()
+                    ?: continue
+            val url =
+                ad["adUrl"] as? String
+                    ?: ad["url"] as? String
+                    ?: continue
+            val contentUrl = ad["contentUrl"] as? String
+            midRollQueue.add(MidRollAd(atMs = atMs, adUrl = url, contentUrl = contentUrl))
         }
-        midRollQueue.sortBy { it.first }
+        midRollQueue.sortBy { it.atMs }
     }
 
     fun listExoVideoTracks(): List<Map<String, Any>> =
@@ -671,36 +664,17 @@ class GsyNativePlayer(
     fun selectExoVideoTrack(index: Int): Boolean = GsyExoTrackHelper.selectVideoTrack(index)
 
     fun setWatermarkUrl(url: String?) {
-        if (url.isNullOrEmpty()) {
-            watermarkView?.visibility = View.GONE
-            return
-        }
-        if (watermarkView == null) {
-            watermarkView =
-                ImageView(appContext).apply {
-                    layoutParams =
-                        FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.WRAP_CONTENT,
-                            FrameLayout.LayoutParams.WRAP_CONTENT,
-                        ).apply {
-                            gravity = android.view.Gravity.TOP or android.view.Gravity.END
-                            topMargin = CommonUtil.dip2px(appContext, 8f)
-                            rightMargin = CommonUtil.dip2px(appContext, 8f)
-                        }
-                }
-            container.addView(watermarkView)
-        }
-        watermarkView?.visibility = View.VISIBLE
-        Thread {
-            try {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.connect()
-                val bitmap = BitmapFactory.decodeStream(connection.inputStream)
-                mainHandler.post { watermarkView?.setImageBitmap(bitmap) }
-            } catch (_: Exception) {
-                // ignore
-            }
-        }.start()
+        playerView.setOverlayWatermarkUrl(url)
+        activePlayer().setOverlayWatermarkUrl(url)
+    }
+
+    /** Prefer the window-fullscreen clone when present so overlays / GIF / shots follow it. */
+    private fun activePlayer(): KineticGSYVideoPlayer {
+        val full =
+            runCatching {
+                playerView.javaClass.getMethod("getFullWindowPlayer").invoke(playerView)
+            }.getOrNull() as? KineticGSYVideoPlayer
+        return full ?: playerView
     }
 
     fun enterPictureInPicture(): Boolean {
@@ -829,12 +803,18 @@ class GsyNativePlayer(
     }
 
     private fun checkMidRoll(positionMs: Long) {
-        if (midRollQueue.isEmpty() || pendingContentUrl != null) return
+        if (adMode != AdMode.NONE || midRollQueue.isEmpty()) return
         val next = midRollQueue.first()
-        if (positionMs >= next.first) {
+        if (positionMs >= next.atMs) {
             midRollQueue.removeAt(0)
-            val content = currentUrl ?: return
-            playWithPreRollAd(next.second, content)
+            val content = next.contentUrl ?: currentUrl ?: return
+            adMode = AdMode.MID_ROLL
+            adSkipAfterMs = 5_000L
+            pendingContentUrl = content
+            pendingContentPositionMs = positionMs
+            setUrl(next.adUrl)
+            startPlayLogic()
+            activePlayer().showAdChrome(adSkipAfterMs) { skipAd() }
         }
     }
 
@@ -842,7 +822,8 @@ class GsyNativePlayer(
         isPlaying = false
         mainHandler.removeCallbacks(progressRunnable)
         stopGifRecordingInternal(save = false)
-        danmakuController.release()
+        playerView.getOverlayDanmaku()?.release()
+        activePlayer().hideAdChrome()
         GsyPlayerLifecycleRegistry.unregister(this)
         playerView.release()
         progressReporter.reset()

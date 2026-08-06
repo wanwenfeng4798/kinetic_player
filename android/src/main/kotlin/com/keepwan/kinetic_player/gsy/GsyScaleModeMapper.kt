@@ -14,9 +14,4 @@ object GsyScaleModeMapper {
             5 -> GSYVideoType.SCREEN_TYPE_18_9
             else -> GSYVideoType.SCREEN_TYPE_DEFAULT
         }
-
-    fun setCustomRatio(ratio: Float) {
-        GSYVideoType.setScreenScaleRatio(ratio)
-        GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_CUSTOM)
-    }
 }

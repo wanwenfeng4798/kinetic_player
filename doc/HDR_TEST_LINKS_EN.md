@@ -2,6 +2,8 @@
 
 Chinese version: [HDR_TEST_LINKS.md](HDR_TEST_LINKS.md)
 
+> **Note**: This is a **test media list only**. It does **not** mean kinetic_player provides a product HDR API or guarantees HDR output. Android defaults to **IJK**; for adaptive streams prefer **Exo**. HDR depends on device decoders and display.
+
 This document collects stable direct URLs for testing **HDR display output** and **hardware video decoding** performance.
 
 ## Copy `.m3u8` / `.mpd` directly into your player

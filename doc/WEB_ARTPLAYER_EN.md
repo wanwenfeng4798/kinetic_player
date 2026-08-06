@@ -164,7 +164,8 @@ if (controller is ArtplayerVideoControllerImpl) {
 |--|-------------|----------------|---------------|
 | Dedicated doc | [GSY_FEATURES_EN.md](GSY_FEATURES_EN.md) | [DARWIN_SGPLAYER_EN.md](DARWIN_SGPLAYER_EN.md) | This file |
 | Controller | `GSYVideoControllerImpl` | `SGVideoControllerImpl` | `ArtplayerVideoControllerImpl` |
-| Danmaku | `gsyToggleDanmaku` etc. | — | `artPlugins.danmuku` |
+| Danmaku | `gsyToggleDanmaku` etc. (incl. fullscreen) | ❌ | `artPlugins.danmuku` |
+| Subtitles | `gsySetSubtitleUrl` etc. | ❌ | subtitle plugins |
 | Fullscreen | `gsyStartFullscreen` | `sgStartFullscreen` | Artplayer fullscreen control |
 | PiP | System Activity PiP | Unsupported | Video / Document PiP |
 

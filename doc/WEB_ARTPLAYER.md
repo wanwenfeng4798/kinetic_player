@@ -169,7 +169,8 @@ if (controller is ArtplayerVideoControllerImpl) {
 |--|-------------|----------------|---------------|
 | 独有文档 | [GSY_FEATURES.md](GSY_FEATURES.md) | [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md) | 本文 |
 | 独有控制器 | `GSYVideoControllerImpl` | `SGVideoControllerImpl` | `ArtplayerVideoControllerImpl` |
-| 弹幕 | `gsyToggleDanmaku` 等 | — | `artPlugins.danmuku` |
+| 弹幕 | `gsyToggleDanmaku` 等（含全屏） | ❌ | `artPlugins.danmuku` |
+| 字幕 | `gsySetSubtitleUrl` 等 | ❌ | 字幕类插件 |
 | 全屏 | `gsyStartFullscreen` | `sgStartFullscreen` | Artplayer fullscreen 控件 |
 | PiP | 系统 Activity PiP | 不支持 | Video / Document PiP |
 

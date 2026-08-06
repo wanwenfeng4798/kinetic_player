@@ -1,17 +1,13 @@
 package com.keepwan.kinetic_player.gsy
 
-import android.content.Context
 import android.net.Uri
-import android.view.LayoutInflater
 import android.view.View
-import android.widget.FrameLayout
+import android.view.ViewGroup
 import com.keepwan.kinetic_player.R
 import com.keepwan.kinetic_player.danmaku.BiliDanmukuParser
 import com.shuyu.gsyvideoplayer.video.StandardGSYVideoPlayer
 import master.flame.danmaku.controller.DrawHandler
-import master.flame.danmaku.controller.IDanmakuView
 import master.flame.danmaku.danmaku.loader.ILoader
-import master.flame.danmaku.danmaku.loader.IllegalDataException
 import master.flame.danmaku.danmaku.loader.android.DanmakuLoaderFactory
 import master.flame.danmaku.danmaku.model.BaseDanmaku
 import master.flame.danmaku.danmaku.model.DanmakuTimer
@@ -31,9 +27,11 @@ import java.net.URL
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-/** DanmakuFlameMaster integration ported from GSY DanmakuVideoPlayer demo. */
+/**
+ * DanmakuFlameMaster integration. Binds to [R.id.kinetic_danmaku_view] inside the player
+ * layout so overlays survive GSY window-fullscreen clone.
+ */
 class GsyDanmakuController(
-    private val container: FrameLayout,
     private val playerView: StandardGSYVideoPlayer,
 ) {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -42,21 +40,24 @@ class GsyDanmakuController(
     private var parser: BaseDanmakuParser? = null
     private var visible = false
     private var prepared = false
+    private var pendingUrl: String? = null
 
     fun attachIfNeeded() {
         if (danmakuView != null) return
-        val view =
-            LayoutInflater.from(container.context)
-                .inflate(R.layout.kinetic_danmaku_overlay, container, false) as DanmakuView
+        val view = playerView.findViewById<DanmakuView>(R.id.kinetic_danmaku_view) ?: return
         view.tag = "gsy_danmaku"
-        view.layoutParams =
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-            )
-        container.addView(view)
         danmakuView = view
         initDanmakuContext(view)
+        pendingUrl?.let { loadFromUrl(it) }
+    }
+
+    /** Rebind after fullscreen clone inflated a new layout. */
+    fun rebindToPlayer() {
+        releaseViewOnly()
+        attachIfNeeded()
+        if (visible) {
+            setVisible(true)
+        }
     }
 
     private fun initDanmakuContext(view: DanmakuView) {
@@ -95,14 +96,18 @@ class GsyDanmakuController(
         danmakuView?.let { if (show) it.show() else it.hide() }
     }
 
+    fun isVisible(): Boolean = visible
+
     fun loadFromUrl(url: String) {
+        pendingUrl = url
         attachIfNeeded()
+        val host = danmakuView?.parent as? ViewGroup ?: playerView
         executor.execute {
             try {
                 val xml = readUrl(url)
                 val stream = xml.byteInputStream()
                 val newParser = createParser(stream)
-                container.post {
+                host.post {
                     parser = newParser
                     prepareDanmaku(forceReload = true)
                 }
@@ -111,6 +116,8 @@ class GsyDanmakuController(
             }
         }
     }
+
+    fun currentUrl(): String? = pendingUrl
 
     fun onPrepared() = prepareDanmaku()
 
@@ -161,9 +168,16 @@ class GsyDanmakuController(
     }
 
     fun release() {
+        releaseViewOnly()
+        parser = null
+        pendingUrl = null
+        visible = false
+        executor.shutdownNow()
+    }
+
+    private fun releaseViewOnly() {
         danmakuView?.release()
         danmakuView = null
-        parser = null
         prepared = false
     }
 

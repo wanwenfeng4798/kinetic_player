@@ -6,4 +6,6 @@
     <string name="kinetic_settings_title">设置</string>
     <string name="kinetic_audio_tracks">音轨</string>
     <string name="kinetic_no_audio_tracks">暂无可用音轨</string>
+    <string name="kinetic_ad_skip">跳过广告</string>
+    <string name="kinetic_ad_countdown">广告 %1$ds</string>
 </resources>

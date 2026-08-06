@@ -77,13 +77,9 @@ class GSYVideoControllerImpl
   Future<void> gsySetUiConfig(GsyUiConfig config) =>
       _invoke('gsySetUiConfig', config.toCreationParams());
 
-  Future<void> gsySetGsyShowType(
-    GsyShowType type, {
-    double? customRatio,
-  }) =>
+  Future<void> gsySetGsyShowType(GsyShowType type) =>
       _invoke('gsySetGsyShowType', {
         'mode': type.gsyIndex,
-        'customRatio': customRatio,
       });
 
   Future<void> gsySetRenderType(GsyRenderType type) =>
@@ -169,11 +165,15 @@ class GSYVideoControllerImpl
   Future<void> gsyPlayWithPreRollAd({
     required String adUrl,
     required String contentUrl,
+    Duration skipAfter = const Duration(seconds: 5),
   }) =>
       _invoke('gsyPlayWithPreRollAd', {
         'adUrl': adUrl,
         'contentUrl': contentUrl,
+        'skipAfterMs': skipAfter.inMilliseconds,
       });
+
+  Future<void> gsySkipAd() => _invoke('gsySkipAd');
 
   Future<void> gsySetPurePlayMode({required bool enabled}) =>
       _invoke('gsySetPurePlayMode', {'enabled': enabled});
@@ -188,6 +188,7 @@ class GSYVideoControllerImpl
   Future<void> gsySetDanmakuUrl(String? url) =>
       _invoke('gsySetDanmakuUrl', {'url': url});
 
+  /// Mid-roll ads. Each map: `positionMs`, `adUrl`, optional `contentUrl`.
   Future<void> gsySetMidRollAds(List<Map<String, dynamic>> ads) =>
       _invoke('gsySetMidRollAds', {'ads': ads});
 

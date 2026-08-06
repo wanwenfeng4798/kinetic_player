@@ -1,3 +1,28 @@
+## 2.0.2
+
+### 新功能
+
+- **Android 弹幕 / 水印**：挂入播放器 layout，**窗口全屏**同步显示。
+- **Android 广告**：完整片头 / 中插 + 跳过倒计时（`gsyPlayWithPreRollAd`、`gsySetMidRollAds` 键名 `positionMs`/`adUrl`/`contentUrl`、`gsySkipAd`）。
+- **列表滑动自动播放**：`GsyAutoPlayVideoList` 列表级可见区，仅活跃 cell 挂载播放器。
+- **纯播放模式**：同时隐藏喇叭 / 齿轮 / 标题。
+- **SG 创建**：`GsyUiConfig.speed` / `looping` 在 iOS / macOS 生效。
+
+### 修复
+
+- 截图 / GIF / 滤镜 / 旋转 / 镜像 / 字幕在全屏时作用于当前全屏窗。
+
+### 移除
+
+- **详情页无缝**（删除 `gsySeamlessHandoffParams`）。
+- 不再宣称多实例同播；移除死参数 `customRatio`。
+
+### 文档
+
+- GSY_FEATURES / USAGE / README 仅保留完整能力；HDR 标明为测试片源；macOS 手势说明与实现一致。
+
+---
+
 ## 2.0.1
 
 ### 修复

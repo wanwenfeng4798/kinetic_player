@@ -86,6 +86,10 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
         if let url = params?["url"] as? String {
             player.switchVideoSource(url, autoPlay: false)
         }
+        player.setLooping(uiConfig.looping)
+        if abs(uiConfig.speed - 1) > 0.001 {
+            player.setRate(Double(uiConfig.speed))
+        }
         syncCoverVisibility()
 
         channel.setMethodCallHandler { [weak self] call, result in

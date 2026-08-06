@@ -252,9 +252,9 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                             showFullscreenButton: true,
                             showDragProgressTextOnSeekBar: true,
                             pictureInPictureEnabled: true,
-                            // Large remote MKV must not use HttpProxyCache — it opens
-                            // many proxy connections and times out (SocketTimeoutException).
-                            cacheWithPlay: true,
+                            // Large remote MKV: disable HttpProxyCache to avoid
+                            // many proxy connections / SocketTimeoutException.
+                            cacheWithPlay: false,
                             videoTitle: _selectedSource.label,
                             previewVttUrl: _previewVttUri,
                             coverUrl: _DemoMedia.coverUrl,

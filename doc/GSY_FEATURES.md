@@ -2,24 +2,26 @@
 
 English version: [GSY_FEATURES_EN.md](GSY_FEATURES_EN.md)
 
-Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*`）。iOS / macOS 见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)；Web 见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。本文仅覆盖 Android GSY 独有能力。
+Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*`）。iOS / macOS 见 [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md)；Web 见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。本文仅覆盖 **已完整交付** 的 Android GSY 能力。
 
 ## 图例
 
 | 状态 | 含义 |
 |------|------|
-| ✅ | 已通过插件 MethodChannel 暴露 |
-| ⚠️ | 部分实现 / 需宿主配合 |
-| ❌ | GSY 13 Maven 无此模块或需 Demo 级集成 |
+| ✅ | 已通过插件 MethodChannel 完整暴露，内嵌与窗口全屏行为一致（另有说明除外） |
+| ⚠️ | 需宿主配合（Manifest / Activity 生命周期等） |
+| ❌ | 不支持 |
 
 ---
 
-## 1. 滤镜 / 动画 / 水印 / 多重播放
+## 1. 滤镜 / 水印
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 26 种 GL 滤镜（马赛克、黑白、高斯模糊等） | ✅ | `gsySetRenderType(GsyRenderType.glSurface)` + `gsySetEffectFilter(name)` + `gsyListEffectFilters()` |
-| 水印 / 画面多重播放 | ⚠️ | `gsySetWatermarkUrl(url)` 右上角图片 overlay；多重同播需自定义布局 |
+| GL 滤镜（`gsyListEffectFilters()` 返回的名称，含 `none`） | ✅ | `gsySetRenderType(GsyRenderType.glSurface)` + `gsySetEffectFilter(name)`；全屏同步 |
+| 水印 | ✅ | `gsySetWatermarkUrl(url)` 右上角图片；内嵌与窗口全屏均显示 |
+
+滤镜名称以 `gsyListEffectFilters()` 为准，勿假设未列出的效果（例如不存在「马赛克」）。
 
 ---
 
@@ -27,10 +29,10 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 视频帧截图 | ✅ | `captureFrame()`（公共 API） |
+| 视频帧截图 | ✅ | `captureFrame()`（公共 API；全屏时截当前全屏窗） |
 | 播放器 UI 组合截图 | ✅ | `captureFrame(includeOverlay: true)` |
-| 保存截图到文件 | ✅ | `gsySaveScreenshot()`（Android GSY 专属） |
-| 生成 GIF | ✅ | `gsyStartGifRecording()` → `gsyStopGifRecording()` |
+| 保存截图到文件 | ✅ | `gsySaveScreenshot()` |
+| 生成 GIF | ✅ | `gsyStartGifRecording()` → `gsyStopGifRecording()`（全屏时录当前全屏窗） |
 
 ---
 
@@ -39,29 +41,22 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 | 能力 | 状态 | API |
 |------|------|-----|
 | 列表播放 / 连续播放 | ✅ | `creationParams['playlist']` / `gsySetPlaylist()` / `gsyPlayNextInPlaylist()` |
+| 列表滑动自动播放 | ✅ | `GsyAutoPlayVideoList` / `GsyAutoPlayCoordinator`（List 级可见区；非活跃 cell 不挂 PlatformView）。**不是** `ListGSYVideoPlayer`，**不是**详情页无缝 |
 | 重力 / 手动旋转 | ✅ | `GsyUiConfig.rotateViewAuto` + Activity `configChanges` 转发 |
-| 视频 rotation 元数据 | ✅ | GSY 内核自动应用 |
-| 手动旋转 0/90/180/270 | ✅ | `gsySetRenderRotation(degrees)`；iOS：`sgSetRenderRotation(degrees)` |
+| 手动旋转 0/90/180/270 | ✅ | `gsySetRenderRotation(degrees)`；全屏同步。Android 依赖 GSY MeasureHelper 重测布局 |
+| 水平 / 垂直镜像 | ✅ | `gsySetMirrorHorizontal` / `gsySetMirrorVertical`；全屏同步 |
 | 快播 / 慢播 | ✅ | `setRate()` 或 `GsyUiConfig.speed` |
 | 网络加载速度 | ✅ | `gsyGetNetSpeed()` |
-| 完成后保留最后一帧 | ✅ | `GsyUiConfig.keepLastFrameWhenComplete` / `gsySetKeepLastFrameWhenComplete`；iOS：`sgSetKeepLastFrameWhenComplete` |
-| 视频封面 | ✅ | `GsyUiConfig.coverUrl` / `gsySetCoverUrl`（GSY `setThumbImageView`）；iOS：`sgSetCoverUrl` |
-
-> 保留最后一帧对齐 GSY Demo `KeepLastFrameVideo`：自然播完不移除 render view、不盖封面。iOS / macOS 通过隐藏封面层露出 SGPlayer 最后一帧实现。
+| 完成后保留最后一帧 | ✅ | `GsyUiConfig.keepLastFrameWhenComplete` |
+| 视频封面 | ✅ | `GsyUiConfig.coverUrl` / `gsySetCoverUrl` |
 
 ---
 
-## 4. 显示比例 / 镜像
+## 4. 显示比例
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 默认 / 16:9 / 4:3 / 填充 / 拉伸 | ✅ | `setScaleMode()` 或 `gsySetGsyShowType(GsyShowType.*)` |
-| 水平镜像 | ✅ | `gsySetMirrorHorizontal(enabled: true)`；iOS：`sgSetMirrorHorizontal(enabled: true)` |
-| 垂直镜像 | ✅ | `gsySetMirrorVertical(enabled: true)`；iOS：`sgSetMirrorVertical(enabled: true)` |
-
-> iOS：在 `SgTransformHostView` 的内层 content 上施加变换（外层裁剪 + Auto Layout 不受 transform 干扰）；Metal 渲染视图保持 identity。控制栏不受影响。
-> Android 使用 GSY `View.setRotation`（MeasureHelper 会按角度重新测布局）+ `scaleX`/`scaleY` 镜像，避免错误的 TextureView matrix 枢轴导致偏位/黑屏。
-> 90° / 270° 会按 `max(w/h, h/w)` 放大以居中铺满。
+| 默认 / 16:9 / 4:3 / 填充 / 拉伸 / 18:9 | ✅ | `setScaleMode()` 或 `gsySetGsyShowType(GsyShowType.*)` |
 
 ---
 
@@ -69,46 +64,35 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 
 | 内核 | 状态 | API |
 |------|------|-----|
-| IJKPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.ijk)`（**插件默认内核**） |
+| IJKPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.ijk)`（**插件默认**；Maven 包为 **arm64**） |
 | Media3 (Exo2) | ✅ | `gsySwitchRenderCore(GsyRenderCore.exo)` |
 | MediaPlayer | ✅ | `gsySwitchRenderCore(GsyRenderCore.system)` |
-| AliPlayer | ❌ | Maven 13.1.0 无 `gsyvideoplayer-ali` 模块 |
-| 自定义内核 | ⚠️ | 需 fork 插件注册 `PlayerFactory.setPlayManager` |
+| AliPlayer | ❌ | Maven 13.1.0 无此模块 |
 
-**默认内核**：插件加载时设为 **IJKPlayer**（`GsyPlayerDefaults`）。
+**大文件 / 远程 MKV**：`cacheWithPlay: true`（默认）走 HttpProxyCache，大文件易超时；请设 `cacheWithPlay: false`。
 
-**IJK 精确 seek**：`GsyUiConfig.ijkEnableAccurateSeek`（默认 `true`）通过 `GSYVideoManager.setOptionModelList` 设置 `enable-accurate-seek=1`，减轻拖动进度条关键帧回弹；仅 IJK 内核生效。
-
-**大文件 / 远程 MKV**：`GsyUiConfig.cacheWithPlay` 开启时走 HttpProxyCache；对多 GB 渐进下载极易多连接超时。大体积远端文件请设 `cacheWithPlay: false`。插件默认将 GSY prepare / Exo HTTP / IJK format 超时提高到 60s。
-
-Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 `gsyListExoVideoTracks` / `gsySelectExoVideoTrack`。
-
-**音轨（音频）** 公共 API：`getAudioTracks()` / `selectAudioTrack(index)`（Exo / IJK 内核，见 `GsyAudioTrackHelper`）。
+**音轨**：`getAudioTracks()` / `selectAudioTrack`（Exo / IJK；System 内核通常为空）。
 
 ---
 
-## 6. 布局 / 纯播放 / 弹幕 / 自定义布局
+## 6. 布局 / 纯播放 / 弹幕
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 全屏 / 非全屏两套布局 | ✅ | 原生 `startWindowFullscreen` + `GsyUiConfig` |
-| 无控件纯播放 | ✅ | `gsySetPurePlayMode(enabled: true)` |
-| 弹幕 | ✅ | `gsySetDanmakuUrl(url)` + `gsyToggleDanmaku(enabled)`（DanmakuFlameMaster + B 站 XML） |
-| B 站风格控制栏 | ✅ | 竖向音量弹窗（拖动显示百分比）+ 设置面板音轨；`showVolumeToolbar` 时禁用 GSY 左侧音量手势；底栏图标统一 28dp |
-| 继承自定义布局 | ⚠️ | fork `KineticGSYVideoPlayer` 并重写 `getLayoutId()` |
-
-布局文件：`kinetic_video_layout_preview.xml`（进度条、`kinetic_seek_progress` 配色、喇叭/齿轮/全屏按钮）。
+| 全屏 / 非全屏两套布局 | ✅ | `startWindowFullscreen` + `GsyUiConfig` |
+| 无控件纯播放 | ✅ | `gsySetPurePlayMode(true)` 关闭手势、全屏/锁、喇叭、齿轮与标题 |
+| 弹幕 | ✅ | `gsySetDanmakuUrl` + `gsyToggleDanmaku`（B 站 XML）；**内嵌与窗口全屏均显示并同步进度** |
+| B 站风格控制栏 | ✅ | 竖向音量 + 设置面板音轨 |
 
 ---
 
-## 7. 单例 / 多实例 / 列表自动播放 / 无缝切换
+## 7. 单例 / 列表自动播放
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
-| 单例播放 | ✅ | `gsyReleaseAllVideos()` |
-| 多实例同时播放 | ✅ | 每 PlatformView 独立 `playTag` |
-| 列表滑动自动播放 | ⚠️ | `GsyAutoPlayVideoList` / `GsyAutoPlayCoordinator`（可见性检测，非 GSY ListGSYVideoPlayer） |
-| 详情页无缝切换 | ⚠️ | `creationParams['playTag']` + `gsySeamlessHandoffParams()` 共享同一 playTag |
+| 单例播放释放 | ✅ | `gsyReleaseAllVideos()` |
+| 多实例同时播放 | ❌ | GSY `GSYVideoManager` 为单例，本插件**不支持**产品级多路同播 |
+| 列表滑动自动播放 | ✅ | 见 §3 `GsyAutoPlayVideoList` |
 
 ---
 
@@ -116,19 +100,10 @@ Exo 模式下 **DASH / HLS 自适应**由 Media3 自动处理；切换轨道见 
 
 | 能力 | 状态 | API / 说明 |
 |------|------|------------|
-| Android 画中画 | ✅ | **`pictureInPictureEnabled: true`（默认）**；播放中（含 GSY 自动播放 / 原生播放）按 Home 或切后台自动进入 PiP |
+| Android 画中画 | ✅ | `pictureInPictureEnabled: true`（默认）；播放中切后台进入 |
 | 手动 PiP | ✅ | `gsyEnterPictureInPicture()` |
-| Android 12+ 系统自动 PiP | ✅ | 播放中通过 `PictureInPictureParams.setAutoEnterEnabled` 自动进入 |
-| 宿主 Manifest | ⚠️ | `supportsPictureInPicture="true"`、`resizeableActivity="true"` |
-| 宿主 Activity | ⚠️ | `KineticPlayerPlugin.handleUserLeaveHint(this)` |
-| iOS / macOS 画中画 | ❌ | SGPlayer 自定义渲染，无系统 PiP |
-| 桌面多窗体 | ⚠️ | 依赖 Android 系统多窗口 + PiP |
-
-关闭 PiP：
-
-```dart
-GsyUiConfig(pictureInPictureEnabled: false)
-```
+| 宿主 Manifest / Activity | ⚠️ | 见 [USAGE.md](USAGE.md) |
+| iOS / macOS 画中画 | ❌ | SGPlayer 自定义渲染 |
 
 ---
 
@@ -136,8 +111,9 @@ GsyUiConfig(pictureInPictureEnabled: false)
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 片头广告 + 跳过 | ⚠️ | `gsyPlayWithPreRollAd(adUrl, contentUrl)`（广告播完自动切正片） |
-| 中间插入广告 | ⚠️ | `gsySetMidRollAds([{positionMs, adUrl, contentUrl}])` 进度触发片头广告逻辑；完整 `GSYADVideoPlayer` UI 未移植 |
+| 片头广告 + 跳过 | ✅ | `gsyPlayWithPreRollAd(adUrl:, contentUrl:, skipAfter:)`；倒计时后可点「跳过广告」；全屏可用 |
+| 中间插入广告 | ✅ | `gsySetMidRollAds([{positionMs, adUrl, contentUrl?}])`；到点播广告后恢复正片进度；亦可用 `gsySkipAd()` |
+| 手动跳过 | ✅ | `gsySkipAd()` |
 
 ---
 
@@ -145,9 +121,9 @@ GsyUiConfig(pictureInPictureEnabled: false)
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 外挂 SRT/WebVTT | ✅ | `gsySetSubtitleUrl(url, mimeType: ...)` |
-| 启用 / 禁用 | ✅ | `gsySetSubtitleEnabled()` |
-| Exo 内嵌字幕桥接 | ✅ | `gsySetEmbeddedSubtitleText(text)` |
+| 外挂 SRT/WebVTT | ✅ | `gsySetSubtitleUrl`；全屏同步 |
+| 启用 / 禁用 | ✅ | `gsySetSubtitleEnabled` |
+| Exo 内嵌字幕桥接 | ✅ | `gsySetEmbeddedSubtitleText` |
 
 ---
 
@@ -155,10 +131,15 @@ GsyUiConfig(pictureInPictureEnabled: false)
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
-| Exo DASH 播放 | ✅ | 使用 Exo 内核 + DASH URL 即可 |
-| HLS/DASH 轨道切换 UI | ⚠️ | `gsyListExoVideoTracks()` / `gsySelectExoVideoTrack(index)`（无 Demo 级 UI） |
+| Exo DASH / HLS | ✅ | Exo 内核 + URL |
+| 轨道切换 API | ✅ | `gsyListExoVideoTracks` / `gsySelectExoVideoTrack`（无独立清晰度 UI，用设置面板或 Dart） |
 
 ---
+
+## 明确不做
+
+- 详情页无缝切换（已移除 `gsySeamlessHandoffParams`）
+- 多实例同播、AliPlayer、自定义比例 `customRatio`
 
 ## 快速示例
 
@@ -166,17 +147,16 @@ GsyUiConfig(pictureInPictureEnabled: false)
 if (controller is GSYVideoControllerImpl) {
   await controller.gsySetRenderType(GsyRenderType.glSurface);
   await controller.gsySetEffectFilter('gaussianBlur');
-  await controller.gsySetGsyShowType(GsyShowType.ratio16x9);
-  await controller.gsySetSubtitleUrl('https://example.com/subs.vtt');
-  final path = await controller.captureFrame(includeOverlay: true);
-  await controller.gsySetPlaylist(['url1', 'url2']);
+  await controller.gsySetWatermarkUrl('https://example.com/wm.png');
   await controller.gsySetDanmakuUrl('https://example.com/danmaku.xml');
   await controller.gsyToggleDanmaku(enabled: true);
-  final tracks = await controller.gsyListExoVideoTracks();
-  if (tracks.isNotEmpty) await controller.gsySelectExoVideoTrack(0);
-  final audioTracks = await controller.getAudioTracks();
-  if (audioTracks.length > 1) {
-    await controller.selectAudioTrack(audioTracks[1].index);
-  }
+  await controller.gsyPlayWithPreRollAd(
+    adUrl: 'https://example.com/ad.mp4',
+    contentUrl: 'https://example.com/main.mp4',
+    skipAfter: const Duration(seconds: 5),
+  );
+  await controller.gsySetMidRollAds([
+    {'positionMs': 30000, 'adUrl': 'https://example.com/mid.mp4'},
+  ]);
 }
 ```

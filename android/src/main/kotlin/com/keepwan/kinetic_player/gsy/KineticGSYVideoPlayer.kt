@@ -48,6 +48,22 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     var onDanmakuPlaybackPause: (() -> Unit)? = null
     var onDanmakuPlaybackComplete: (() -> Unit)? = null
 
+    private var overlayDanmaku: GsyDanmakuController? = null
+    private var overlayDanmakuUrl: String? = null
+    private var overlayDanmakuVisible = false
+    private var overlayWatermarkUrl: String? = null
+    private var overlayWatermarkBitmap: android.graphics.Bitmap? = null
+    private var overlayEffectName: String = "none"
+    private var overlayRenderRotation = 0
+    private var overlayMirrorHorizontal = false
+    private var overlayMirrorVertical = false
+    private var overlaySubtitleUrl: String? = null
+    private var overlaySubtitleMime: String? = null
+    private var overlaySubtitleEnabled = true
+    private var overlayAdPlaying = false
+    private var overlayAdSkipAfterMs = 5_000L
+    private var overlayOnAdSkip: (() -> Unit)? = null
+
     /** Invoked when the native volume toolbar changes volume (0.0–1.0). */
     var onVolumeChanged: ((Float) -> Unit)? = null
 
@@ -791,6 +807,154 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         )
     }
 
+    fun setOverlayDanmakuUrl(url: String?) {
+        overlayDanmakuUrl = url
+        ensureDanmakuController()
+        if (!url.isNullOrEmpty()) {
+            overlayDanmaku?.loadFromUrl(url)
+            overlayDanmaku?.setVisible(overlayDanmakuVisible)
+        }
+    }
+
+    fun setOverlayDanmakuVisible(visible: Boolean) {
+        overlayDanmakuVisible = visible
+        ensureDanmakuController()
+        overlayDanmaku?.setVisible(visible)
+    }
+
+    fun getOverlayDanmaku(): GsyDanmakuController? {
+        ensureDanmakuController()
+        return overlayDanmaku
+    }
+
+    fun setOverlayWatermarkUrl(url: String?) {
+        overlayWatermarkUrl = url
+        val image = findViewById<ImageView>(R.id.kinetic_watermark) ?: return
+        if (url.isNullOrEmpty()) {
+            overlayWatermarkBitmap = null
+            image.setImageBitmap(null)
+            image.visibility = View.GONE
+            return
+        }
+        image.visibility = View.VISIBLE
+        coverExecutor.execute {
+            try {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 15_000
+                connection.connect()
+                val bitmap = BitmapFactory.decodeStream(connection.inputStream)
+                coverMainHandler.post {
+                    if (overlayWatermarkUrl != url) return@post
+                    overlayWatermarkBitmap = bitmap
+                    image.setImageBitmap(bitmap)
+                    image.visibility = View.VISIBLE
+                }
+            } catch (_: Exception) {
+                // ignore
+            }
+        }
+    }
+
+    fun setOverlayEffectName(name: String) {
+        overlayEffectName = name
+        setEffectFilter(GsyEffectRegistry.resolve(name))
+    }
+
+    fun setOverlayRenderTransform(
+        rotation: Int,
+        mirrorH: Boolean,
+        mirrorV: Boolean,
+    ) {
+        overlayRenderRotation = ((rotation % 360) + 360) % 360
+        overlayMirrorHorizontal = mirrorH
+        overlayMirrorVertical = mirrorV
+        applyOverlayRenderTransform()
+    }
+
+    fun setOverlaySubtitle(
+        url: String?,
+        mimeType: String?,
+        enabled: Boolean,
+    ) {
+        overlaySubtitleUrl = url
+        overlaySubtitleMime = mimeType
+        overlaySubtitleEnabled = enabled
+        if (!url.isNullOrEmpty()) {
+            val builder = com.shuyu.gsyvideoplayer.subtitle.GSYSubtitleSource.Builder(url)
+            if (!mimeType.isNullOrEmpty()) {
+                builder.setMimeType(mimeType)
+            }
+            setSubtitleSource(builder.build())
+        }
+        setSubtitleEnabled(enabled)
+    }
+
+    fun showAdChrome(
+        skipAfterMs: Long,
+        onSkip: () -> Unit,
+    ) {
+        overlayAdPlaying = true
+        overlayAdSkipAfterMs = skipAfterMs
+        overlayOnAdSkip = onSkip
+        val overlay = findViewById<View>(R.id.kinetic_ad_overlay) ?: return
+        val skip = findViewById<TextView>(R.id.kinetic_ad_skip)
+        val countdown = findViewById<TextView>(R.id.kinetic_ad_countdown)
+        overlay.visibility = View.VISIBLE
+        skip?.visibility = View.GONE
+        countdown?.visibility = View.VISIBLE
+        skip?.setOnClickListener {
+            overlayOnAdSkip?.invoke()
+        }
+        val startedAt = System.currentTimeMillis()
+        val ticker =
+            object : Runnable {
+                override fun run() {
+                    if (!overlayAdPlaying) return
+                    val elapsed = System.currentTimeMillis() - startedAt
+                    val remain = ((skipAfterMs - elapsed) / 1000L).coerceAtLeast(0L)
+                    if (remain > 0) {
+                        countdown?.text = context.getString(R.string.kinetic_ad_countdown, remain)
+                        countdown?.visibility = View.VISIBLE
+                        skip?.visibility = View.GONE
+                        coverMainHandler.postDelayed(this, 250L)
+                    } else {
+                        countdown?.visibility = View.GONE
+                        skip?.visibility = View.VISIBLE
+                    }
+                }
+            }
+        coverMainHandler.post(ticker)
+    }
+
+    fun hideAdChrome() {
+        overlayAdPlaying = false
+        overlayOnAdSkip = null
+        findViewById<View>(R.id.kinetic_ad_overlay)?.visibility = View.GONE
+        findViewById<TextView>(R.id.kinetic_ad_skip)?.visibility = View.GONE
+        findViewById<TextView>(R.id.kinetic_ad_countdown)?.visibility = View.GONE
+    }
+
+    private fun ensureDanmakuController() {
+        if (overlayDanmaku != null) return
+        overlayDanmaku = GsyDanmakuController(this).also { it.attachIfNeeded() }
+    }
+
+    private fun applyOverlayRenderTransform() {
+        val proxy = getRenderProxy() ?: return
+        val renderView = proxy.showView ?: return
+        if (renderView.width <= 0 || renderView.height <= 0) {
+            post { applyOverlayRenderTransform() }
+            return
+        }
+        proxy.setTransform(android.graphics.Matrix())
+        renderView.pivotX = renderView.width / 2f
+        renderView.pivotY = renderView.height / 2f
+        proxy.setRotation(overlayRenderRotation.toFloat())
+        renderView.scaleX = if (overlayMirrorHorizontal) -1f else 1f
+        renderView.scaleY = if (overlayMirrorVertical) -1f else 1f
+    }
+
     override fun cloneParams(
         from: GSYBaseVideoPlayer?,
         to: GSYBaseVideoPlayer?,
@@ -805,9 +969,52 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         toPlayer.onMuteToggle = fromPlayer.onMuteToggle
         toPlayer.onRequestAudioTracks = fromPlayer.onRequestAudioTracks
         toPlayer.onAudioTrackSelected = fromPlayer.onAudioTrackSelected
+        toPlayer.onDanmakuPlaybackStart = fromPlayer.onDanmakuPlaybackStart
+        toPlayer.onDanmakuPlaybackPause = fromPlayer.onDanmakuPlaybackPause
+        toPlayer.onDanmakuPlaybackComplete = fromPlayer.onDanmakuPlaybackComplete
         toPlayer.syncVolumeToolbar(fromPlayer.volumeToolbarLevel, fromPlayer.volumeToolbarMuted)
         toPlayer.setKeepLastFrameWhenComplete(fromPlayer.keepLastFrameWhenComplete)
         toPlayer.setCoverUrl(fromPlayer.coverUrl)
+
+        toPlayer.overlayDanmakuVisible = fromPlayer.overlayDanmakuVisible
+        toPlayer.overlayDanmakuUrl = fromPlayer.overlayDanmakuUrl
+        toPlayer.overlayWatermarkUrl = fromPlayer.overlayWatermarkUrl
+        toPlayer.overlayWatermarkBitmap = fromPlayer.overlayWatermarkBitmap
+        toPlayer.overlayEffectName = fromPlayer.overlayEffectName
+        toPlayer.overlayRenderRotation = fromPlayer.overlayRenderRotation
+        toPlayer.overlayMirrorHorizontal = fromPlayer.overlayMirrorHorizontal
+        toPlayer.overlayMirrorVertical = fromPlayer.overlayMirrorVertical
+        toPlayer.overlaySubtitleUrl = fromPlayer.overlaySubtitleUrl
+        toPlayer.overlaySubtitleMime = fromPlayer.overlaySubtitleMime
+        toPlayer.overlaySubtitleEnabled = fromPlayer.overlaySubtitleEnabled
+        toPlayer.overlayAdPlaying = fromPlayer.overlayAdPlaying
+        toPlayer.overlayAdSkipAfterMs = fromPlayer.overlayAdSkipAfterMs
+        toPlayer.overlayOnAdSkip = fromPlayer.overlayOnAdSkip
+
+        toPlayer.post {
+            toPlayer.ensureDanmakuController()
+            toPlayer.overlayDanmaku?.rebindToPlayer()
+            fromPlayer.overlayDanmakuUrl?.let { toPlayer.setOverlayDanmakuUrl(it) }
+            toPlayer.setOverlayDanmakuVisible(fromPlayer.overlayDanmakuVisible)
+            val wm = toPlayer.findViewById<ImageView>(R.id.kinetic_watermark)
+            if (fromPlayer.overlayWatermarkBitmap != null) {
+                wm?.setImageBitmap(fromPlayer.overlayWatermarkBitmap)
+                wm?.visibility = View.VISIBLE
+            } else if (!fromPlayer.overlayWatermarkUrl.isNullOrEmpty()) {
+                toPlayer.setOverlayWatermarkUrl(fromPlayer.overlayWatermarkUrl)
+            }
+            toPlayer.setOverlayEffectName(fromPlayer.overlayEffectName)
+            toPlayer.applyOverlayRenderTransform()
+            toPlayer.setOverlaySubtitle(
+                fromPlayer.overlaySubtitleUrl,
+                fromPlayer.overlaySubtitleMime,
+                fromPlayer.overlaySubtitleEnabled,
+            )
+            if (fromPlayer.overlayAdPlaying) {
+                toPlayer.showAdChrome(fromPlayer.overlayAdSkipAfterMs, fromPlayer.overlayOnAdSkip ?: {})
+            }
+            toPlayer.fixControlOverlayLayering()
+        }
     }
 
     override fun startWindowFullscreen(
@@ -822,7 +1029,26 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
 
     override fun clearFullscreenLayout() {
         super.clearFullscreenLayout()
-        post { applyEmbeddedChrome() }
+        post {
+            applyEmbeddedChrome()
+            // Rebind overlays on the embedded player after leaving fullscreen.
+            ensureDanmakuController()
+            overlayDanmaku?.rebindToPlayer()
+            overlayDanmakuUrl?.let { setOverlayDanmakuUrl(it) }
+            setOverlayDanmakuVisible(overlayDanmakuVisible)
+            if (overlayWatermarkBitmap != null) {
+                findViewById<ImageView>(R.id.kinetic_watermark)?.apply {
+                    setImageBitmap(overlayWatermarkBitmap)
+                    visibility = View.VISIBLE
+                }
+            } else if (!overlayWatermarkUrl.isNullOrEmpty()) {
+                setOverlayWatermarkUrl(overlayWatermarkUrl)
+            }
+            applyOverlayRenderTransform()
+            if (overlayAdPlaying) {
+                showAdChrome(overlayAdSkipAfterMs, overlayOnAdSkip ?: {})
+            }
+        }
     }
 
     private fun applyEmbeddedChrome() {

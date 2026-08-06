@@ -13,6 +13,10 @@ struct SgUiConfig {
     let keepLastFrameWhenComplete: Bool
     /// Cover / poster image URL.
     let coverUrl: String?
+    /// Initial playback rate from shared `GsyUiConfig.speed`.
+    let speed: Float
+    /// Initial looping from shared `GsyUiConfig.looping`.
+    let looping: Bool
 
     /// SGPlayer uses a custom video renderer; system PiP (AVPictureInPictureController) is unavailable.
     static var isPictureInPictureSupported: Bool { false }
@@ -23,6 +27,9 @@ struct SgUiConfig {
             gsyUi?["enableNativeControls"] as? Bool
             ?? params?["enableNativeControls"] as? Bool
             ?? true
+        let speedNumber =
+            (params?["speed"] as? NSNumber)
+            ?? (gsyUi?["speed"] as? NSNumber)
         return SgUiConfig(
             enableNativeControls: enableNativeControls,
             showVolumeToolbar:
@@ -52,6 +59,11 @@ struct SgUiConfig {
             coverUrl:
                 params?["coverUrl"] as? String
                 ?? gsyUi?["coverUrl"] as? String,
+            speed: speedNumber?.floatValue ?? 1,
+            looping:
+                params?["looping"] as? Bool
+                ?? gsyUi?["looping"] as? Bool
+                ?? false,
         )
     }
 }

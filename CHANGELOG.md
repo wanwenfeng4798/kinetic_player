@@ -1,3 +1,29 @@
+## 2.0.2
+
+### Features
+
+- **Android danmaku / watermark**: Live in the player layout and follow **window fullscreen** (clone sync).
+- **Android ads**: Full pre-roll / mid-roll with skip countdown UI (`gsyPlayWithPreRollAd`, `gsySetMidRollAds` with `positionMs`/`adUrl`/`contentUrl`, `gsySkipAd`); works in fullscreen.
+- **List auto-play**: `GsyAutoPlayVideoList` uses list-level visibility and mounts a player only for the active cell.
+- **Pure play mode**: Also hides volume / settings / title.
+- **SG creation**: `GsyUiConfig.speed` / `looping` applied on iOS / macOS create.
+
+### Fixes
+
+- Screenshot / GIF / filters / rotation / mirror / subtitles target the active fullscreen window when present.
+
+### Removals
+
+- **Detail-page seamless handoff** removed (`gsySeamlessHandoffParams`).
+- **Multi-instance simultaneous play** no longer documented as supported.
+- Dead **`customRatio`** parameter removed from `gsySetGsyShowType`.
+
+### Docs
+
+- GSY_FEATURES / USAGE / README aligned to fully delivered features only; HDR links marked as test sources, not HDR product support; macOS gestures clarified (iOS only pans).
+
+---
+
 ## 2.0.1
 
 ### Fixes

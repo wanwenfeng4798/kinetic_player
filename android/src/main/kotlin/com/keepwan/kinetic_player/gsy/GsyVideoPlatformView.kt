@@ -142,10 +142,7 @@ class GsyVideoPlatformView(
                 result.success(null)
             }
             "gsySetGsyShowType" -> {
-                player.setGsyShowType(
-                    call.argument<Int>("mode") ?: 0,
-                    call.argument<Double>("customRatio")?.toFloat(),
-                )
+                player.setGsyShowType(call.argument<Int>("mode") ?: 0)
                 result.success(null)
             }
             "gsySetRenderType" -> {
@@ -226,7 +223,12 @@ class GsyVideoPlatformView(
                 player.playWithPreRollAd(
                     call.argument<String>("adUrl") ?: "",
                     call.argument<String>("contentUrl") ?: "",
+                    call.argument<Number>("skipAfterMs")?.toLong() ?: 5_000L,
                 )
+                result.success(null)
+            }
+            "gsySkipAd" -> {
+                player.skipAd()
                 result.success(null)
             }
             "gsySetPurePlayMode" -> {

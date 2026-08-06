@@ -2,4 +2,9 @@
 <resources>
     <item name="kinetic_preview_layout" type="id" />
     <item name="kinetic_preview_image" type="id" />
+    <item name="kinetic_overlay_host" type="id" />
+    <item name="kinetic_danmaku_view" type="id" />
+    <item name="kinetic_watermark" type="id" />
+    <item name="kinetic_ad_skip" type="id" />
+    <item name="kinetic_ad_countdown" type="id" />
 </resources>

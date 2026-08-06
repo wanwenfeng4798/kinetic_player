@@ -14,9 +14,10 @@ Repo: [github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng47
 - Unified `CommonVideoController` API (play / pause / seek / scale / rate / volume / tracks / loop / screenshot / etc.)
 - Platform auto-selection: Android → GSY, iOS / macOS → SGPlayer, Web → Artplayer; **Linux / Windows → GstPlayer**
 - Bilibili-style native control bar (vertical volume popup with percentage while dragging, settings panel for audio tracks, consistent progress bar + bottom bar icon sizing)
-- iOS / macOS native gesture controls (seek / brightness / volume) with the shared `enableNativeControls` flag
+- **Android / iOS** pan gestures for seek / volume / brightness (`enableNativeControls`); **macOS** has no pans — progress bar + speaker / gear popups
 - Android Picture-in-Picture (PiP) **enabled by default** (API 26+)
 - Web: Video / Document PiP, HLS/DASH, official Artplayer plugins (danmaku / subtitles / Chromecast / …)
+- Android GSY advanced features (danmaku / watermark / ads / filters, including fullscreen): [doc/GSY_FEATURES_EN.md](doc/GSY_FEATURES_EN.md)
 - Private platform-only APIs via explicit downcasting (does not pollute the public interface)
 - iOS / macOS integrate via **sharedDarwinSource** (`darwin/`) with both **CocoaPods** and **Swift Package Manager (SPM)**
 - Prebuilt `SGPlayer.xcframework` download via **GitHub Release** (avoid local building)

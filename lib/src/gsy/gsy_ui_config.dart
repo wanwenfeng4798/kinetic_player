@@ -1,6 +1,7 @@
 /// Native UI options passed via [CommonVideoPlayerView.creationParams].
 ///
-/// Shared by Android GSY and iOS SGPlayer. Defaults match
+/// Used by Android GSY, Darwin SGPlayer, and Web Artplayer. Only a subset applies
+/// on each platform — see USAGE platform notes. Defaults match
 /// [StandardGSYVideoPlayer] / [GSYVideoOptionBuilder] where applicable.
 class GsyUiConfig {
   const GsyUiConfig({
