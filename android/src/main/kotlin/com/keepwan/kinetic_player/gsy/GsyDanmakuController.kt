@@ -98,6 +98,29 @@ class GsyDanmakuController(
 
     fun isVisible(): Boolean = visible
 
+    /** Live danmaku for native chrome send bar (does not reload XML). */
+    fun addLiveDanmaku(
+        text: String,
+        colorArgb: Int = 0xFFFFFFFF.toInt(),
+    ) {
+        attachIfNeeded()
+        val view = danmakuView ?: return
+        val ctx = danmakuContext ?: return
+        if (!view.isPrepared) {
+            prepareDanmaku()
+        }
+        val item = ctx.mDanmakuFactory.createDanmaku(BaseDanmaku.TYPE_SCROLL_RL) ?: return
+        item.text = text
+        item.padding = 5
+        item.priority = 1
+        item.isLive = true
+        item.textSize = 18f * (view.context.resources.displayMetrics.density)
+        item.textColor = colorArgb or 0xFF000000.toInt()
+        item.setTime(view.currentTime)
+        view.addDanmaku(item)
+        if (visible) view.show()
+    }
+
     fun loadFromUrl(url: String) {
         pendingUrl = url
         attachIfNeeded()

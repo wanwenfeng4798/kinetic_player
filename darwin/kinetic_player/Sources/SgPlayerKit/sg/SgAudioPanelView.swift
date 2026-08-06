@@ -1,7 +1,7 @@
 #if os(iOS)
 import UIKit
 
-/// Bilibili-style vertical volume popup (volume only).
+/// Bilibili-style vertical volume popup with top percent label.
 final class SgAudioPanelView: UIView {
     var onVolumeChanged: ((Double) -> Void)?
     var onDraggingChanged: ((Bool) -> Void)?
@@ -26,9 +26,7 @@ final class SgAudioPanelView: UIView {
         syncing = true
         let level = Float(max(0, min(volume, 1)))
         volumeSlider.value = muted ? 0 : level
-        if isDragging {
-            updateVolumeValueLabel(level: muted ? 0 : level)
-        }
+        updateVolumeValueLabel(level: muted ? 0 : level)
         syncing = false
     }
 
@@ -39,7 +37,8 @@ final class SgAudioPanelView: UIView {
         volumeValueLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         volumeValueLabel.textColor = .white
         volumeValueLabel.textAlignment = .center
-        volumeValueLabel.isHidden = true
+        volumeValueLabel.isHidden = false
+        volumeValueLabel.text = "100%"
         volumeValueLabel.translatesAutoresizingMaskIntoConstraints = false
 
         volumeSliderContainer.backgroundColor = KineticPlayerColors.panelBackground
@@ -65,9 +64,9 @@ final class SgAudioPanelView: UIView {
             action: #selector(volumeTouchUp),
             for: [.touchUpInside, .touchUpOutside, .touchCancel],
         )
+        volumeSliderContainer.addSubview(volumeValueLabel)
         volumeSliderContainer.addSubview(volumeSlider)
 
-        addSubview(volumeValueLabel)
         addSubview(volumeSliderContainer)
 
         NSLayoutConstraint.activate([
@@ -77,14 +76,14 @@ final class SgAudioPanelView: UIView {
             volumeSliderContainer.leadingAnchor.constraint(equalTo: leadingAnchor),
             volumeSliderContainer.trailingAnchor.constraint(equalTo: trailingAnchor),
             volumeSliderContainer.bottomAnchor.constraint(equalTo: bottomAnchor),
-            volumeSliderContainer.heightAnchor.constraint(equalToConstant: 144),
+            volumeSliderContainer.heightAnchor.constraint(equalToConstant: 160),
 
-            volumeValueLabel.trailingAnchor.constraint(equalTo: volumeSliderContainer.leadingAnchor, constant: -4),
-            volumeValueLabel.centerYAnchor.constraint(equalTo: volumeSliderContainer.centerYAnchor),
-            volumeValueLabel.widthAnchor.constraint(equalToConstant: 28),
+            volumeValueLabel.topAnchor.constraint(equalTo: volumeSliderContainer.topAnchor, constant: 8),
+            volumeValueLabel.leadingAnchor.constraint(equalTo: volumeSliderContainer.leadingAnchor),
+            volumeValueLabel.trailingAnchor.constraint(equalTo: volumeSliderContainer.trailingAnchor),
 
             volumeSlider.centerXAnchor.constraint(equalTo: volumeSliderContainer.centerXAnchor),
-            volumeSlider.centerYAnchor.constraint(equalTo: volumeSliderContainer.centerYAnchor),
+            volumeSlider.centerYAnchor.constraint(equalTo: volumeSliderContainer.centerYAnchor, constant: 8),
             volumeSlider.widthAnchor.constraint(equalToConstant: 120),
         ])
     }
@@ -103,7 +102,6 @@ final class SgAudioPanelView: UIView {
     @objc private func volumeTouchUp() {
         isDragging = false
         onDraggingChanged?(false)
-        volumeValueLabel.isHidden = true
     }
 
     private func beginDragging() {
@@ -111,7 +109,6 @@ final class SgAudioPanelView: UIView {
         isDragging = true
         onDraggingChanged?(true)
         updateVolumeValueLabel(level: volumeSlider.value)
-        volumeValueLabel.isHidden = false
     }
 
     private func updateVolumeValueLabel(level: Float) {
@@ -122,13 +119,13 @@ final class SgAudioPanelView: UIView {
 #elseif os(macOS)
 import AppKit
 
-/// Bilibili-style vertical volume popup (volume only).
+/// Bilibili-style vertical volume popup with top percent label.
 final class SgAudioPanelView: NSView {
     var onVolumeChanged: ((Double) -> Void)?
     var onDraggingChanged: ((Bool) -> Void)?
 
     private let volumeSliderContainer = NSView()
-    private let volumeValueLabel = NSTextField(labelWithString: "")
+    private let volumeValueLabel = NSTextField(labelWithString: "100%")
     private let volumeSlider = SgTrackSlider()
     private var syncing = false
     private var isDragging = false
@@ -149,9 +146,7 @@ final class SgAudioPanelView: NSView {
         syncing = true
         let level = Float(max(0, min(volume, 1)))
         volumeSlider.value = muted ? 0 : level
-        if isDragging {
-            updateVolumeValueLabel(level: muted ? 0 : level)
-        }
+        updateVolumeValueLabel(level: muted ? 0 : level)
         syncing = false
     }
 
@@ -161,7 +156,7 @@ final class SgAudioPanelView: NSView {
         volumeValueLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         volumeValueLabel.textColor = .white
         volumeValueLabel.alignment = .center
-        volumeValueLabel.isHidden = true
+        volumeValueLabel.isHidden = false
         volumeValueLabel.translatesAutoresizingMaskIntoConstraints = false
 
         volumeSliderContainer.wantsLayer = true
@@ -180,9 +175,9 @@ final class SgAudioPanelView: NSView {
         volumeSlider.onTouchDown = { [weak self] in self?.beginDragging() }
         volumeSlider.onValueChanged = { [weak self] in self?.handleSliderChanged() }
         volumeSlider.onTouchUp = { [weak self] in self?.endDragging() }
+        volumeSliderContainer.addSubview(volumeValueLabel)
         volumeSliderContainer.addSubview(volumeSlider)
 
-        addSubview(volumeValueLabel)
         addSubview(volumeSliderContainer)
 
         NSLayoutConstraint.activate([
@@ -192,14 +187,14 @@ final class SgAudioPanelView: NSView {
             volumeSliderContainer.leadingAnchor.constraint(equalTo: leadingAnchor),
             volumeSliderContainer.trailingAnchor.constraint(equalTo: trailingAnchor),
             volumeSliderContainer.bottomAnchor.constraint(equalTo: bottomAnchor),
-            volumeSliderContainer.heightAnchor.constraint(equalToConstant: 144),
+            volumeSliderContainer.heightAnchor.constraint(equalToConstant: 160),
 
-            volumeValueLabel.trailingAnchor.constraint(equalTo: volumeSliderContainer.leadingAnchor, constant: -4),
-            volumeValueLabel.centerYAnchor.constraint(equalTo: volumeSliderContainer.centerYAnchor),
-            volumeValueLabel.widthAnchor.constraint(equalToConstant: 28),
+            volumeValueLabel.topAnchor.constraint(equalTo: volumeSliderContainer.topAnchor, constant: 8),
+            volumeValueLabel.leadingAnchor.constraint(equalTo: volumeSliderContainer.leadingAnchor),
+            volumeValueLabel.trailingAnchor.constraint(equalTo: volumeSliderContainer.trailingAnchor),
 
             volumeSlider.centerXAnchor.constraint(equalTo: volumeSliderContainer.centerXAnchor),
-            volumeSlider.centerYAnchor.constraint(equalTo: volumeSliderContainer.centerYAnchor),
+            volumeSlider.centerYAnchor.constraint(equalTo: volumeSliderContainer.centerYAnchor, constant: 8),
             volumeSlider.widthAnchor.constraint(equalToConstant: 24),
             volumeSlider.heightAnchor.constraint(equalToConstant: 120),
         ])
@@ -217,13 +212,11 @@ final class SgAudioPanelView: NSView {
         isDragging = true
         onDraggingChanged?(true)
         updateVolumeValueLabel(level: volumeSlider.value)
-        volumeValueLabel.isHidden = false
     }
 
     private func endDragging() {
         isDragging = false
         onDraggingChanged?(false)
-        volumeValueLabel.isHidden = true
     }
 
     private func updateVolumeValueLabel(level: Float) {

@@ -17,6 +17,11 @@ import { PlayerState, ScaleMode as ScaleModeEnum } from './types';
 
 const POSITION_THROTTLE_MS = 250;
 
+function argbToCssHex(argb: number): string {
+  const rgb = argb & 0xffffff;
+  return `#${rgb.toString(16).padStart(6, '0')}`;
+}
+
 /**
  * Artplayer adapter for kinetic_player Web.
  * Maps public API (play/pause/seek/volume/rate/dispose/togglePip) to Artplayer.
@@ -82,6 +87,10 @@ export class KineticArtplayerAdapter {
 
     this.looping = ui.looping === true;
 
+    const accentArgb =
+      typeof ui.accentColor === 'number' ? ui.accentColor : 0xfffb7299;
+    const themeHex = argbToCssHex(accentArgb);
+
     const option: ArtplayerOption = {
       container: config.container,
       url,
@@ -105,6 +114,7 @@ export class KineticArtplayerAdapter {
       lock: enableControls,
       gesture: enableControls,
       autoOrientation: false,
+      theme: themeHex,
       moreVideoAttr: {
         // Typed attr is playsInline; WebKit / X5 attrs set in applyMobileInlineAttributes.
         playsInline: true,

@@ -1,3 +1,8 @@
+import 'package:flutter/material.dart';
+
+/// Default chrome accent (Bilibili pink).
+const int kKineticDefaultAccentColor = 0xFFFB7299;
+
 /// Native UI options passed via [CommonVideoPlayerView.creationParams].
 ///
 /// Used by Android GSY, Darwin SGPlayer, and Web Artplayer. Only a subset applies
@@ -39,6 +44,7 @@ class GsyUiConfig {
     this.coverUrl,
     this.thumbPlay = true,
     this.ijkEnableAccurateSeek = true,
+    this.accentColor = const Color(kKineticDefaultAccentColor),
   });
 
   /// Native chrome + pan gestures (seek / volume / brightness).
@@ -98,6 +104,9 @@ class GsyUiConfig {
   /// IJK FFmpeg accurate seek; reduces keyframe snap-back on drag (IJK core only).
   final bool ijkEnableAccurateSeek;
 
+  /// Chrome accent (seek bar, selected options, danmaku send). Default Bilibili pink.
+  final Color accentColor;
+
   Map<String, dynamic> toCreationParams() => <String, dynamic>{
         'gsyUi': <String, dynamic>{
           'enableNativeControls': enableNativeControls,
@@ -134,6 +143,8 @@ class GsyUiConfig {
           if (coverUrl != null) 'coverUrl': coverUrl,
           'thumbPlay': thumbPlay,
           'ijkEnableAccurateSeek': ijkEnableAccurateSeek,
+          // ignore: deprecated_member_use — Color.value for Flutter 3.24 compat
+          'accentColor': accentColor.value,
         },
       };
 }

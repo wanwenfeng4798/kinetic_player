@@ -31,6 +31,8 @@ export interface ArtplayerUiConfig {
   coverUrl?: string;
   keepLastFrameWhenComplete?: boolean;
   startAfterPrepared?: boolean;
+  /** ARGB int, default Bilibili pink 0xFFFB7299 */
+  accentColor?: number;
 }
 
 /**

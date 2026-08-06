@@ -198,11 +198,15 @@ class GSYVideoControllerImpl
     return result?.cast<Map<String, dynamic>>() ?? const [];
   }
 
+  /// Select Exo video track by [index]. Pass `-1` to restore Auto (ABR).
   Future<bool> gsySelectExoVideoTrack(int index) async {
     final result =
         await _channel.invokeMethod<bool>('gsySelectExoVideoTrack', {'index': index});
     return result ?? false;
   }
+
+  /// Restore Exo adaptive quality selection (same as [gsySelectExoVideoTrack](-1)).
+  Future<bool> gsySetExoVideoTrackAuto() => gsySelectExoVideoTrack(-1);
 
   Future<void> gsySetWatermarkUrl(String? url) =>
       _invoke('gsySetWatermarkUrl', {'url': url});

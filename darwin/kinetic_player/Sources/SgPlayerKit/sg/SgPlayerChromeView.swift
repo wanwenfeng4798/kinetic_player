@@ -6,13 +6,19 @@ protocol SgPlayerChromeDelegate: AnyObject {
     func chromeDidToggleMute(_ muted: Bool)
     func chromeDidRequestAudioTracks() -> [[String: Any]]
     func chromeDidSelectAudioTrack(index: Int)
+    func chromeDidChangeRate(_ rate: Double)
+    func chromeDidChangeMirror(_ enabled: Bool)
+    func chromeDidChangeLooping(_ looping: Bool)
+    /// 0 auto, 1 16:9, 2 4:3, 3 fill/hide bars
+    func chromeDidChangeScaleMode(_ mode: Int)
+    func chromeDidChangeBlackout(_ enabled: Bool)
 }
 
 #if os(iOS)
 import UIKit
 
-/// Native playback chrome: play/pause, progress, settings (音轨), volume, fullscreen,
-/// plus GSY-style pan gestures (seek / volume / brightness).
+/// Native playback chrome: play/pause, progress, rate, settings, volume, fullscreen,
+/// lock (fullscreen), blackout — plus GSY-style pan gestures (seek / volume / brightness).
 final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private enum PanGestureKind {
         case none
@@ -26,10 +32,12 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     /// Matches Android `kinetic_control_icon_size` (14dp) / GSY stock chrome.
     private static let toolbarIconPointSize: CGFloat = 14
     private static let toolbarButtonSize: CGFloat = 28
+    private static let lockButtonSize: CGFloat = 36
     private static let panActivationThreshold: CGFloat = 12
     /// Hold scrub UI until playhead catches the committed seek (avoids bounce).
     private static let seekSettleToleranceMs: Int64 = 800
     private static let seekHoldTimeout: CFTimeInterval = 1.5
+    private static let rateOptions: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
     private static let toolbarSymbolConfig = UIImage.SymbolConfiguration(
         pointSize: toolbarIconPointSize,
         weight: .regular,
@@ -41,24 +49,37 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private let currentTimeLabel = UILabel()
     private let totalTimeLabel = UILabel()
     private let progressSlider = UISlider()
+    private let rateButton = UIButton(type: .system)
     private let settingsButton = UIButton(type: .system)
     private let volumeButton = UIButton(type: .system)
     private let fullscreenButton = UIButton(type: .system)
     private let centerPlayButton = UIButton(type: .system)
+    private let lockButton = UIButton(type: .system)
+    private let blackoutOverlay = UIView()
     private let audioPanel = SgAudioPanelView()
     private let settingsPanel = SgSettingsPanelView()
+    private let ratePanel = SgOptionListPanelView()
     private let gestureOverlay = SgGestureOverlayView()
 
     private var hideTimer: Timer?
     private var controlsVisible = true
     private var audioPanelVisible = false
     private var settingsPanelVisible = false
+    private var ratePanelVisible = false
     private var isSeeking = false
     private var isPlaying = false
+    private var isFullscreen = false
+    private var isScreenLocked = false
     private var durationMs: Int64 = 0
     private var positionMs: Int64 = 0
     private var volumeLevel: Double = 1
     private var muted = false
+    private var currentRate: Double = 1
+    private var mirrorEnabled = false
+    private var loopingEnabled = false
+    private var aspectMode = 0
+    private var hideBlackBars = false
+    private var blackoutEnabled = false
     /// Target after gesture/slider commit; UI ignores stale playhead until settled.
     private var pendingSeekTargetMs: Int64?
     private var seekHoldDeadline: CFTimeInterval = 0
@@ -76,11 +97,15 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     init(config: SgUiConfig) {
         self.config = config
+        self.currentRate = Double(config.speed)
+        self.loopingEnabled = config.looping
         super.init(frame: .zero)
+        KineticPlayerColors.applyAccent(argb: config.accentColor)
         clipsToBounds = false
         isUserInteractionEnabled = true
         setupViews()
         applyConfig()
+        updateRateButtonTitle()
         scheduleAutoHide()
     }
 
@@ -176,6 +201,13 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     }
 
     func setControlsVisible(_ visible: Bool, animated: Bool = true) {
+        if isScreenLocked {
+            // Locked: only the unlock button stays reachable.
+            controlsVisible = false
+            hideTimer?.invalidate()
+            applyLockedChromeVisibility(animated: animated)
+            return
+        }
         controlsVisible = visible
         let alpha: CGFloat = visible ? 1 : 0
         let updates = {
@@ -183,9 +215,11 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             self.centerPlayButton.alpha = alpha
             self.bottomPanel.isUserInteractionEnabled = visible
             self.centerPlayButton.isUserInteractionEnabled = visible
+            self.updateLockButtonVisibility()
             if !visible {
                 self.hideAudioPanel()
                 self.hideSettingsPanel()
+                self.hideRatePanel()
             }
         }
         if animated {
@@ -205,12 +239,29 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     }
 
     func updateFullscreenIcon(isFullscreen: Bool) {
-        let symbol = isFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right"
+        setFullscreenActive(isFullscreen)
+    }
+
+    /// Updates fullscreen state (icon + lock button visibility).
+    func setFullscreenActive(_ active: Bool) {
+        isFullscreen = active
+        let symbol = active ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right"
         setToolbarSymbol(fullscreenButton, systemName: symbol)
+        if !active, isScreenLocked {
+            setScreenLocked(false)
+        } else {
+            updateLockButtonVisibility()
+        }
     }
 
     private func setupViews() {
         backgroundColor = .clear
+
+        blackoutOverlay.backgroundColor = UIColor(white: 0, alpha: 0.6)
+        blackoutOverlay.isUserInteractionEnabled = false
+        blackoutOverlay.isHidden = true
+        blackoutOverlay.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(blackoutOverlay)
 
         bottomPanel.backgroundColor = UIColor(white: 0, alpha: 0.55)
         bottomPanel.translatesAutoresizingMaskIntoConstraints = false
@@ -239,6 +290,17 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         progressSlider.addTarget(self, action: #selector(sliderChanged), for: .valueChanged)
         progressSlider.addTarget(self, action: #selector(sliderTouchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
 
+        rateButton.addTarget(self, action: #selector(rateTapped), for: .touchUpInside)
+        rateButton.tintColor = .white
+        rateButton.setTitleColor(.white, for: .normal)
+        rateButton.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
+        rateButton.setContentHuggingPriority(.required, for: .horizontal)
+        rateButton.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            rateButton.heightAnchor.constraint(equalToConstant: Self.toolbarButtonSize),
+            rateButton.widthAnchor.constraint(greaterThanOrEqualToConstant: Self.toolbarButtonSize),
+        ])
+
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
         styleToolbarButton(settingsButton)
         setToolbarSymbol(settingsButton, systemName: "gearshape.fill")
@@ -252,6 +314,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         progressRow.addArrangedSubview(currentTimeLabel)
         progressRow.addArrangedSubview(progressSlider)
         progressRow.addArrangedSubview(totalTimeLabel)
+        progressRow.addArrangedSubview(rateButton)
         progressRow.addArrangedSubview(settingsButton)
         progressRow.addArrangedSubview(volumeButton)
         progressRow.addArrangedSubview(fullscreenButton)
@@ -283,7 +346,45 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             self.reloadSettingsTracks()
             self.scheduleAutoHide()
         }
+        settingsPanel.onMirrorChanged = { [weak self] enabled in
+            guard let self else { return }
+            self.mirrorEnabled = enabled
+            self.delegate?.chromeDidChangeMirror(enabled)
+        }
+        settingsPanel.onLoopingChanged = { [weak self] looping in
+            guard let self else { return }
+            self.loopingEnabled = looping
+            self.delegate?.chromeDidChangeLooping(looping)
+        }
+        settingsPanel.onAspectChanged = { [weak self] mode in
+            guard let self else { return }
+            if mode == 3 {
+                self.hideBlackBars = true
+            } else {
+                self.aspectMode = mode
+                self.hideBlackBars = false
+            }
+            self.delegate?.chromeDidChangeScaleMode(mode)
+        }
+        settingsPanel.onHideBlackBarsChanged = { [weak self] hide in
+            self?.hideBlackBars = hide
+        }
+        settingsPanel.onBlackoutChanged = { [weak self] enabled in
+            guard let self else { return }
+            self.setBlackoutEnabled(enabled)
+            self.delegate?.chromeDidChangeBlackout(enabled)
+        }
         addSubview(settingsPanel)
+
+        ratePanel.translatesAutoresizingMaskIntoConstraints = false
+        ratePanel.isHidden = true
+        ratePanel.isUserInteractionEnabled = false
+        ratePanel.onSelect = { [weak self] index in
+            guard let self, Self.rateOptions.indices.contains(index) else { return }
+            self.setSpeed(Self.rateOptions[index])
+            self.hideRatePanel()
+        }
+        addSubview(ratePanel)
 
         centerPlayButton.tintColor = .white
         centerPlayButton.backgroundColor = UIColor(white: 0, alpha: 0.45)
@@ -292,9 +393,23 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         centerPlayButton.addTarget(self, action: #selector(centerPlayTapped), for: .touchUpInside)
         addSubview(centerPlayButton)
 
+        lockButton.tintColor = .white
+        lockButton.backgroundColor = UIColor(white: 0, alpha: 0.45)
+        lockButton.layer.cornerRadius = Self.lockButtonSize / 2
+        lockButton.translatesAutoresizingMaskIntoConstraints = false
+        lockButton.isHidden = true
+        lockButton.addTarget(self, action: #selector(lockTapped), for: .touchUpInside)
+        updateLockIcon()
+        addSubview(lockButton)
+
         addSubview(gestureOverlay)
 
         NSLayoutConstraint.activate([
+            blackoutOverlay.leadingAnchor.constraint(equalTo: leadingAnchor),
+            blackoutOverlay.trailingAnchor.constraint(equalTo: trailingAnchor),
+            blackoutOverlay.topAnchor.constraint(equalTo: topAnchor),
+            blackoutOverlay.bottomAnchor.constraint(equalTo: bottomAnchor),
+
             bottomPanel.leadingAnchor.constraint(equalTo: leadingAnchor),
             bottomPanel.trailingAnchor.constraint(equalTo: trailingAnchor),
             bottomPanel.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -311,10 +426,18 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             settingsPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
             settingsPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
 
+            ratePanel.centerXAnchor.constraint(equalTo: rateButton.centerXAnchor),
+            ratePanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
+
             centerPlayButton.centerXAnchor.constraint(equalTo: centerXAnchor),
             centerPlayButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             centerPlayButton.widthAnchor.constraint(equalToConstant: 60),
             centerPlayButton.heightAnchor.constraint(equalToConstant: 60),
+
+            lockButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -50),
+            lockButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            lockButton.widthAnchor.constraint(equalToConstant: Self.lockButtonSize),
+            lockButton.heightAnchor.constraint(equalToConstant: Self.lockButtonSize),
 
             gestureOverlay.centerXAnchor.constraint(equalTo: centerXAnchor),
             gestureOverlay.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -342,6 +465,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         centerPlayButton.isHidden = !config.enableNativeControls
         volumeButton.isHidden = !config.showVolumeToolbar
         settingsButton.isHidden = !config.showSettingsButton
+        rateButton.isHidden = !config.enableNativeControls
         fullscreenButton.isHidden = !config.showFullscreenButton
         if !config.showVolumeToolbar {
             hideAudioPanel()
@@ -351,6 +475,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         }
         bottomPanel.isUserInteractionEnabled = controlsVisible
         centerPlayButton.isUserInteractionEnabled = controlsVisible
+        updateLockButtonVisibility()
     }
 
     private func updateCenterPlayIcon() {
@@ -361,6 +486,85 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private func updateVolumeIcon() {
         let symbolName = muted || volumeLevel <= 0.001 ? "speaker.slash.fill" : "speaker.wave.2.fill"
         setToolbarSymbol(volumeButton, systemName: symbolName)
+    }
+
+    private func updateLockIcon() {
+        let symbol = isScreenLocked ? "lock.fill" : "lock.open.fill"
+        let symbolConfig = UIImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+        lockButton.setImage(UIImage(systemName: symbol, withConfiguration: symbolConfig), for: .normal)
+    }
+
+    private func updateLockButtonVisibility() {
+        let show = config.enableNativeControls
+            && config.showLockButton
+            && isFullscreen
+            && (controlsVisible || isScreenLocked)
+        lockButton.isHidden = !show
+        lockButton.isUserInteractionEnabled = show
+        if show {
+            bringSubviewToFront(lockButton)
+        }
+    }
+
+    private func applyLockedChromeVisibility(animated: Bool) {
+        let updates = {
+            self.bottomPanel.alpha = 0
+            self.centerPlayButton.alpha = 0
+            self.bottomPanel.isUserInteractionEnabled = false
+            self.centerPlayButton.isUserInteractionEnabled = false
+            self.hideAudioPanel()
+            self.hideSettingsPanel()
+            self.hideRatePanel()
+            self.updateLockButtonVisibility()
+        }
+        if animated {
+            UIView.animate(withDuration: 0.2, animations: updates)
+        } else {
+            updates()
+        }
+    }
+
+    private func setScreenLocked(_ locked: Bool) {
+        isScreenLocked = locked
+        updateLockIcon()
+        if locked {
+            setControlsVisible(false, animated: true)
+        } else {
+            setControlsVisible(true, animated: true)
+        }
+    }
+
+    private func setBlackoutEnabled(_ enabled: Bool) {
+        blackoutEnabled = enabled
+        blackoutOverlay.isHidden = !enabled
+        if enabled {
+            insertSubview(blackoutOverlay, at: 0)
+        }
+    }
+
+    private func setSpeed(_ rate: Double) {
+        currentRate = rate
+        updateRateButtonTitle()
+        reloadRatePanel()
+        delegate?.chromeDidChangeRate(rate)
+    }
+
+    private func updateRateButtonTitle() {
+        rateButton.setTitle(Self.formatRateLabel(currentRate), for: .normal)
+    }
+
+    private func reloadRatePanel() {
+        let options = Self.rateOptions.map { rate in
+            (label: Self.formatRateLabel(rate), selected: abs(rate - currentRate) < 0.001)
+        }
+        ratePanel.reload(title: "倍速", options: options)
+    }
+
+    private static func formatRateLabel(_ rate: Double) -> String {
+        if rate == Double(Int(rate)) {
+            return String(format: "%.1fx", rate)
+        }
+        return String(format: "%gx", rate)
     }
 
     private func styleToolbarButton(_ button: UIButton) {
@@ -383,6 +587,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             hideAudioPanel()
         } else {
             hideSettingsPanel()
+            hideRatePanel()
             showAudioPanel()
         }
     }
@@ -392,7 +597,18 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             hideSettingsPanel()
         } else {
             hideAudioPanel()
+            hideRatePanel()
             showSettingsPanel()
+        }
+    }
+
+    private func toggleRatePanel() {
+        if ratePanelVisible {
+            hideRatePanel()
+        } else {
+            hideAudioPanel()
+            hideSettingsPanel()
+            showRatePanel()
         }
     }
 
@@ -412,6 +628,16 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     }
 
     private func showSettingsPanel() {
+        settingsPanel.syncState(
+            mirror: mirrorEnabled,
+            looping: loopingEnabled,
+            autoPlay: true,
+            autoPlayNext: true,
+            aspect: aspectMode,
+            hideBlackBars: hideBlackBars,
+            blackout: blackoutEnabled,
+        )
+        settingsPanel.showLevel1()
         reloadSettingsTracks()
         settingsPanel.isHidden = false
         settingsPanel.isUserInteractionEnabled = true
@@ -427,6 +653,22 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         scheduleAutoHide()
     }
 
+    private func showRatePanel() {
+        reloadRatePanel()
+        ratePanel.isHidden = false
+        ratePanel.isUserInteractionEnabled = true
+        ratePanelVisible = true
+        bringSubviewToFront(ratePanel)
+        hideTimer?.invalidate()
+    }
+
+    private func hideRatePanel() {
+        ratePanel.isHidden = true
+        ratePanel.isUserInteractionEnabled = false
+        ratePanelVisible = false
+        scheduleAutoHide()
+    }
+
     private func reloadSettingsTracks() {
         let tracks = delegate?.chromeDidRequestAudioTracks() ?? []
         settingsPanel.reloadTracks(tracks)
@@ -434,7 +676,12 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func scheduleAutoHide() {
         hideTimer?.invalidate()
-        guard config.enableNativeControls, isPlaying, !audioPanelVisible, !settingsPanelVisible else { return }
+        guard config.enableNativeControls,
+              isPlaying,
+              !isScreenLocked,
+              !audioPanelVisible,
+              !settingsPanelVisible,
+              !ratePanelVisible else { return }
         hideTimer = Timer.scheduledTimer(
             withTimeInterval: TimeInterval(config.dismissControlTimeMs) / 1000.0,
             repeats: false,
@@ -444,12 +691,19 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     }
 
     @objc private func handleBackgroundTap() {
+        if isScreenLocked {
+            return
+        }
         if audioPanelVisible {
             hideAudioPanel()
             return
         }
         if settingsPanelVisible {
             hideSettingsPanel()
+            return
+        }
+        if ratePanelVisible {
+            hideRatePanel()
             return
         }
         toggleControlsVisibility()
@@ -463,7 +717,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     }
 
     @objc private func handlePanGesture(_ gesture: UIPanGestureRecognizer) {
-        guard config.enableNativeControls else { return }
+        guard config.enableNativeControls, !isScreenLocked else { return }
 
         switch gesture.state {
         case .began:
@@ -585,10 +839,19 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         let point = touch.location(in: self)
+        if isScreenLocked {
+            return !lockButton.frame.contains(point)
+        }
         if audioPanelVisible, audioPanel.frame.contains(point) {
             return false
         }
         if settingsPanelVisible, settingsPanel.frame.contains(point) {
+            return false
+        }
+        if ratePanelVisible, ratePanel.frame.contains(point) {
+            return false
+        }
+        if !lockButton.isHidden, lockButton.frame.contains(point) {
             return false
         }
         if bottomPanel.frame.contains(point), bottomPanel.alpha > 0.01, controlsVisible {
@@ -615,6 +878,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private func touchHitsInteractiveControl(at point: CGPoint) -> Bool {
         for control in [
             progressSlider,
+            rateButton,
             settingsButton,
             volumeButton,
             fullscreenButton,
@@ -643,6 +907,14 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     @objc private func volumeTapped() {
         toggleAudioPanel()
+    }
+
+    @objc private func rateTapped() {
+        toggleRatePanel()
+    }
+
+    @objc private func lockTapped() {
+        setScreenLocked(!isScreenLocked)
     }
 
     @objc private func sliderTouchDown() {
@@ -805,7 +1077,8 @@ final class SgTrackSlider: NSView {
     }
 }
 
-/// Native playback chrome: play/pause, progress, settings (音轨), volume, fullscreen.
+/// Native playback chrome: play/pause, progress, rate, settings, volume, fullscreen,
+/// lock (fullscreen), blackout.
 ///
 /// macOS does not rely on pan gestures (unreliable inside Flutter `AppKitView`, and
 /// there is no public brightness API). Seek uses the progress slider; volume uses the
@@ -816,10 +1089,12 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private static let toolbarIconPointSize: CGFloat = 14
     private static let toolbarButtonSize: CGFloat = 28
+    private static let lockButtonSize: CGFloat = 36
     private static let centerPlayButtonSize: CGFloat = 60
     private static let centerPlayIconPointSize: CGFloat = 26
     private static let seekSettleToleranceMs: Int64 = 800
     private static let seekHoldTimeout: CFTimeInterval = 1.5
+    private static let rateOptions: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
     private let config: SgUiConfig
     private let bottomPanel = NSView()
@@ -827,23 +1102,36 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private let currentTimeLabel = NSTextField(labelWithString: "00:00")
     private let totalTimeLabel = NSTextField(labelWithString: "00:00")
     private let progressSlider = SgTrackSlider()
+    private let rateButton = NSButton()
     private let settingsButton = NSButton()
     private let volumeButton = NSButton()
     private let fullscreenButton = NSButton()
     private let centerPlayButton = NSButton()
+    private let lockButton = NSButton()
+    private let blackoutOverlay = NSView()
     private let audioPanel = SgAudioPanelView()
     private let settingsPanel = SgSettingsPanelView()
+    private let ratePanel = SgOptionListPanelView()
 
     private var hideTimer: Timer?
     private var controlsVisible = true
     private var audioPanelVisible = false
     private var settingsPanelVisible = false
+    private var ratePanelVisible = false
     private var isSeeking = false
     private var isPlaying = false
+    private var isFullscreen = false
+    private var isScreenLocked = false
     private var durationMs: Int64 = 0
     private var positionMs: Int64 = 0
     private var volumeLevel: Double = 1
     private var muted = false
+    private var currentRate: Double = 1
+    private var mirrorEnabled = false
+    private var loopingEnabled = false
+    private var aspectMode = 0
+    private var hideBlackBars = false
+    private var blackoutEnabled = false
     private var pendingSeekTargetMs: Int64?
     private var seekHoldDeadline: CFTimeInterval = 0
     private var seekHoldTimer: Timer?
@@ -852,10 +1140,14 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     init(config: SgUiConfig) {
         self.config = config
+        self.currentRate = Double(config.speed)
+        self.loopingEnabled = config.looping
         super.init(frame: .zero)
+        KineticPlayerColors.applyAccent(argb: config.accentColor)
         wantsLayer = true
         setupViews()
         applyConfig()
+        updateRateButtonTitle()
         scheduleAutoHide()
     }
 
@@ -938,6 +1230,12 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     }
 
     func setControlsVisible(_ visible: Bool, animated: Bool = true) {
+        if isScreenLocked {
+            controlsVisible = false
+            hideTimer?.invalidate()
+            applyLockedChromeVisibility(animated: animated)
+            return
+        }
         controlsVisible = visible
         let alpha: CGFloat = visible ? 1 : 0
         if animated {
@@ -952,9 +1250,11 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         }
         setInteractive(bottomPanel, enabled: visible)
         centerPlayButton.isEnabled = visible
+        updateLockButtonVisibility()
         if !visible {
             hideAudioPanel()
             hideSettingsPanel()
+            hideRatePanel()
         }
         if visible {
             scheduleAutoHide()
@@ -968,8 +1268,18 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     }
 
     func updateFullscreenIcon(isFullscreen: Bool) {
-        let symbol = isFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right"
+        setFullscreenActive(isFullscreen)
+    }
+
+    func setFullscreenActive(_ active: Bool) {
+        isFullscreen = active
+        let symbol = active ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right"
         setToolbarSymbol(fullscreenButton, systemName: symbol)
+        if !active, isScreenLocked {
+            setScreenLocked(false)
+        } else {
+            updateLockButtonVisibility()
+        }
     }
 
     private func setInteractive(_ view: NSView, enabled: Bool) {
@@ -991,6 +1301,12 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     }
 
     private func setupViews() {
+        blackoutOverlay.wantsLayer = true
+        blackoutOverlay.layer?.backgroundColor = NSColor(white: 0, alpha: 0.6).cgColor
+        blackoutOverlay.isHidden = true
+        blackoutOverlay.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(blackoutOverlay)
+
         bottomPanel.wantsLayer = true
         bottomPanel.layer?.backgroundColor = NSColor(white: 0, alpha: 0.55).cgColor
         bottomPanel.translatesAutoresizingMaskIntoConstraints = false
@@ -1020,6 +1336,20 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         progressSlider.onValueChanged = { [weak self] in self?.sliderChanged() }
         progressSlider.onTouchUp = { [weak self] in self?.sliderTouchUp() }
 
+        rateButton.isBordered = false
+        rateButton.setButtonType(.momentaryChange)
+        rateButton.imagePosition = .titleOnly
+        rateButton.contentTintColor = .white
+        rateButton.font = .systemFont(ofSize: 12, weight: .semibold)
+        rateButton.setContentHuggingPriority(.required, for: .horizontal)
+        rateButton.translatesAutoresizingMaskIntoConstraints = false
+        rateButton.target = self
+        rateButton.action = #selector(rateTapped)
+        NSLayoutConstraint.activate([
+            rateButton.heightAnchor.constraint(equalToConstant: Self.toolbarButtonSize),
+            rateButton.widthAnchor.constraint(greaterThanOrEqualToConstant: Self.toolbarButtonSize),
+        ])
+
         styleToolbarButton(settingsButton)
         setToolbarSymbol(settingsButton, systemName: "gearshape.fill")
         settingsButton.target = self
@@ -1036,6 +1366,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         progressRow.addArrangedSubview(currentTimeLabel)
         progressRow.addArrangedSubview(progressSlider)
         progressRow.addArrangedSubview(totalTimeLabel)
+        progressRow.addArrangedSubview(rateButton)
         progressRow.addArrangedSubview(settingsButton)
         progressRow.addArrangedSubview(volumeButton)
         progressRow.addArrangedSubview(fullscreenButton)
@@ -1062,7 +1393,44 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             self.reloadSettingsTracks()
             self.scheduleAutoHide()
         }
+        settingsPanel.onMirrorChanged = { [weak self] enabled in
+            guard let self else { return }
+            self.mirrorEnabled = enabled
+            self.delegate?.chromeDidChangeMirror(enabled)
+        }
+        settingsPanel.onLoopingChanged = { [weak self] looping in
+            guard let self else { return }
+            self.loopingEnabled = looping
+            self.delegate?.chromeDidChangeLooping(looping)
+        }
+        settingsPanel.onAspectChanged = { [weak self] mode in
+            guard let self else { return }
+            if mode == 3 {
+                self.hideBlackBars = true
+            } else {
+                self.aspectMode = mode
+                self.hideBlackBars = false
+            }
+            self.delegate?.chromeDidChangeScaleMode(mode)
+        }
+        settingsPanel.onHideBlackBarsChanged = { [weak self] hide in
+            self?.hideBlackBars = hide
+        }
+        settingsPanel.onBlackoutChanged = { [weak self] enabled in
+            guard let self else { return }
+            self.setBlackoutEnabled(enabled)
+            self.delegate?.chromeDidChangeBlackout(enabled)
+        }
         addSubview(settingsPanel)
+
+        ratePanel.translatesAutoresizingMaskIntoConstraints = false
+        ratePanel.isHidden = true
+        ratePanel.onSelect = { [weak self] index in
+            guard let self, Self.rateOptions.indices.contains(index) else { return }
+            self.setSpeed(Self.rateOptions[index])
+            self.hideRatePanel()
+        }
+        addSubview(ratePanel)
 
         centerPlayButton.isBordered = false
         centerPlayButton.setButtonType(.momentaryChange)
@@ -1084,7 +1452,27 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         centerPlayButton.action = #selector(centerPlayTapped)
         addSubview(centerPlayButton)
 
+        lockButton.isBordered = false
+        lockButton.setButtonType(.momentaryChange)
+        lockButton.imagePosition = .imageOnly
+        lockButton.contentTintColor = .white
+        lockButton.wantsLayer = true
+        lockButton.layer?.backgroundColor = NSColor(white: 0, alpha: 0.45).cgColor
+        lockButton.layer?.cornerRadius = Self.lockButtonSize / 2
+        lockButton.layer?.masksToBounds = true
+        lockButton.translatesAutoresizingMaskIntoConstraints = false
+        lockButton.isHidden = true
+        lockButton.target = self
+        lockButton.action = #selector(lockTapped)
+        updateLockIcon()
+        addSubview(lockButton)
+
         NSLayoutConstraint.activate([
+            blackoutOverlay.leadingAnchor.constraint(equalTo: leadingAnchor),
+            blackoutOverlay.trailingAnchor.constraint(equalTo: trailingAnchor),
+            blackoutOverlay.topAnchor.constraint(equalTo: topAnchor),
+            blackoutOverlay.bottomAnchor.constraint(equalTo: bottomAnchor),
+
             bottomPanel.leadingAnchor.constraint(equalTo: leadingAnchor),
             bottomPanel.trailingAnchor.constraint(equalTo: trailingAnchor),
             bottomPanel.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -1102,10 +1490,18 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             settingsPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
             settingsPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
 
+            ratePanel.centerXAnchor.constraint(equalTo: rateButton.centerXAnchor),
+            ratePanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
+
             centerPlayButton.centerXAnchor.constraint(equalTo: centerXAnchor),
             centerPlayButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             centerPlayButton.widthAnchor.constraint(equalToConstant: Self.centerPlayButtonSize),
             centerPlayButton.heightAnchor.constraint(equalToConstant: Self.centerPlayButtonSize),
+
+            lockButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -50),
+            lockButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            lockButton.widthAnchor.constraint(equalToConstant: Self.lockButtonSize),
+            lockButton.heightAnchor.constraint(equalToConstant: Self.lockButtonSize),
         ])
 
         updateCenterPlayIcon()
@@ -1125,6 +1521,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         centerPlayButton.isHidden = !config.enableNativeControls
         volumeButton.isHidden = !config.showVolumeToolbar
         settingsButton.isHidden = !config.showSettingsButton
+        rateButton.isHidden = !config.enableNativeControls
         fullscreenButton.isHidden = !config.showFullscreenButton
         if !config.showVolumeToolbar {
             hideAudioPanel()
@@ -1134,6 +1531,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         }
         setInteractive(bottomPanel, enabled: controlsVisible)
         centerPlayButton.isEnabled = controlsVisible
+        updateLockButtonVisibility()
     }
 
     private func updateCenterPlayIcon() {
@@ -1182,6 +1580,100 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         setToolbarSymbol(volumeButton, systemName: symbolName)
     }
 
+    private func updateLockIcon() {
+        let symbol = isScreenLocked ? "lock.fill" : "lock.open.fill"
+        let symbolConfig = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+            .withSymbolConfiguration(symbolConfig)
+        image?.isTemplate = true
+        lockButton.image = image
+    }
+
+    private func updateLockButtonVisibility() {
+        let show = config.enableNativeControls
+            && config.showLockButton
+            && isFullscreen
+            && (controlsVisible || isScreenLocked)
+        lockButton.isHidden = !show
+        lockButton.isEnabled = show
+        if show {
+            bringToFront(lockButton)
+        }
+    }
+
+    private func applyLockedChromeVisibility(animated: Bool) {
+        let updates = {
+            self.bottomPanel.alphaValue = 0
+            self.centerPlayButton.alphaValue = 0
+            self.setInteractive(self.bottomPanel, enabled: false)
+            self.centerPlayButton.isEnabled = false
+            self.hideAudioPanel()
+            self.hideSettingsPanel()
+            self.hideRatePanel()
+            self.updateLockButtonVisibility()
+        }
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.2
+                updates()
+            }
+        } else {
+            updates()
+        }
+    }
+
+    private func setScreenLocked(_ locked: Bool) {
+        isScreenLocked = locked
+        updateLockIcon()
+        if locked {
+            setControlsVisible(false, animated: true)
+        } else {
+            setControlsVisible(true, animated: true)
+        }
+    }
+
+    private func setBlackoutEnabled(_ enabled: Bool) {
+        blackoutEnabled = enabled
+        blackoutOverlay.isHidden = !enabled
+        if enabled {
+            // Keep overlay behind chrome controls.
+            blackoutOverlay.removeFromSuperview()
+            addSubview(blackoutOverlay, positioned: .below, relativeTo: bottomPanel)
+        }
+    }
+
+    private func setSpeed(_ rate: Double) {
+        currentRate = rate
+        updateRateButtonTitle()
+        reloadRatePanel()
+        delegate?.chromeDidChangeRate(rate)
+    }
+
+    private func updateRateButtonTitle() {
+        let title = Self.formatRateLabel(currentRate)
+        rateButton.attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [
+                .foregroundColor: NSColor.white,
+                .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
+            ],
+        )
+    }
+
+    private func reloadRatePanel() {
+        let options = Self.rateOptions.map { rate in
+            (label: Self.formatRateLabel(rate), selected: abs(rate - currentRate) < 0.001)
+        }
+        ratePanel.reload(title: "倍速", options: options)
+    }
+
+    private static func formatRateLabel(_ rate: Double) -> String {
+        if rate == Double(Int(rate)) {
+            return String(format: "%.1fx", rate)
+        }
+        return String(format: "%gx", rate)
+    }
+
     private func styleToolbarButton(_ button: NSButton) {
         button.isBordered = false
         button.setButtonType(.momentaryChange)
@@ -1208,6 +1700,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             hideAudioPanel()
         } else {
             hideSettingsPanel()
+            hideRatePanel()
             showAudioPanel()
         }
     }
@@ -1217,7 +1710,18 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             hideSettingsPanel()
         } else {
             hideAudioPanel()
+            hideRatePanel()
             showSettingsPanel()
+        }
+    }
+
+    private func toggleRatePanel() {
+        if ratePanelVisible {
+            hideRatePanel()
+        } else {
+            hideAudioPanel()
+            hideSettingsPanel()
+            showRatePanel()
         }
     }
 
@@ -1235,6 +1739,16 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     }
 
     private func showSettingsPanel() {
+        settingsPanel.syncState(
+            mirror: mirrorEnabled,
+            looping: loopingEnabled,
+            autoPlay: true,
+            autoPlayNext: true,
+            aspect: aspectMode,
+            hideBlackBars: hideBlackBars,
+            blackout: blackoutEnabled,
+        )
+        settingsPanel.showLevel1()
         reloadSettingsTracks()
         settingsPanel.isHidden = false
         settingsPanelVisible = true
@@ -1248,6 +1762,20 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         scheduleAutoHide()
     }
 
+    private func showRatePanel() {
+        reloadRatePanel()
+        ratePanel.isHidden = false
+        ratePanelVisible = true
+        bringToFront(ratePanel)
+        hideTimer?.invalidate()
+    }
+
+    private func hideRatePanel() {
+        ratePanel.isHidden = true
+        ratePanelVisible = false
+        scheduleAutoHide()
+    }
+
     private func reloadSettingsTracks() {
         let tracks = delegate?.chromeDidRequestAudioTracks() ?? []
         settingsPanel.reloadTracks(tracks)
@@ -1255,7 +1783,12 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private func scheduleAutoHide() {
         hideTimer?.invalidate()
-        guard config.enableNativeControls, isPlaying, !audioPanelVisible, !settingsPanelVisible else { return }
+        guard config.enableNativeControls,
+              isPlaying,
+              !isScreenLocked,
+              !audioPanelVisible,
+              !settingsPanelVisible,
+              !ratePanelVisible else { return }
         hideTimer = Timer.scheduledTimer(
             withTimeInterval: TimeInterval(config.dismissControlTimeMs) / 1000.0,
             repeats: false,
@@ -1265,6 +1798,9 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     }
 
     @objc private func handleBackgroundClick() {
+        if isScreenLocked {
+            return
+        }
         if audioPanelVisible {
             hideAudioPanel()
             return
@@ -1273,15 +1809,28 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             hideSettingsPanel()
             return
         }
+        if ratePanelVisible {
+            hideRatePanel()
+            return
+        }
         toggleControlsVisibility()
     }
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: NSGestureRecognizer) -> Bool {
         let point = gestureRecognizer.location(in: self)
+        if isScreenLocked {
+            return !lockButton.frame.contains(point)
+        }
         if audioPanelVisible, audioPanel.frame.contains(point) {
             return false
         }
         if settingsPanelVisible, settingsPanel.frame.contains(point) {
+            return false
+        }
+        if ratePanelVisible, ratePanel.frame.contains(point) {
+            return false
+        }
+        if !lockButton.isHidden, lockButton.frame.contains(point) {
             return false
         }
         if bottomPanel.frame.contains(point), bottomPanel.alphaValue > 0.01, controlsVisible {
@@ -1308,6 +1857,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private func touchHitsInteractiveControl(at point: NSPoint) -> Bool {
         for control in [
             progressSlider,
+            rateButton,
             settingsButton,
             volumeButton,
             fullscreenButton,
@@ -1336,6 +1886,14 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     @objc private func volumeTapped() {
         toggleAudioPanel()
+    }
+
+    @objc private func rateTapped() {
+        toggleRatePanel()
+    }
+
+    @objc private func lockTapped() {
+        setScreenLocked(!isScreenLocked)
     }
 
     private func sliderTouchDown() {

@@ -14,6 +14,12 @@ object GsyExoTrackHelper {
         val selected: Boolean,
     )
 
+    /** True when no fixed video-track override is applied (ABR / Auto). */
+    @Volatile
+    private var autoMode = true
+
+    fun isAutoMode(): Boolean = autoMode
+
     fun listVideoTracks(): List<VideoTrack> {
         val manager = GSYVideoManager.instance().curPlayerManager as? Exo2PlayerManager ?: return emptyList()
         val exo = manager.mediaPlayer as? IjkExo2MediaPlayer ?: return emptyList()
@@ -27,11 +33,11 @@ object GsyExoTrackHelper {
                 result.add(
                     VideoTrack(
                         index = index++,
-                        label = format.label ?: "${format.width}x${format.height}",
+                        label = qualityLabel(format.width, format.height, format.label),
                         width = format.width,
                         height = format.height,
                         bitrate = format.bitrate,
-                        selected = group.isTrackSelected(i),
+                        selected = !autoMode && group.isTrackSelected(i),
                     ),
                 )
             }
@@ -39,7 +45,30 @@ object GsyExoTrackHelper {
         return result
     }
 
+    fun qualityLabel(
+        width: Int,
+        height: Int,
+        fallback: String?,
+    ): String {
+        val h = maxOf(width, height)
+        return when {
+            h >= 2160 -> "4K"
+            h >= 1440 -> "1440P"
+            h >= 1080 -> "1080P"
+            h >= 720 -> "720P"
+            h >= 480 -> "480P"
+            h >= 360 -> "360P"
+            !fallback.isNullOrBlank() -> fallback
+            h > 0 -> "${h}P"
+            else -> "视频"
+        }
+    }
+
+    /** Select a fixed track by index, or pass `-1` to clear override (Auto). */
     fun selectVideoTrack(index: Int): Boolean {
+        if (index < 0) {
+            return clearVideoTrackOverride()
+        }
         val manager = GSYVideoManager.instance().curPlayerManager as? Exo2PlayerManager ?: return false
         val exo = manager.mediaPlayer as? IjkExo2MediaPlayer ?: return false
         val selector = exo.trackSelector ?: return false
@@ -59,11 +88,24 @@ object GsyExoTrackHelper {
                             )
                             .build()
                     selector.parameters = parameters
+                    autoMode = false
                     return true
                 }
                 targetIndex++
             }
         }
         return false
+    }
+
+    fun clearVideoTrackOverride(): Boolean {
+        val manager = GSYVideoManager.instance().curPlayerManager as? Exo2PlayerManager ?: return false
+        val exo = manager.mediaPlayer as? IjkExo2MediaPlayer ?: return false
+        val selector = exo.trackSelector ?: return false
+        selector.parameters =
+            selector.parameters.buildUpon()
+                .clearOverridesOfType(androidx.media3.common.C.TRACK_TYPE_VIDEO)
+                .build()
+        autoMode = true
+        return true
     }
 }

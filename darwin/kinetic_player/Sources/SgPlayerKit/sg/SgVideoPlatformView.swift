@@ -38,6 +38,7 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             binaryMessenger: messenger,
         )
         channelCallbacks = SgChannelCallbacks(channel: channel)
+        KineticPlayerColors.applyAccent(argb: uiConfig.accentColor)
         chrome = SgPlayerChromeView(config: uiConfig)
         player = SgNativePlayer(callbacks: channelCallbacks)
         super.init()
@@ -173,6 +174,7 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
     func chromeDidTapFullscreen() {
         fullscreenPresenter.toggleFullscreen(container: container)
         chrome.updateFullscreenIcon(isFullscreen: fullscreenPresenter.isFullscreen)
+        chrome.setFullscreenActive(fullscreenPresenter.isFullscreen)
         forceContainerLayout()
         player.applyRenderTransform()
     }
@@ -194,6 +196,37 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
     func chromeDidSelectAudioTrack(index: Int) {
         _ = player.selectAudioTrack(index)
         chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
+    }
+
+    func chromeDidChangeRate(_ rate: Double) {
+        player.setRate(rate)
+    }
+
+    func chromeDidChangeMirror(_ enabled: Bool) {
+        player.setMirrorHorizontal(enabled: enabled)
+    }
+
+    func chromeDidChangeLooping(_ looping: Bool) {
+        player.setLooping(looping)
+    }
+
+    func chromeDidChangeScaleMode(_ mode: Int) {
+        // Chrome modes: 0 auto, 1 16:9, 2 4:3, 3 fill/hide bars.
+        // SG renderer maps to ResizeAspect / ResizeAspectFill / Resize.
+        switch mode {
+        case 3:
+            player.setRenderMode(1) // aspect fill
+        case 1, 2:
+            // Forced 16:9 / 4:3 not available on SG; keep letterbox fit.
+            player.setRenderMode(0)
+        default:
+            player.setRenderMode(0) // auto / aspect fit
+        }
+    }
+
+    func chromeDidChangeBlackout(_ enabled: Bool) {
+        // Blackout overlay is owned by chrome; no player-side work.
+        _ = enabled
     }
 
     private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -265,6 +298,7 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             if !fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.enterFullscreen(container: container)
                 chrome.updateFullscreenIcon(isFullscreen: true)
+                chrome.setFullscreenActive(true)
                 forceContainerLayout()
                 player.applyRenderTransform()
             }
@@ -273,6 +307,7 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             if fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.exitFullscreen()
                 chrome.updateFullscreenIcon(isFullscreen: false)
+                chrome.setFullscreenActive(false)
                 forceContainerLayout()
                 player.applyRenderTransform()
             }

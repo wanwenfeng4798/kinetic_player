@@ -132,7 +132,7 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 | 能力 | 状态 | 说明 |
 |------|------|------|
 | Exo DASH / HLS | ✅ | Exo 内核 + URL |
-| 轨道切换 API | ✅ | `gsyListExoVideoTracks` / `gsySelectExoVideoTrack`（无独立清晰度 UI，用设置面板或 Dart） |
+| 轨道切换 API | ✅ | `gsyListExoVideoTracks` / `gsySelectExoVideoTrack`（`-1` 或 `gsySetExoVideoTrackAuto` = 自动）；原生底栏清晰度按钮 |
 
 ---
 

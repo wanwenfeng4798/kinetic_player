@@ -3,6 +3,7 @@ package com.keepwan.kinetic_player.gsy
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
+import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.opengl.GLSurfaceView
@@ -10,16 +11,18 @@ import android.os.Handler
 import android.os.Looper
 import android.text.TextUtils
 import android.util.AttributeSet
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.SeekBar
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import com.keepwan.kinetic_player.R
 import com.shuyu.gsyvideoplayer.utils.CommonUtil
 import com.shuyu.gsyvideoplayer.utils.Debuger
@@ -76,20 +79,68 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     /** Invoked when the user picks an audio track in the settings panel. */
     var onAudioTrackSelected: ((Int) -> Unit)? = null
 
+    /** Supplies Exo video tracks for the quality panel. */
+    var onRequestVideoTracks: (() -> List<Map<String, Any?>>)? = null
+
+    /** Invoked when the user picks a video track (`-1` = Auto). */
+    var onVideoTrackSelected: ((Int) -> Unit)? = null
+
+    /** Mirror / looping / auto-play / show-type / playlist-next / subtitle / danmaku from chrome. */
+    var onMirrorHorizontalChanged: ((Boolean) -> Unit)? = null
+    var onLoopingChanged: ((Boolean) -> Unit)? = null
+    var onStartAfterPreparedChanged: ((Boolean) -> Unit)? = null
+    var onAutoPlayNextChanged: ((Boolean) -> Unit)? = null
+    var onShowTypeChanged: ((Int) -> Unit)? = null
+    var onSubtitleEnabledChanged: ((Boolean) -> Unit)? = null
+    var onDanmakuVisibleChanged: ((Boolean) -> Unit)? = null
+    var onDanmakuSend: ((String) -> Unit)? = null
+
     private var audioPanel: View? = null
     private var settingsPanel: View? = null
+    private var ratePanel: View? = null
+    private var qualityPanel: View? = null
     private var volumeTrigger: ImageView? = null
     private var settingsTrigger: ImageView? = null
+    private var rateTrigger: TextView? = null
+    private var qualityTrigger: TextView? = null
     private var audioPanelVolumeSeekBar: SeekBar? = null
     private var audioPanelVolumeValue: TextView? = null
     private var settingsPanelTrackList: LinearLayout? = null
+    private var settingsLevel1: View? = null
+    private var settingsLevel2: View? = null
+    private var ratePanelList: LinearLayout? = null
+    private var qualityPanelList: LinearLayout? = null
+    private var danmakuBar: View? = null
+    private var danmakuToggle: ImageView? = null
+    private var subtitleToggle: ImageView? = null
+    private var danmakuInput: EditText? = null
+    private var danmakuSend: TextView? = null
+    private var toolbarSpacer: View? = null
+    private var blackoutOverlay: View? = null
     private var audioPanelVisible = false
     private var settingsPanelVisible = false
+    private var ratePanelVisible = false
+    private var qualityPanelVisible = false
     private var volumeUiSyncing = false
     private var volumeDragging = false
     private var gestureDownPlayerVolume = 1f
     internal var volumeToolbarMuted = false
     internal var volumeToolbarLevel = 1f
+
+    private var accentColor: Int = GsyUiConfig.DEFAULT_ACCENT_COLOR
+    private var chromeRate: Float = 1f
+    private var chromeMirrorHorizontal = false
+    private var chromeLooping = false
+    private var chromeStartAfterPrepared = true
+    private var chromeAutoPlayNext = true
+    private var chromeShowType = 0
+    private var chromeHideBlackBars = false
+    private var chromeBlackout = false
+    private var chromeQualityAuto = true
+    private var chromeQualityLabel = "自动"
+    private var showDanmakuChrome = true
+
+    private val rateOptions = floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
 
     private var keepLastFrameWhenComplete = false
     private var lastAutoCompleteRetainedSurface = false
@@ -115,6 +166,9 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         wireNativeControls()
         wireAudioPanel()
         wireSettingsPanel()
+        wireRatePanel()
+        wireQualityPanel()
+        wireDanmakuBar()
         applyUiConfig()
     }
 
@@ -122,7 +176,136 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         settingsPanel = findViewById(R.id.settings_panel)
         settingsTrigger = findViewById(R.id.settings_trigger)
         settingsPanelTrackList = findViewById(R.id.settings_panel_track_list)
+        settingsLevel1 = findViewById(R.id.settings_level1)
+        settingsLevel2 = findViewById(R.id.settings_level2)
         settingsTrigger?.setOnClickListener { toggleSettingsPanel() }
+        findViewById<View>(R.id.settings_row_mirror)?.setOnClickListener {
+            chromeMirrorHorizontal = !chromeMirrorHorizontal
+            onMirrorHorizontalChanged?.invoke(chromeMirrorHorizontal)
+            refreshSettingsLevel1()
+        }
+        findViewById<View>(R.id.settings_row_loop)?.setOnClickListener {
+            chromeLooping = !chromeLooping
+            setLooping(chromeLooping)
+            onLoopingChanged?.invoke(chromeLooping)
+            refreshSettingsLevel1()
+        }
+        findViewById<View>(R.id.settings_row_auto_play)?.setOnClickListener {
+            chromeStartAfterPrepared = !chromeStartAfterPrepared
+            onStartAfterPreparedChanged?.invoke(chromeStartAfterPrepared)
+            refreshSettingsLevel1()
+        }
+        findViewById<View>(R.id.settings_row_more)?.setOnClickListener {
+            showSettingsLevel(2)
+        }
+        findViewById<View>(R.id.settings_more_back)?.setOnClickListener {
+            showSettingsLevel(1)
+        }
+        findViewById<View>(R.id.settings_mode_pause)?.setOnClickListener {
+            chromeAutoPlayNext = false
+            onAutoPlayNextChanged?.invoke(false)
+            refreshSettingsLevel2()
+        }
+        findViewById<View>(R.id.settings_mode_next)?.setOnClickListener {
+            chromeAutoPlayNext = true
+            onAutoPlayNextChanged?.invoke(true)
+            refreshSettingsLevel2()
+        }
+        findViewById<View>(R.id.settings_aspect_auto)?.setOnClickListener {
+            chromeShowType = 0
+            chromeHideBlackBars = false
+            onShowTypeChanged?.invoke(0)
+            refreshSettingsLevel2()
+        }
+        findViewById<View>(R.id.settings_aspect_16_9)?.setOnClickListener {
+            chromeShowType = 1
+            chromeHideBlackBars = false
+            onShowTypeChanged?.invoke(1)
+            refreshSettingsLevel2()
+        }
+        findViewById<View>(R.id.settings_aspect_4_3)?.setOnClickListener {
+            chromeShowType = 2
+            chromeHideBlackBars = false
+            onShowTypeChanged?.invoke(2)
+            refreshSettingsLevel2()
+        }
+        findViewById<View>(R.id.settings_hide_black_bars)?.setOnClickListener {
+            chromeHideBlackBars = !chromeHideBlackBars
+            val mode = if (chromeHideBlackBars) 3 else chromeShowType
+            onShowTypeChanged?.invoke(mode)
+            refreshSettingsLevel2()
+        }
+        findViewById<View>(R.id.settings_blackout)?.setOnClickListener {
+            chromeBlackout = !chromeBlackout
+            blackoutOverlay?.visibility = if (chromeBlackout) View.VISIBLE else View.GONE
+            refreshSettingsLevel2()
+        }
+    }
+
+    private fun wireRatePanel() {
+        ratePanel = findViewById(R.id.rate_panel)
+        rateTrigger = findViewById(R.id.rate_trigger)
+        ratePanelList = findViewById(R.id.rate_panel_list)
+        rateTrigger?.setOnClickListener { toggleRatePanel() }
+        updateRateTriggerLabel()
+    }
+
+    private fun wireQualityPanel() {
+        qualityPanel = findViewById(R.id.quality_panel)
+        qualityTrigger = findViewById(R.id.quality_trigger)
+        qualityPanelList = findViewById(R.id.quality_panel_list)
+        qualityTrigger?.setOnClickListener { toggleQualityPanel() }
+        qualityTrigger?.text = chromeQualityLabel
+    }
+
+    private fun wireDanmakuBar() {
+        danmakuBar = findViewById(R.id.danmaku_bar)
+        danmakuToggle = findViewById(R.id.danmaku_toggle)
+        subtitleToggle = findViewById(R.id.subtitle_toggle)
+        danmakuInput = findViewById(R.id.danmaku_input)
+        danmakuSend = findViewById(R.id.danmaku_send)
+        toolbarSpacer = findViewById(R.id.toolbar_spacer)
+        blackoutOverlay = findViewById(R.id.kinetic_blackout_overlay)
+        danmakuToggle?.setOnClickListener {
+            val next = !overlayDanmakuVisible
+            setOverlayDanmakuVisible(next)
+            onDanmakuVisibleChanged?.invoke(next)
+            refreshDanmakuBar()
+        }
+        subtitleToggle?.setOnClickListener {
+            val next = !overlaySubtitleEnabled
+            setOverlaySubtitle(overlaySubtitleUrl, overlaySubtitleMime, next)
+            onSubtitleEnabledChanged?.invoke(next)
+            refreshDanmakuBar()
+        }
+        danmakuSend?.setOnClickListener { sendDanmakuFromInput() }
+        danmakuInput?.setOnEditorActionListener { _, actionId, event ->
+            val enter =
+                actionId == EditorInfo.IME_ACTION_SEND ||
+                    (event?.keyCode == KeyEvent.KEYCODE_ENTER &&
+                        event.action == KeyEvent.ACTION_DOWN)
+            if (enter) {
+                sendDanmakuFromInput()
+                true
+            } else {
+                false
+            }
+        }
+        refreshDanmakuBar()
+    }
+
+    private fun sendDanmakuFromInput() {
+        val text = danmakuInput?.text?.toString()?.trim().orEmpty()
+        if (text.isEmpty()) return
+        ensureDanmakuController()
+        getOverlayDanmaku()?.addLiveDanmaku(text, accentColor)
+        if (!overlayDanmakuVisible) {
+            setOverlayDanmakuVisible(true)
+            onDanmakuVisibleChanged?.invoke(true)
+        }
+        onDanmakuSend?.invoke(text)
+        danmakuInput?.setText("")
+        refreshDanmakuBar()
     }
 
     private fun wireAudioPanel() {
@@ -132,6 +315,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         audioPanelVolumeValue = findViewById(R.id.audio_panel_volume_value)
         audioPanelVolumeSeekBar?.progress = (volumeToolbarLevel * 100).toInt()
         updateVolumeIcon()
+        showVolumeValueLabel((volumeToolbarLevel * 100).toInt())
         (audioPanel as? ViewGroup)?.apply {
             clipChildren = false
             clipToPadding = false
@@ -159,11 +343,11 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     progress: Int,
                     fromUser: Boolean,
                 ) {
+                    updateVolumeValueLabel(progress)
                     if (!fromUser || volumeUiSyncing) return
                     volumeToolbarMuted = progress == 0
                     volumeToolbarLevel = progress / 100f
                     updateVolumeIcon()
-                    updateVolumeValueLabel(progress)
                     if (progress > 0 && volumeToolbarMuted) {
                         volumeToolbarMuted = false
                         onMuteToggle?.invoke(false)
@@ -179,11 +363,19 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
 
                 override fun onStopTrackingTouch(seekBar: SeekBar?) {
                     volumeDragging = false
-                    hideVolumeValueLabel()
+                    // Keep percent visible at top.
+                    showVolumeValueLabel(seekBar?.progress ?: 0)
                 }
             },
         )
         volumeTrigger?.setOnClickListener { toggleAudioPanel() }
+    }
+
+    private fun hideAllPopups() {
+        hideAudioPanel()
+        hideSettingsPanel()
+        hideRatePanel()
+        hideQualityPanel()
     }
 
     private fun toggleAudioPanel() {
@@ -191,6 +383,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             hideAudioPanel()
         } else {
             hideSettingsPanel()
+            hideRatePanel()
+            hideQualityPanel()
             showAudioPanel()
         }
     }
@@ -200,7 +394,31 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             hideSettingsPanel()
         } else {
             hideAudioPanel()
+            hideRatePanel()
+            hideQualityPanel()
             showSettingsPanel()
+        }
+    }
+
+    private fun toggleRatePanel() {
+        if (ratePanelVisible) {
+            hideRatePanel()
+        } else {
+            hideAudioPanel()
+            hideSettingsPanel()
+            hideQualityPanel()
+            showRatePanel()
+        }
+    }
+
+    private fun toggleQualityPanel() {
+        if (qualityPanelVisible) {
+            hideQualityPanel()
+        } else {
+            hideAudioPanel()
+            hideSettingsPanel()
+            hideRatePanel()
+            showQualityPanel()
         }
     }
 
@@ -213,6 +431,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             panelWidthRes = R.dimen.kinetic_audio_panel_width,
         )
         audioPanel?.bringToFront()
+        showVolumeValueLabel(audioPanelVolumeSeekBar?.progress ?: (volumeToolbarLevel * 100).toInt())
         syncGestureVolumeDuringPanelInteraction()
     }
 
@@ -220,11 +439,13 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         audioPanel?.visibility = View.GONE
         audioPanelVisible = false
         volumeDragging = false
-        hideVolumeValueLabel()
         syncGestureVolumeDuringPanelInteraction()
     }
 
     private fun showSettingsPanel() {
+        showSettingsLevel(1)
+        refreshSettingsLevel1()
+        refreshSettingsLevel2()
         refreshSettingsTracks()
         settingsPanel?.visibility = View.VISIBLE
         settingsPanelVisible = true
@@ -235,6 +456,79 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     fun hideSettingsPanel() {
         settingsPanel?.visibility = View.GONE
         settingsPanelVisible = false
+    }
+
+    private fun showRatePanel() {
+        refreshRateList()
+        ratePanel?.visibility = View.VISIBLE
+        ratePanelVisible = true
+        positionPanelCenteredAboveAnchor(
+            panel = ratePanel,
+            anchor = rateTrigger,
+            panelWidthRes = R.dimen.kinetic_option_panel_width,
+        )
+        ratePanel?.bringToFront()
+    }
+
+    private fun hideRatePanel() {
+        ratePanel?.visibility = View.GONE
+        ratePanelVisible = false
+    }
+
+    private fun showQualityPanel() {
+        refreshQualityList()
+        qualityPanel?.visibility = View.VISIBLE
+        qualityPanelVisible = true
+        positionPanelCenteredAboveAnchor(
+            panel = qualityPanel,
+            anchor = qualityTrigger,
+            panelWidthRes = R.dimen.kinetic_option_panel_width,
+        )
+        qualityPanel?.bringToFront()
+    }
+
+    private fun hideQualityPanel() {
+        qualityPanel?.visibility = View.GONE
+        qualityPanelVisible = false
+    }
+
+    private fun showSettingsLevel(level: Int) {
+        settingsLevel1?.visibility = if (level == 1) View.VISIBLE else View.GONE
+        settingsLevel2?.visibility = if (level == 2) View.VISIBLE else View.GONE
+    }
+
+    private fun refreshSettingsLevel1() {
+        setToggleLabel(R.id.settings_mirror_value, chromeMirrorHorizontal)
+        setToggleLabel(R.id.settings_loop_value, chromeLooping)
+        setToggleLabel(R.id.settings_auto_play_value, chromeStartAfterPrepared)
+    }
+
+    private fun setToggleLabel(
+        id: Int,
+        on: Boolean,
+    ) {
+        val view = findViewById<TextView>(id) ?: return
+        view.text =
+            context.getString(if (on) R.string.kinetic_settings_on else R.string.kinetic_settings_off)
+        view.setTextColor(if (on) accentColor else Color.parseColor("#CCFFFFFF"))
+    }
+
+    private fun refreshSettingsLevel2() {
+        styleOption(R.id.settings_mode_pause, !chromeAutoPlayNext)
+        styleOption(R.id.settings_mode_next, chromeAutoPlayNext)
+        styleOption(R.id.settings_aspect_auto, !chromeHideBlackBars && chromeShowType == 0)
+        styleOption(R.id.settings_aspect_16_9, !chromeHideBlackBars && chromeShowType == 1)
+        styleOption(R.id.settings_aspect_4_3, !chromeHideBlackBars && chromeShowType == 2)
+        styleOption(R.id.settings_hide_black_bars, chromeHideBlackBars)
+        styleOption(R.id.settings_blackout, chromeBlackout)
+    }
+
+    private fun styleOption(
+        id: Int,
+        selected: Boolean,
+    ) {
+        val view = findViewById<TextView>(id) ?: return
+        view.setTextColor(if (selected) accentColor else Color.WHITE)
     }
 
     private fun refreshSettingsTracks() {
@@ -251,7 +545,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             trackList.addView(empty)
             return
         }
-        val activeColor = ContextCompat.getColor(context, R.color.kinetic_seek_active)
         val padV = CommonUtil.dip2px(context, 8f)
         for (track in tracks) {
             val index = track["index"] as? Int ?: continue
@@ -266,7 +559,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     textSize = 13f
                     maxLines = 1
                     ellipsize = TextUtils.TruncateAt.END
-                    setTextColor(if (selected) activeColor else Color.WHITE)
+                    setTextColor(if (selected) accentColor else Color.WHITE)
                     layoutParams =
                         LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -281,6 +574,146 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         }
     }
 
+    private fun refreshRateList() {
+        val list = ratePanelList ?: return
+        list.removeAllViews()
+        val padV = CommonUtil.dip2px(context, 8f)
+        for (rate in rateOptions) {
+            val selected = kotlin.math.abs(chromeRate - rate) < 0.001f
+            val item =
+                TextView(context).apply {
+                    text = formatRateLabel(rate)
+                    setPadding(0, padV, 0, padV)
+                    textSize = 13f
+                    setTextColor(if (selected) accentColor else Color.WHITE)
+                    setOnClickListener {
+                        chromeRate = rate
+                        setSpeed(rate, true)
+                        updateRateTriggerLabel()
+                        hideRatePanel()
+                    }
+                }
+            list.addView(item)
+        }
+    }
+
+    private fun refreshQualityList() {
+        val list = qualityPanelList ?: return
+        list.removeAllViews()
+        val tracks = onRequestVideoTracks?.invoke().orEmpty()
+        val padV = CommonUtil.dip2px(context, 8f)
+        val autoItem =
+            TextView(context).apply {
+                text = context.getString(R.string.kinetic_quality_auto)
+                setPadding(0, padV, 0, padV)
+                textSize = 13f
+                setTextColor(if (chromeQualityAuto) accentColor else Color.WHITE)
+                setOnClickListener {
+                    chromeQualityAuto = true
+                    chromeQualityLabel = context.getString(R.string.kinetic_quality_auto)
+                    qualityTrigger?.text = chromeQualityLabel
+                    onVideoTrackSelected?.invoke(-1)
+                    hideQualityPanel()
+                }
+            }
+        list.addView(autoItem)
+        if (tracks.isEmpty()) {
+            qualityTrigger?.visibility = View.GONE
+            return
+        }
+        qualityTrigger?.visibility = View.VISIBLE
+        for (track in tracks) {
+            val index = track["index"] as? Int ?: continue
+            val label = track["label"] as? String ?: "Track $index"
+            val selected = !chromeQualityAuto && track["selected"] as? Boolean == true
+            val item =
+                TextView(context).apply {
+                    text = label
+                    setPadding(0, padV, 0, padV)
+                    textSize = 13f
+                    setTextColor(if (selected) accentColor else Color.WHITE)
+                    setOnClickListener {
+                        chromeQualityAuto = false
+                        chromeQualityLabel = label
+                        qualityTrigger?.text = label
+                        onVideoTrackSelected?.invoke(index)
+                        hideQualityPanel()
+                    }
+                }
+            list.addView(item)
+        }
+    }
+
+    fun refreshQualityToolbar() {
+        val tracks = onRequestVideoTracks?.invoke().orEmpty()
+        if (tracks.isEmpty()) {
+            qualityTrigger?.visibility = View.GONE
+            hideQualityPanel()
+            return
+        }
+        qualityTrigger?.visibility = View.VISIBLE
+        chromeQualityAuto = GsyExoTrackHelper.isAutoMode()
+        if (chromeQualityAuto) {
+            chromeQualityLabel = context.getString(R.string.kinetic_quality_auto)
+        } else {
+            val selected = tracks.firstOrNull { it["selected"] as? Boolean == true }
+            chromeQualityLabel =
+                selected?.get("label") as? String
+                    ?: context.getString(R.string.kinetic_quality_auto)
+        }
+        qualityTrigger?.text = chromeQualityLabel
+    }
+
+    private fun formatRateLabel(rate: Float): String {
+        val text =
+            if (rate == rate.toInt().toFloat()) {
+                String.format("%.1f", rate)
+            } else {
+                rate.toString()
+            }
+        return "${text}x"
+    }
+
+    private fun updateRateTriggerLabel() {
+        rateTrigger?.text = formatRateLabel(chromeRate)
+    }
+
+    private fun refreshDanmakuBar() {
+        danmakuToggle?.setImageResource(
+            if (overlayDanmakuVisible) {
+                R.drawable.kinetic_ic_danmaku_on
+            } else {
+                R.drawable.kinetic_ic_danmaku_off
+            },
+        )
+        subtitleToggle?.setImageResource(
+            if (overlaySubtitleEnabled) {
+                R.drawable.kinetic_ic_subtitle_on
+            } else {
+                R.drawable.kinetic_ic_subtitle_off
+            },
+        )
+        // On = accent; off = white (Bilibili-style toggle).
+        danmakuToggle?.imageTintList =
+            ColorStateList.valueOf(if (overlayDanmakuVisible) accentColor else Color.WHITE)
+        subtitleToggle?.imageTintList =
+            ColorStateList.valueOf(if (overlaySubtitleEnabled) accentColor else Color.WHITE)
+        danmakuSend?.setTextColor(accentColor)
+        val showInput = overlayDanmakuVisible && showDanmakuChrome
+        danmakuInput?.visibility = if (showInput) View.VISIBLE else View.GONE
+        danmakuSend?.visibility = if (showInput) View.VISIBLE else View.GONE
+        // Input expands when open; otherwise spacer keeps trailing controls on the right.
+        val spacerLp = toolbarSpacer?.layoutParams as? LinearLayout.LayoutParams
+        if (spacerLp != null) {
+            spacerLp.weight = if (showInput) 0f else 1f
+            toolbarSpacer?.layoutParams = spacerLp
+            toolbarSpacer?.visibility = if (showInput) View.GONE else View.VISIBLE
+        }
+        val danmakuVisible = if (showDanmakuChrome) View.VISIBLE else View.GONE
+        danmakuToggle?.visibility = danmakuVisible
+        subtitleToggle?.visibility = danmakuVisible
+    }
+
     fun syncVolumeToolbar(
         volume: Float,
         muted: Boolean,
@@ -288,21 +721,16 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         volumeToolbarLevel = volume.coerceIn(0f, 1f)
         volumeToolbarMuted = muted
         volumeUiSyncing = true
-        audioPanelVolumeSeekBar?.progress =
+        val progress =
             if (muted) {
                 0
             } else {
                 (volumeToolbarLevel * 100).toInt().coerceIn(0, 100)
             }
+        audioPanelVolumeSeekBar?.progress = progress
         updateVolumeIcon()
+        showVolumeValueLabel(progress)
         volumeUiSyncing = false
-        if (volumeDragging) {
-            updateVolumeValueLabel(
-                audioPanelVolumeSeekBar?.progress ?: (volumeToolbarLevel * 100).toInt(),
-            )
-        } else {
-            hideVolumeValueLabel()
-        }
     }
 
     private fun updateVolumeIcon() {
@@ -323,12 +751,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     }
 
     private fun updateVolumeValueLabel(progress: Int) {
-        if (audioPanelVolumeValue?.visibility != View.VISIBLE) return
-        audioPanelVolumeValue?.text = formatVolumePercent(progress)
-    }
-
-    private fun hideVolumeValueLabel() {
-        audioPanelVolumeValue?.visibility = View.GONE
+        audioPanelVolumeValue?.apply {
+            text = formatVolumePercent(progress)
+            visibility = View.VISIBLE
+        }
     }
 
     private fun formatVolumePercent(progress: Int): String =
@@ -342,8 +768,27 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         }
     }
 
+    private fun applyAccentToChrome() {
+        val tint = ColorStateList.valueOf(accentColor)
+        mProgressBar?.apply {
+            progressTintList = tint
+            thumbTintList = tint
+        }
+        audioPanelVolumeSeekBar?.apply {
+            progressTintList = tint
+            thumbTintList = tint
+        }
+        danmakuSend?.setTextColor(accentColor)
+        findViewById<TextView>(R.id.danmaku_send)?.setTextColor(accentColor)
+        danmakuInput?.setBackgroundResource(R.drawable.kinetic_danmaku_input_bg)
+    }
+
     open fun applyUiConfig() {
         val config = storedUiConfig ?: DEFAULT_UI_CONFIG
+        accentColor = config.accentColor
+        chromeRate = config.speed
+        chromeLooping = config.looping
+        chromeStartAfterPrepared = config.startAfterPrepared
         setIsTouchWiget(config.enableNativeControls)
         setIsTouchWigetFull(config.enableNativeControlsFullscreen)
         setRotateViewAuto(config.rotateViewAuto)
@@ -373,6 +818,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             if (config.showVolumeToolbar) View.VISIBLE else View.GONE
         settingsTrigger?.visibility =
             if (config.showSettingsButton) View.VISIBLE else View.GONE
+        rateTrigger?.visibility = View.VISIBLE
+        // Control row hosts danmaku + trailing actions; always show with native chrome.
+        danmakuBar?.visibility =
+            if (config.enableNativeControls) View.VISIBLE else View.GONE
         if (!config.showVolumeToolbar) {
             hideAudioPanel()
         }
@@ -380,6 +829,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             hideSettingsPanel()
         }
         setCoverUrl(config.coverUrl)
+        updateRateTriggerLabel()
+        applyAccentToChrome()
+        refreshDanmakuBar()
+        refreshQualityToolbar()
         syncGestureVolumeDuringPanelInteraction()
         applyEmbeddedChrome()
         fixControlOverlayLayering()
@@ -478,6 +931,22 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (settingsPanelVisible) {
             settingsPanel?.bringToFront()
             positionSettingsPanelAboveBottomBar()
+        }
+        if (ratePanelVisible) {
+            ratePanel?.bringToFront()
+            positionPanelCenteredAboveAnchor(
+                panel = ratePanel,
+                anchor = rateTrigger,
+                panelWidthRes = R.dimen.kinetic_option_panel_width,
+            )
+        }
+        if (qualityPanelVisible) {
+            qualityPanel?.bringToFront()
+            positionPanelCenteredAboveAnchor(
+                panel = qualityPanel,
+                anchor = qualityTrigger,
+                panelWidthRes = R.dimen.kinetic_option_panel_width,
+            )
         }
         syncBottomChromeTouchPassthrough()
     }
@@ -591,8 +1060,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     }
 
     override fun changeUiToPlayingClear() {
-        hideAudioPanel()
-        hideSettingsPanel()
+        hideAllPopups()
         super.changeUiToPlayingClear()
         syncBottomChromeTouchPassthrough()
     }
@@ -603,15 +1071,13 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     }
 
     override fun changeUiToPauseClear() {
-        hideAudioPanel()
-        hideSettingsPanel()
+        hideAllPopups()
         super.changeUiToPauseClear()
         syncBottomChromeTouchPassthrough()
     }
 
     override fun onClickUiToggle(event: MotionEvent) {
-        hideAudioPanel()
-        hideSettingsPanel()
+        hideAllPopups()
         super.onClickUiToggle(event)
     }
 
@@ -820,6 +1286,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         overlayDanmakuVisible = visible
         ensureDanmakuController()
         overlayDanmaku?.setVisible(visible)
+        refreshDanmakuBar()
     }
 
     fun getOverlayDanmaku(): GsyDanmakuController? {
@@ -869,6 +1336,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         overlayRenderRotation = ((rotation % 360) + 360) % 360
         overlayMirrorHorizontal = mirrorH
         overlayMirrorVertical = mirrorV
+        chromeMirrorHorizontal = mirrorH
         applyOverlayRenderTransform()
     }
 
@@ -969,9 +1437,30 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         toPlayer.onMuteToggle = fromPlayer.onMuteToggle
         toPlayer.onRequestAudioTracks = fromPlayer.onRequestAudioTracks
         toPlayer.onAudioTrackSelected = fromPlayer.onAudioTrackSelected
+        toPlayer.onRequestVideoTracks = fromPlayer.onRequestVideoTracks
+        toPlayer.onVideoTrackSelected = fromPlayer.onVideoTrackSelected
+        toPlayer.onMirrorHorizontalChanged = fromPlayer.onMirrorHorizontalChanged
+        toPlayer.onLoopingChanged = fromPlayer.onLoopingChanged
+        toPlayer.onStartAfterPreparedChanged = fromPlayer.onStartAfterPreparedChanged
+        toPlayer.onAutoPlayNextChanged = fromPlayer.onAutoPlayNextChanged
+        toPlayer.onShowTypeChanged = fromPlayer.onShowTypeChanged
+        toPlayer.onSubtitleEnabledChanged = fromPlayer.onSubtitleEnabledChanged
+        toPlayer.onDanmakuVisibleChanged = fromPlayer.onDanmakuVisibleChanged
+        toPlayer.onDanmakuSend = fromPlayer.onDanmakuSend
         toPlayer.onDanmakuPlaybackStart = fromPlayer.onDanmakuPlaybackStart
         toPlayer.onDanmakuPlaybackPause = fromPlayer.onDanmakuPlaybackPause
         toPlayer.onDanmakuPlaybackComplete = fromPlayer.onDanmakuPlaybackComplete
+        toPlayer.chromeRate = fromPlayer.chromeRate
+        toPlayer.chromeMirrorHorizontal = fromPlayer.chromeMirrorHorizontal
+        toPlayer.chromeLooping = fromPlayer.chromeLooping
+        toPlayer.chromeStartAfterPrepared = fromPlayer.chromeStartAfterPrepared
+        toPlayer.chromeAutoPlayNext = fromPlayer.chromeAutoPlayNext
+        toPlayer.chromeShowType = fromPlayer.chromeShowType
+        toPlayer.chromeHideBlackBars = fromPlayer.chromeHideBlackBars
+        toPlayer.chromeBlackout = fromPlayer.chromeBlackout
+        toPlayer.chromeQualityAuto = fromPlayer.chromeQualityAuto
+        toPlayer.chromeQualityLabel = fromPlayer.chromeQualityLabel
+        toPlayer.accentColor = fromPlayer.accentColor
         toPlayer.syncVolumeToolbar(fromPlayer.volumeToolbarLevel, fromPlayer.volumeToolbarMuted)
         toPlayer.setKeepLastFrameWhenComplete(fromPlayer.keepLastFrameWhenComplete)
         toPlayer.setCoverUrl(fromPlayer.coverUrl)
@@ -1013,6 +1502,12 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             if (fromPlayer.overlayAdPlaying) {
                 toPlayer.showAdChrome(fromPlayer.overlayAdSkipAfterMs, fromPlayer.overlayOnAdSkip ?: {})
             }
+            toPlayer.blackoutOverlay?.visibility =
+                if (fromPlayer.chromeBlackout) View.VISIBLE else View.GONE
+            toPlayer.applyAccentToChrome()
+            toPlayer.updateRateTriggerLabel()
+            toPlayer.refreshDanmakuBar()
+            toPlayer.refreshQualityToolbar()
             toPlayer.fixControlOverlayLayering()
         }
     }

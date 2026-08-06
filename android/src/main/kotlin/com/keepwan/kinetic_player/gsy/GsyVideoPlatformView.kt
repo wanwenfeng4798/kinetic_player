@@ -252,7 +252,7 @@ class GsyVideoPlatformView(
             }
             "gsyListExoVideoTracks" -> result.success(player.listExoVideoTracks())
             "gsySelectExoVideoTrack" -> {
-                val ok = player.selectExoVideoTrack(call.argument<Int>("index") ?: 0)
+                val ok = player.selectExoVideoTrack(call.argument<Int>("index") ?: -1)
                 result.success(ok)
             }
             "gsySetWatermarkUrl" -> {

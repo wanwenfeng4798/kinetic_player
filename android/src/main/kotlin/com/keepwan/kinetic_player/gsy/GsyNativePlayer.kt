@@ -73,6 +73,8 @@ class GsyNativePlayer(
     private var activeRenderType: Int? = null
     private var savedVolume = 1f
     private var muted = false
+    /** When true and playlist has next item, auto-advance on complete. */
+    private var autoPlayNext = true
 
     private data class MidRollAd(
         val atMs: Long,
@@ -113,7 +115,7 @@ class GsyNativePlayer(
                     adMode != AdMode.NONE && pendingContentUrl != null -> {
                         finishAdAndResumeContent()
                     }
-                    playlistIndex < playlist.lastIndex -> {
+                    autoPlayNext && playlistIndex < playlist.lastIndex -> {
                         playlistIndex++
                         setUrl(playlist[playlistIndex])
                         startPlayLogic()
@@ -139,6 +141,8 @@ class GsyNativePlayer(
                 }
                 reportProgress(force = true)
                 syncPictureInPictureParams()
+                playerView.refreshQualityToolbar()
+                activePlayer().refreshQualityToolbar()
             }
         }
 
@@ -168,6 +172,21 @@ class GsyNativePlayer(
         playerView.onMuteToggle = { setMute(it) }
         playerView.onRequestAudioTracks = { listAudioTracks() }
         playerView.onAudioTrackSelected = { selectAudioTrack(it) }
+        playerView.onRequestVideoTracks = { listExoVideoTracks() }
+        playerView.onVideoTrackSelected = { selectExoVideoTrack(it) }
+        playerView.onMirrorHorizontalChanged = { setMirrorHorizontal(it) }
+        playerView.onLoopingChanged = {
+            uiConfig = uiConfig.copy(looping = it)
+            setLooping(it)
+        }
+        playerView.onStartAfterPreparedChanged = {
+            uiConfig = uiConfig.copy(startAfterPrepared = it)
+        }
+        playerView.onAutoPlayNextChanged = { autoPlayNext = it }
+        playerView.onShowTypeChanged = { setGsyShowType(it) }
+        playerView.onSubtitleEnabledChanged = { setSubtitleEnabled(it) }
+        playerView.onDanmakuVisibleChanged = { toggleDanmaku(it) }
+        playerView.onDanmakuSend = { /* live danmaku already drawn; optional host hook */ }
         playerView.syncVolumeToolbar(savedVolume, muted)
         mainHandler.post(progressRunnable)
         GsyPlayerDefaults.applyIjkOptions(initialUiConfig.ijkEnableAccurateSeek)

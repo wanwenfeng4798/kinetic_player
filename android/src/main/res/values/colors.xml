@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Matches iOS SgPlayerChromeView progress tint; used for all seek bars. -->
-    <color name="kinetic_seek_active">#4DE8B5</color>
+    <!-- Bilibili pink; overridable at runtime via GsyUiConfig.accentColor. -->
+    <color name="kinetic_seek_active">#FB7299</color>
     <!-- Unfilled track — aligns with GSY-style semi-transparent white. -->
     <color name="kinetic_seek_background">#59FFFFFF</color>
     <color name="kinetic_panel_background">#99000000</color>

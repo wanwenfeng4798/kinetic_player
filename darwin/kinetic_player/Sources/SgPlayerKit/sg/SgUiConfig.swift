@@ -8,6 +8,7 @@ struct SgUiConfig {
     let showSettingsButton: Bool
     let pictureInPictureEnabled: Bool
     let showFullscreenButton: Bool
+    let showLockButton: Bool
     let dismissControlTimeMs: Int
     /// Keep last rendered frame on complete (hide cover overlay).
     let keepLastFrameWhenComplete: Bool
@@ -17,9 +18,13 @@ struct SgUiConfig {
     let speed: Float
     /// Initial looping from shared `GsyUiConfig.looping`.
     let looping: Bool
+    /// ARGB accent color (default Bilibili pink).
+    let accentColor: Int
 
     /// SGPlayer uses a custom video renderer; system PiP (AVPictureInPictureController) is unavailable.
     static var isPictureInPictureSupported: Bool { false }
+
+    static let defaultAccentColor: Int = 0xFFFB7299
 
     static func fromCreationParams(_ params: [String: Any]?) -> SgUiConfig {
         let gsyUi = params?["gsyUi"] as? [String: Any]
@@ -30,6 +35,9 @@ struct SgUiConfig {
         let speedNumber =
             (params?["speed"] as? NSNumber)
             ?? (gsyUi?["speed"] as? NSNumber)
+        let accentNumber =
+            (gsyUi?["accentColor"] as? NSNumber)
+            ?? (params?["accentColor"] as? NSNumber)
         return SgUiConfig(
             enableNativeControls: enableNativeControls,
             showVolumeToolbar:
@@ -48,6 +56,10 @@ struct SgUiConfig {
                 params?["showFullscreenButton"] as? Bool
                 ?? gsyUi?["showFullscreenButton"] as? Bool
                 ?? true,
+            showLockButton:
+                params?["showLockButton"] as? Bool
+                ?? gsyUi?["showLockButton"] as? Bool
+                ?? true,
             dismissControlTimeMs:
                 params?["dismissControlTime"] as? Int
                 ?? gsyUi?["dismissControlTime"] as? Int
@@ -64,6 +76,7 @@ struct SgUiConfig {
                 params?["looping"] as? Bool
                 ?? gsyUi?["looping"] as? Bool
                 ?? false,
+            accentColor: accentNumber?.intValue ?? defaultAccentColor,
         )
     }
 }

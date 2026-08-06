@@ -43,8 +43,12 @@ data class GsyUiConfig(
     val thumbPlay: Boolean = true,
     /** IJK FFmpeg accurate seek; reduces keyframe snap-back on drag (IJK core only). */
     val ijkEnableAccurateSeek: Boolean = true,
+    /** ARGB accent; default Bilibili pink `#FB7299`. */
+    val accentColor: Int = DEFAULT_ACCENT_COLOR,
 ) {
     companion object {
+        const val DEFAULT_ACCENT_COLOR: Int = 0xFFFB7299.toInt()
+
         fun fromCreationParams(params: Map<String, Any?>?): GsyUiConfig {
             @Suppress("UNCHECKED_CAST")
             val ui = params?.get("gsyUi") as? Map<String, Any?> ?: emptyMap()
@@ -92,6 +96,8 @@ data class GsyUiConfig(
                 coverUrl = ui["coverUrl"] as? String,
                 thumbPlay = ui["thumbPlay"] as? Boolean ?: true,
                 ijkEnableAccurateSeek = ui["ijkEnableAccurateSeek"] as? Boolean ?: true,
+                accentColor =
+                    (ui["accentColor"] as? Number)?.toInt() ?: DEFAULT_ACCENT_COLOR,
             )
         }
     }

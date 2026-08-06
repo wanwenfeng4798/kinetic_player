@@ -241,7 +241,7 @@ CommonVideoPlayerView(
 
 ## 原生控制栏 UI（双端对齐）
 
-Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏，进度条与音量条轨道色统一（`#4DE8B5` 进度 / 半透明白色轨道）。
+Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏；默认强调色为 B 站粉 `#FB7299`（可通过 `GsyUiConfig.accentColor` 覆盖）。底栏含倍速弹窗；Android Exo 多档源时另显示清晰度（含「自动」）。
 
 | 能力 | Android | iOS | macOS | 配置 |
 |------|---------|-----|-------|------|
@@ -301,7 +301,8 @@ if (controller is GSYVideoControllerImpl) {
 | `showFullscreenButton` | `true` | 全屏按钮 |
 | `showLockButton` | `true` | 全屏锁屏按钮（Android） |
 | `showVolumeToolbar` | `true` | 喇叭按钮 + 竖向音量弹窗 |
-| `showSettingsButton` | `true` | 齿轮按钮 + 设置面板（音轨） |
+| `showSettingsButton` | `true` | 齿轮按钮 + 两级设置面板 |
+| `accentColor` | `#FB7299` | 进度条 / 选中态强调色 |
 | `pictureInPictureEnabled` | `true` | Android 播放中切后台自动 PiP（API 26+） |
 | `showDragProgressTextOnSeekBar` | `false` | 拖动进度时间文字 |
 | `previewVttUrl` | — | 进度条缩略图 WebVTT |
@@ -398,7 +399,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 | 缓冲 / 错误详情 | — | `buffered` / `playerError` | `error` 状态 |
 | 部署注意 | IJK 默认 arm64；混淆需宿主 ProGuard 规则；需转发 `handleBackPressed` | iOS：真机；macOS 11+；沙盒需 `network.client` | Chrome / Safari / 移动 Web；注意自动播放策略 |
 
-`GsyUiConfig` 字段中，Darwin（SG）实际生效的主要有：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`coverUrl`、`keepLastFrameWhenComplete`、`speed`、`looping`。`pictureInPictureEnabled` 在 Apple 端**无效**（无系统 PiP）。`previewVttUrl` / `cacheWithPlay` / `rotateViewAuto` / `thumbPlay` 等为 **Android 专用**。
+`GsyUiConfig` 字段中，Darwin（SG）实际生效的主要有：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`showLockButton`、`dismissControlTime`、`coverUrl`、`keepLastFrameWhenComplete`、`speed`、`looping`、`accentColor`。`pictureInPictureEnabled` 在 Apple 端**无效**（无系统 PiP）。`previewVttUrl` / `cacheWithPlay` / `rotateViewAuto` / `thumbPlay` 等为 **Android 专用**。
 
 
 ## 监听状态

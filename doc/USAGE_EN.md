@@ -232,7 +232,7 @@ CommonVideoPlayerView(
 
 ## Native control bar UI (aligned across platforms)
 
-Android (GSY) and iOS / macOS (SGPlayer) both use a Bilibili-style native bottom control bar with consistent progress/volume track colors (`#4DE8B5` progress and semi-transparent white track).
+Android (GSY) and iOS / macOS (SGPlayer) both use a Bilibili-style native bottom control bar. Default accent is Bilibili pink `#FB7299` (override via `GsyUiConfig.accentColor`). The toolbar includes a playback-rate popup; on Android Exo with multiple video tracks, a quality picker (including Auto) is shown.
 
 | Capability | Android | iOS | macOS | Configuration |
 |---|---|---|---|---|
