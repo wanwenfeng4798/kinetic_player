@@ -361,31 +361,51 @@ final class SgSettingsPanelView: NSView {
         tracksStack.views.forEach { $0.removeFromSuperview() }
         if tracks.isEmpty {
             tracksStack.addArrangedSubview(mutedLabel("暂无可用音轨"))
-            return
+        } else {
+            for track in tracks {
+                let index = track["index"] as? Int ?? 0
+                let label = track["label"] as? String ?? "Track \(index)"
+                let language = track["language"] as? String
+                let selected = track["selected"] as? Bool ?? false
+                let title = language.map { "\(label) (\($0))" } ?? label
+                tracksStack.addArrangedSubview(optionButton(title, selected: selected, tag: index, action: #selector(trackTapped(_:))))
+            }
         }
-        for track in tracks {
-            let index = track["index"] as? Int ?? 0
-            let label = track["label"] as? String ?? "Track \(index)"
-            let language = track["language"] as? String
-            let selected = track["selected"] as? Bool ?? false
-            let title = language.map { "\(label) (\($0))" } ?? label
-            tracksStack.addArrangedSubview(optionButton(title, selected: selected, tag: index, action: #selector(trackTapped(_:))))
-        }
+        refreshPanelHeightIfNeeded()
     }
 
     func showLevel1() {
         level1.isHidden = false
         level2.isHidden = true
+        contentStack.setVisibilityPriority(.mustHold, for: level1)
+        contentStack.setVisibilityPriority(.notVisible, for: level2)
         needsLayout = true
-        invalidateIntrinsicContentSize()
     }
 
     func showLevel2() {
         rebuildLevel2()
         level1.isHidden = true
         level2.isHidden = false
+        contentStack.setVisibilityPriority(.notVisible, for: level1)
+        contentStack.setVisibilityPriority(.mustHold, for: level2)
         needsLayout = true
+    }
+
+    /// Keep panel height at max(level1, level2) so bottom-anchored popover stays put when switching levels.
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: 200, height: maxLevelContentHeight() + 24)
+    }
+
+    func maxLevelContentHeight() -> CGFloat {
+        level1.layoutSubtreeIfNeeded()
+        level2.layoutSubtreeIfNeeded()
+        return max(level1.fittingSize.height, level2.fittingSize.height)
+    }
+
+    func refreshPanelHeightIfNeeded() {
         invalidateIntrinsicContentSize()
+        superview?.needsLayout = true
+        superview?.layoutSubtreeIfNeeded()
     }
 
     private func setup() {
@@ -397,6 +417,7 @@ final class SgSettingsPanelView: NSView {
         // Same as iOS: only the visible level should drive panel height.
         contentStack.orientation = .vertical
         contentStack.spacing = 0
+        contentStack.detachesHiddenViews = true
         contentStack.translatesAutoresizingMaskIntoConstraints = false
 
         level1.orientation = .vertical
@@ -420,10 +441,11 @@ final class SgSettingsPanelView: NSView {
             contentStack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
             contentStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             contentStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            contentStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -12),
         ])
         rebuildLevel1()
         rebuildLevel2()
+        showLevel1()
     }
 
     private func rebuildLevel1() {
@@ -505,8 +527,13 @@ final class SgSettingsPanelView: NSView {
         rebuildLevel1()
     }
 
-    @objc private func openMore() { showLevel2() }
-    @objc private func backToLevel1() { showLevel1() }
+    @objc private func openMore() {
+        showLevel2()
+    }
+
+    @objc private func backToLevel1() {
+        showLevel1()
+    }
 
     @objc private func modePause() {
         autoPlayNext = false

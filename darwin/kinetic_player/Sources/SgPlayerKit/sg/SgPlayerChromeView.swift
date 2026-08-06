@@ -51,6 +51,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private let totalTimeLabel = UILabel()
     private let progressSlider = UISlider()
     private let rateButton = UIButton(type: .system)
+    private let toolbarPlayButton = UIButton(type: .system)
     private let settingsButton = UIButton(type: .system)
     private let volumeButton = UIButton(type: .system)
     private let fullscreenButton = UIButton(type: .system)
@@ -303,6 +304,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             rateButton.widthAnchor.constraint(greaterThanOrEqualToConstant: Self.toolbarButtonSize),
         ])
 
+        toolbarPlayButton.addTarget(self, action: #selector(centerPlayTapped), for: .touchUpInside)
+        styleToolbarButton(toolbarPlayButton)
+
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
         styleToolbarButton(settingsButton)
         setToolbarSymbol(settingsButton, systemName: "gearshape.fill")
@@ -313,6 +317,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         fullscreenButton.addTarget(self, action: #selector(fullscreenTapped), for: .touchUpInside)
         styleToolbarButton(fullscreenButton)
 
+        progressRow.addArrangedSubview(toolbarPlayButton)
         progressRow.addArrangedSubview(currentTimeLabel)
         progressRow.addArrangedSubview(progressSlider)
         progressRow.addArrangedSubview(totalTimeLabel)
@@ -470,6 +475,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         isHidden = !config.enableNativeControls
         bottomPanel.isHidden = !config.enableNativeControls
         centerPlayButton.isHidden = !config.enableNativeControls
+        toolbarPlayButton.isHidden = !config.enableNativeControls
         volumeButton.isHidden = !config.showVolumeToolbar
         settingsButton.isHidden = !config.showSettingsButton
         rateButton.isHidden = !config.enableNativeControls
@@ -488,6 +494,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private func updateCenterPlayIcon() {
         let symbol = isPlaying ? "pause.fill" : "play.fill"
         centerPlayButton.setImage(UIImage(systemName: symbol), for: .normal)
+        setToolbarSymbol(toolbarPlayButton, systemName: symbol)
     }
 
     private func updateVolumeIcon() {
@@ -884,6 +891,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func touchHitsInteractiveControl(at point: CGPoint) -> Bool {
         for control in [
+            toolbarPlayButton,
             progressSlider,
             rateButton,
             settingsButton,
@@ -1110,6 +1118,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private let totalTimeLabel = NSTextField(labelWithString: "00:00")
     private let progressSlider = SgTrackSlider()
     private let rateButton = NSButton()
+    private let toolbarPlayButton = NSButton()
     private let settingsButton = NSButton()
     private let volumeButton = NSButton()
     private let fullscreenButton = NSButton()
@@ -1371,6 +1380,11 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         fullscreenButton.target = self
         fullscreenButton.action = #selector(fullscreenTapped)
 
+        styleToolbarButton(toolbarPlayButton)
+        toolbarPlayButton.target = self
+        toolbarPlayButton.action = #selector(centerPlayTapped)
+
+        progressRow.addArrangedSubview(toolbarPlayButton)
         progressRow.addArrangedSubview(currentTimeLabel)
         progressRow.addArrangedSubview(progressSlider)
         progressRow.addArrangedSubview(totalTimeLabel)
@@ -1500,8 +1514,9 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             audioPanel.centerXAnchor.constraint(equalTo: volumeButton.centerXAnchor),
             audioPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
 
-            settingsPanel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            settingsPanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
+            settingsPanel.trailingAnchor.constraint(equalTo: settingsButton.trailingAnchor),
+            settingsPanel.bottomAnchor.constraint(equalTo: settingsButton.topAnchor, constant: -6),
+            settingsPanel.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8),
 
             ratePanel.centerXAnchor.constraint(equalTo: rateButton.centerXAnchor),
             ratePanel.bottomAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: -6),
@@ -1532,6 +1547,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         isHidden = !config.enableNativeControls
         bottomPanel.isHidden = !config.enableNativeControls
         centerPlayButton.isHidden = !config.enableNativeControls
+        toolbarPlayButton.isHidden = !config.enableNativeControls
         volumeButton.isHidden = !config.showVolumeToolbar
         settingsButton.isHidden = !config.showSettingsButton
         rateButton.isHidden = !config.enableNativeControls
@@ -1562,6 +1578,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         // a small +x nudge for optical centering inside the circle.
         let xOffset: CGFloat = isPlaying ? 0 : 2
         centerPlayButton.image = Self.squareCenteredSymbolImage(image, xOffset: xOffset)
+        setToolbarSymbol(toolbarPlayButton, systemName: symbol)
     }
 
     /// Draws an SF Symbol into a fixed square canvas, preserving aspect ratio.
@@ -1764,6 +1781,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         settingsPanel.isHidden = false
         settingsPanelVisible = true
         bringToFront(settingsPanel)
+        settingsPanel.refreshPanelHeightIfNeeded()
         hideTimer?.invalidate()
     }
 
@@ -1867,6 +1885,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private func touchHitsInteractiveControl(at point: NSPoint) -> Bool {
         for control in [
+            toolbarPlayButton,
             progressSlider,
             rateButton,
             settingsButton,
