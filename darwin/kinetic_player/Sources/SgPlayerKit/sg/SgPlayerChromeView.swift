@@ -33,7 +33,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     /// Matches Android `kinetic_control_icon_size` (14dp) / GSY stock chrome.
     private static let toolbarIconPointSize: CGFloat = 14
     private static let toolbarButtonSize: CGFloat = 28
-    private static let lockButtonSize: CGFloat = 36
+    private static let centerControlButtonSize: CGFloat = 60
+    private static let centerControlIconPointSize: CGFloat = 26
+    private static let lockButtonTrailingInset: CGFloat = 50
     private static let panActivationThreshold: CGFloat = 12
     /// Hold scrub UI until playhead catches the committed seek (avoids bounce).
     private static let seekSettleToleranceMs: Int64 = 800
@@ -42,6 +44,10 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private static let toolbarSymbolConfig = UIImage.SymbolConfiguration(
         pointSize: toolbarIconPointSize,
         weight: .regular,
+    )
+    private static let centerControlSymbolConfig = UIImage.SymbolConfiguration(
+        pointSize: centerControlIconPointSize,
+        weight: .semibold,
     )
 
     private let config: SgUiConfig
@@ -400,14 +406,14 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
         centerPlayButton.tintColor = .white
         centerPlayButton.backgroundColor = UIColor(white: 0, alpha: 0.45)
-        centerPlayButton.layer.cornerRadius = 30
+        centerPlayButton.layer.cornerRadius = Self.centerControlButtonSize / 2
         centerPlayButton.translatesAutoresizingMaskIntoConstraints = false
         centerPlayButton.addTarget(self, action: #selector(centerPlayTapped), for: .touchUpInside)
         addSubview(centerPlayButton)
 
         lockButton.tintColor = .white
         lockButton.backgroundColor = UIColor(white: 0, alpha: 0.45)
-        lockButton.layer.cornerRadius = Self.lockButtonSize / 2
+        lockButton.layer.cornerRadius = Self.centerControlButtonSize / 2
         lockButton.translatesAutoresizingMaskIntoConstraints = false
         lockButton.isHidden = true
         lockButton.addTarget(self, action: #selector(lockTapped), for: .touchUpInside)
@@ -443,13 +449,13 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
             centerPlayButton.centerXAnchor.constraint(equalTo: centerXAnchor),
             centerPlayButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            centerPlayButton.widthAnchor.constraint(equalToConstant: 60),
-            centerPlayButton.heightAnchor.constraint(equalToConstant: 60),
+            centerPlayButton.widthAnchor.constraint(equalToConstant: Self.centerControlButtonSize),
+            centerPlayButton.heightAnchor.constraint(equalToConstant: Self.centerControlButtonSize),
 
-            lockButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -50),
-            lockButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            lockButton.widthAnchor.constraint(equalToConstant: Self.lockButtonSize),
-            lockButton.heightAnchor.constraint(equalToConstant: Self.lockButtonSize),
+            lockButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.lockButtonTrailingInset),
+            lockButton.centerYAnchor.constraint(equalTo: centerPlayButton.centerYAnchor),
+            lockButton.widthAnchor.constraint(equalToConstant: Self.centerControlButtonSize),
+            lockButton.heightAnchor.constraint(equalToConstant: Self.centerControlButtonSize),
 
             gestureOverlay.centerXAnchor.constraint(equalTo: centerXAnchor),
             gestureOverlay.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -493,7 +499,10 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func updateCenterPlayIcon() {
         let symbol = isPlaying ? "pause.fill" : "play.fill"
-        centerPlayButton.setImage(UIImage(systemName: symbol), for: .normal)
+        centerPlayButton.setImage(
+            UIImage(systemName: symbol, withConfiguration: Self.centerControlSymbolConfig),
+            for: .normal,
+        )
         setToolbarSymbol(toolbarPlayButton, systemName: symbol)
     }
 
@@ -504,8 +513,10 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func updateLockIcon() {
         let symbol = isScreenLocked ? "lock.fill" : "lock.open.fill"
-        let symbolConfig = UIImage.SymbolConfiguration(pointSize: 16, weight: .regular)
-        lockButton.setImage(UIImage(systemName: symbol, withConfiguration: symbolConfig), for: .normal)
+        lockButton.setImage(
+            UIImage(systemName: symbol, withConfiguration: Self.centerControlSymbolConfig),
+            for: .normal,
+        )
     }
 
     private func updateLockButtonVisibility() {
@@ -1099,14 +1110,22 @@ final class SgTrackSlider: NSView {
 /// there is no public brightness API). Seek uses the progress slider; volume uses the
 /// toolbar speaker button → vertical popup — same interaction pattern as the gear / 音轨
 /// settings button.
+
+/// Circular icon button whose frame equals its Auto Layout alignment rect.
+/// Stock `NSButton` insets can still fight frame-based layout if any leftover
+/// constraints remain; keep insets zero for predictable hit testing.
+private final class SgChromeIconButton: NSButton {
+    override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsets() }
+}
+
 final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     weak var delegate: SgPlayerChromeDelegate?
 
     private static let toolbarIconPointSize: CGFloat = 14
     private static let toolbarButtonSize: CGFloat = 28
-    private static let lockButtonSize: CGFloat = 36
-    private static let centerPlayButtonSize: CGFloat = 60
-    private static let centerPlayIconPointSize: CGFloat = 26
+    private static let centerControlButtonSize: CGFloat = 60
+    private static let centerControlIconPointSize: CGFloat = 26
+    private static let lockButtonTrailingInset: CGFloat = 50
     private static let seekSettleToleranceMs: Int64 = 800
     private static let seekHoldTimeout: CFTimeInterval = 1.5
     private static let rateOptions: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
@@ -1122,8 +1141,8 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private let settingsButton = NSButton()
     private let volumeButton = NSButton()
     private let fullscreenButton = NSButton()
-    private let centerPlayButton = NSButton()
-    private let lockButton = NSButton()
+    private let centerPlayButton = SgChromeIconButton()
+    private let lockButton = SgChromeIconButton()
     private let blackoutOverlay = NSView()
     private let audioPanel = SgAudioPanelView()
     private let settingsPanel = SgSettingsPanelView()
@@ -1179,7 +1198,22 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     override func layout() {
         super.layout()
+        layoutCenterControls()
         repositionToolbarPanels()
+    }
+
+    /// Frame-based layout — NSButton Auto Layout alignment insets still shift
+    /// differently sized (or even equal) circular chrome controls off a shared center.
+    private func layoutCenterControls() {
+        let size = Self.centerControlButtonSize
+        let playX = (bounds.width - size) / 2
+        let playY = (bounds.height - size) / 2
+        centerPlayButton.frame = NSRect(x: playX, y: playY, width: size, height: size)
+        centerPlayButton.layer?.cornerRadius = size / 2
+
+        let lockX = bounds.width - Self.lockButtonTrailingInset - size
+        lockButton.frame = NSRect(x: lockX, y: playY, width: size, height: size)
+        lockButton.layer?.cornerRadius = size / 2
     }
 
     private enum ToolbarPanelAlign {
@@ -1534,8 +1568,8 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         centerPlayButton.setButtonType(.momentaryChange)
         centerPlayButton.imagePosition = .imageOnly
         // AppKit's default (.scaleAxesIndependently) stretches SF Symbols to the full
-        // 60×60 hit target — pause.fill becomes fat bars. Keep the square canvas we
-        // bake in updateCenterPlayIcon() at its intrinsic size.
+        // hit target — pause.fill becomes fat bars. Keep the square canvas we bake
+        // in updateCenterPlayIcon() at its intrinsic size.
         centerPlayButton.imageScaling = .scaleNone
         if let cell = centerPlayButton.cell as? NSButtonCell {
             cell.imageScaling = .scaleNone
@@ -1543,9 +1577,8 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         centerPlayButton.contentTintColor = .white
         centerPlayButton.wantsLayer = true
         centerPlayButton.layer?.backgroundColor = NSColor(white: 0, alpha: 0.45).cgColor
-        centerPlayButton.layer?.cornerRadius = Self.centerPlayButtonSize / 2
         centerPlayButton.layer?.masksToBounds = true
-        centerPlayButton.translatesAutoresizingMaskIntoConstraints = false
+        centerPlayButton.translatesAutoresizingMaskIntoConstraints = true
         centerPlayButton.target = self
         centerPlayButton.action = #selector(centerPlayTapped)
         addSubview(centerPlayButton)
@@ -1553,12 +1586,16 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         lockButton.isBordered = false
         lockButton.setButtonType(.momentaryChange)
         lockButton.imagePosition = .imageOnly
+        // Same as centerPlayButton: avoid scaleAxesIndependently stretch.
+        lockButton.imageScaling = .scaleNone
+        if let cell = lockButton.cell as? NSButtonCell {
+            cell.imageScaling = .scaleNone
+        }
         lockButton.contentTintColor = .white
         lockButton.wantsLayer = true
         lockButton.layer?.backgroundColor = NSColor(white: 0, alpha: 0.45).cgColor
-        lockButton.layer?.cornerRadius = Self.lockButtonSize / 2
         lockButton.layer?.masksToBounds = true
-        lockButton.translatesAutoresizingMaskIntoConstraints = false
+        lockButton.translatesAutoresizingMaskIntoConstraints = true
         lockButton.isHidden = true
         lockButton.target = self
         lockButton.action = #selector(lockTapped)
@@ -1581,16 +1618,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             progressRow.bottomAnchor.constraint(equalTo: bottomPanel.bottomAnchor, constant: -4),
             progressRow.heightAnchor.constraint(equalToConstant: 36),
             progressSlider.heightAnchor.constraint(equalToConstant: 20),
-
-            centerPlayButton.centerXAnchor.constraint(equalTo: centerXAnchor),
-            centerPlayButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            centerPlayButton.widthAnchor.constraint(equalToConstant: Self.centerPlayButtonSize),
-            centerPlayButton.heightAnchor.constraint(equalToConstant: Self.centerPlayButtonSize),
-
-            lockButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -50),
-            lockButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            lockButton.widthAnchor.constraint(equalToConstant: Self.lockButtonSize),
-            lockButton.heightAnchor.constraint(equalToConstant: Self.lockButtonSize),
         ])
 
         updateCenterPlayIcon()
@@ -1628,7 +1655,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         let symbol = isPlaying ? "pause.fill" : "play.fill"
         guard let image = KineticPlayerSymbols.image(
             systemName: symbol,
-            pointSize: Self.centerPlayIconPointSize,
+            pointSize: Self.centerControlIconPointSize,
             weight: .semibold,
         ) else {
             centerPlayButton.image = nil
@@ -1638,13 +1665,21 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         // SF Symbol bounds (pause.fill is especially prone to this). play.fill gets
         // a small +x nudge for optical centering inside the circle.
         let xOffset: CGFloat = isPlaying ? 0 : 2
-        centerPlayButton.image = Self.squareCenteredSymbolImage(image, xOffset: xOffset)
+        centerPlayButton.image = Self.squareCenteredSymbolImage(
+            image,
+            pointSize: Self.centerControlIconPointSize,
+            xOffset: xOffset,
+        )
         setToolbarSymbol(toolbarPlayButton, systemName: symbol)
     }
 
     /// Draws an SF Symbol into a fixed square canvas, preserving aspect ratio.
-    private static func squareCenteredSymbolImage(_ symbol: NSImage, xOffset: CGFloat) -> NSImage {
-        let canvasSide = centerPlayIconPointSize + 4
+    private static func squareCenteredSymbolImage(
+        _ symbol: NSImage,
+        pointSize: CGFloat,
+        xOffset: CGFloat = 0,
+    ) -> NSImage {
+        let canvasSide = pointSize + 4
         let size = NSSize(width: canvasSide, height: canvasSide)
         let canvas = NSImage(size: size, flipped: false) { bounds in
             let drawSize = symbol.size
@@ -1672,9 +1707,18 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private func updateLockIcon() {
         let symbol = isScreenLocked ? "lock.fill" : "lock.open.fill"
-        let image = KineticPlayerSymbols.image(systemName: symbol, pointSize: 16)
-        image?.isTemplate = true
-        lockButton.image = image
+        guard let image = KineticPlayerSymbols.image(
+            systemName: symbol,
+            pointSize: Self.centerControlIconPointSize,
+            weight: .semibold,
+        ) else {
+            lockButton.image = nil
+            return
+        }
+        lockButton.image = Self.squareCenteredSymbolImage(
+            image,
+            pointSize: Self.centerControlIconPointSize,
+        )
     }
 
     private func updateLockButtonVisibility() {
