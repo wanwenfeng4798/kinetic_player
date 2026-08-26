@@ -14,69 +14,87 @@ struct SgUiConfig {
     let keepLastFrameWhenComplete: Bool
     /// Cover / poster image URL.
     let coverUrl: String?
-    /// Initial playback rate from shared `GsyUiConfig.speed`.
+    /// Initial playback rate from shared `KineticUiConfig.speed`.
     let speed: Float
-    /// Initial looping from shared `GsyUiConfig.looping`.
+    /// Initial looping from shared `KineticUiConfig.looping`.
     let looping: Bool
     /// ARGB accent color (default Bilibili pink).
     let accentColor: Int
+    /// Chrome language from `KineticUiConfig.locale` (`ui.locale`).
+    var locale: String
+    /// Resolved chrome copy from Dart `KineticChromeStrings` (`ui.strings`).
+    var strings: [String: String]
 
     /// SGPlayer uses a custom video renderer; system PiP (AVPictureInPictureController) is unavailable.
     static var isPictureInPictureSupported: Bool { false }
 
     static let defaultAccentColor: Int = 0xFFFB7299
 
+    static func parseStrings(_ raw: Any?) -> [String: String] {
+        guard let map = raw as? [String: Any] else { return [:] }
+        var out: [String: String] = [:]
+        out.reserveCapacity(map.count)
+        for (key, value) in map {
+            if let text = value as? String {
+                out[key] = text
+            }
+        }
+        return out
+    }
+
     static func fromCreationParams(_ params: [String: Any]?) -> SgUiConfig {
-        let gsyUi = params?["gsyUi"] as? [String: Any]
+        let ui = params?["ui"] as? [String: Any]
         let enableNativeControls =
-            gsyUi?["enableNativeControls"] as? Bool
+            ui?["enableNativeControls"] as? Bool
             ?? params?["enableNativeControls"] as? Bool
             ?? true
         let speedNumber =
-            (params?["speed"] as? NSNumber)
-            ?? (gsyUi?["speed"] as? NSNumber)
+            (ui?["speed"] as? NSNumber)
+            ?? (params?["speed"] as? NSNumber)
         let accentNumber =
-            (gsyUi?["accentColor"] as? NSNumber)
+            (ui?["accentColor"] as? NSNumber)
             ?? (params?["accentColor"] as? NSNumber)
         return SgUiConfig(
             enableNativeControls: enableNativeControls,
             showVolumeToolbar:
-                params?["showVolumeToolbar"] as? Bool
-                ?? gsyUi?["showVolumeToolbar"] as? Bool
+                ui?["showVolumeToolbar"] as? Bool
+                ?? params?["showVolumeToolbar"] as? Bool
                 ?? true,
             showSettingsButton:
-                params?["showSettingsButton"] as? Bool
-                ?? gsyUi?["showSettingsButton"] as? Bool
+                ui?["showSettingsButton"] as? Bool
+                ?? params?["showSettingsButton"] as? Bool
                 ?? true,
             pictureInPictureEnabled:
-                params?["pictureInPictureEnabled"] as? Bool
-                ?? gsyUi?["pictureInPictureEnabled"] as? Bool
+                ui?["pictureInPictureEnabled"] as? Bool
+                ?? params?["pictureInPictureEnabled"] as? Bool
                 ?? true,
             showFullscreenButton:
-                params?["showFullscreenButton"] as? Bool
-                ?? gsyUi?["showFullscreenButton"] as? Bool
+                ui?["showFullscreenButton"] as? Bool
+                ?? params?["showFullscreenButton"] as? Bool
                 ?? true,
             showLockButton:
-                params?["showLockButton"] as? Bool
-                ?? gsyUi?["showLockButton"] as? Bool
+                ui?["showLockButton"] as? Bool
+                ?? params?["showLockButton"] as? Bool
                 ?? true,
             dismissControlTimeMs:
-                params?["dismissControlTime"] as? Int
-                ?? gsyUi?["dismissControlTime"] as? Int
+                ui?["dismissControlTime"] as? Int
+                ?? params?["dismissControlTime"] as? Int
                 ?? 2500,
             keepLastFrameWhenComplete:
-                params?["keepLastFrameWhenComplete"] as? Bool
-                ?? gsyUi?["keepLastFrameWhenComplete"] as? Bool
+                ui?["keepLastFrameWhenComplete"] as? Bool
+                ?? params?["keepLastFrameWhenComplete"] as? Bool
                 ?? false,
             coverUrl:
-                params?["coverUrl"] as? String
-                ?? gsyUi?["coverUrl"] as? String,
+                ui?["coverUrl"] as? String
+                ?? params?["coverUrl"] as? String,
             speed: speedNumber?.floatValue ?? 1,
             looping:
-                params?["looping"] as? Bool
-                ?? gsyUi?["looping"] as? Bool
+                ui?["looping"] as? Bool
+                ?? params?["looping"] as? Bool
                 ?? false,
             accentColor: accentNumber?.intValue ?? defaultAccentColor,
+            locale: ui?["locale"] as? String ?? "zh",
+            strings: parseStrings(ui?["strings"]),
         )
     }
 }

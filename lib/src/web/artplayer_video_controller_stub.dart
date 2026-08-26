@@ -59,6 +59,8 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
   @override
   Future<void> setLooping(bool looping) => throw UnimplementedError();
   @override
+  Future<void> setLocale(String locale) => throw UnimplementedError();
+  @override
   Future<String?> captureFrame({
     bool highQuality = true,
     bool includeOverlay = false,

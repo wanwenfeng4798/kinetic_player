@@ -9,6 +9,8 @@ The strongest cross-platform Flutter video player plugin for **Android / iOS / m
 
 Repo: [github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
+Requires **Dart 3.12 / Flutter 3.44+** and `material_ui: ^1.1.0`.
+
 ## Platform previews
 
 | Android | iOS |
@@ -79,11 +81,14 @@ import 'package:kinetic_player/kinetic_player.dart';
 
 CommonVideoPlayerViewBuilder(
   url: 'https://example.com/video.mp4',
-  creationParams: const GsyUiConfig(
-    showVolumeToolbar: true,
-    showSettingsButton: true,
-    pictureInPictureEnabled: true, // Android only
-  ).toCreationParams(),
+  creationParams: {
+    ...const KineticUiConfig(
+      showVolumeToolbar: true,
+      showSettingsButton: true,
+      pictureInPictureEnabled: true, // Android only
+      locale: 'zh',
+    ).toCreationParams(),
+  },
   builder: (controller) {
     // controller is CommonVideoController; you can downcast per platform if needed.
   },

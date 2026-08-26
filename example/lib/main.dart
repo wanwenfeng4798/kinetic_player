@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:kinetic_player/kinetic_player.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -284,6 +284,16 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
   CommonVideoController? _controller;
   _DemoSource _selectedSource = _DemoMedia.continuousPlaylist.first;
   bool _playlistReady = false;
+  String _chromeLocale = 'zh';
+
+  static const _chromeLocaleLabels = <String, String>{
+    'zh': '中文',
+    'en': 'English',
+    'vi': 'Tiếng Việt',
+    'ms': 'Bahasa Melayu',
+    'id': 'Bahasa Indonesia',
+    'fil': 'Filipino',
+  };
 
   @override
   void initState() {
@@ -314,6 +324,12 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
     _playlistReady = true;
   }
 
+  Future<void> _onChromeLocaleChanged(String locale) async {
+    if (locale == _chromeLocale) return;
+    setState(() => _chromeLocale = locale);
+    await _controller?.setLocale(locale);
+  }
+
   Future<void> _onSourceChanged(_DemoSource source) async {
     if (source.url == _selectedSource.url) return;
     final controller = _controller;
@@ -340,7 +356,7 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
   }) {
     final ui = isWeb
         ? ArtplayerUiConfig(
-            ui: GsyUiConfig(
+            ui: KineticUiConfig(
               enableNativeControls: true,
               showFullscreenButton: true,
               showVolumeToolbar: true,
@@ -348,6 +364,7 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
               pictureInPictureEnabled: true,
               coverUrl: _DemoMedia.coverUrl,
               videoTitle: _selectedSource.label,
+              locale: _chromeLocale,
             ),
             artPlugins: const {
               ArtplayerPluginKeys.danmuku: true,
@@ -359,7 +376,7 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
             },
           ).toCreationParams()
         : isAndroid
-            ? GsyUiConfig(
+            ? KineticUiConfig(
                 enableNativeControls: true,
                 showFullscreenButton: true,
                 showDragProgressTextOnSeekBar: true,
@@ -370,8 +387,9 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                 previewVttUrl: _previewVttUri,
                 coverUrl: _DemoMedia.coverUrl,
                 keepLastFrameWhenComplete: false,
+                locale: _chromeLocale,
               ).toCreationParams()
-            : GsyUiConfig(
+            : KineticUiConfig(
                 enableNativeControls: true,
                 showFullscreenButton: true,
                 showVolumeToolbar: true,
@@ -379,6 +397,7 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                 coverUrl: _DemoMedia.coverUrl,
                 keepLastFrameWhenComplete: false,
                 videoTitle: _selectedSource.label,
+                locale: _chromeLocale,
               ).toCreationParams();
 
     // Seed continuous playlist so「播完切下一集」works out of the box.
@@ -441,7 +460,9 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
                     child: _ControlPanel(
                       controller: _controller,
                       selectedSource: _selectedSource,
+                      chromeLocale: _chromeLocale,
                       onSourceChanged: _onSourceChanged,
+                      onChromeLocaleChanged: _onChromeLocaleChanged,
                     ),
                   ),
                 ),
@@ -456,12 +477,16 @@ class _ControlPanel extends StatefulWidget {
   const _ControlPanel({
     this.controller,
     required this.selectedSource,
+    required this.chromeLocale,
     required this.onSourceChanged,
+    required this.onChromeLocaleChanged,
   });
 
   final CommonVideoController? controller;
   final _DemoSource selectedSource;
+  final String chromeLocale;
   final Future<void> Function(_DemoSource source) onSourceChanged;
+  final Future<void> Function(String locale) onChromeLocaleChanged;
 
   @override
   State<_ControlPanel> createState() => _ControlPanelState();
@@ -751,14 +776,14 @@ class _ControlPanelState extends State<_ControlPanel> {
           ),
           ValueListenableBuilder<Duration>(
             valueListenable: active?.position ?? _zeroDuration,
-            builder: (_, position, __) {
+            builder: (_, position, _) {
               final duration = active?.duration.value ?? Duration.zero;
               if (active is! SGVideoControllerImpl) {
                 return Text('${_format(position)} / ${_format(duration)}');
               }
               return ValueListenableBuilder<Duration>(
                 valueListenable: active.buffered,
-                builder: (_, buffered, __) => Text(
+                builder: (_, buffered, _) => Text(
                   '${_format(position)} / ${_format(duration)}  缓冲 ${_format(buffered)}',
                 ),
               );
@@ -767,7 +792,7 @@ class _ControlPanelState extends State<_ControlPanel> {
           if (active is SGVideoControllerImpl) ...[
             ValueListenableBuilder<String?>(
               valueListenable: active.playerError,
-              builder: (_, err, __) {
+              builder: (_, err, _) {
                 if (err == null || err.isEmpty) {
                   return const SizedBox.shrink();
                 }
@@ -808,6 +833,32 @@ class _ControlPanelState extends State<_ControlPanel> {
                         ),
                     ],
                     onChanged: _onDemoSourceChanged,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('语言：'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: widget.chromeLocale,
+                    items: [
+                      for (final entry
+                          in _PlayerDemoPageState._chromeLocaleLabels.entries)
+                        DropdownMenuItem(
+                          value: entry.key,
+                          child: Text(entry.value),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        widget.onChromeLocaleChanged(value);
+                      }
+                    },
                   ),
                 ),
               ],

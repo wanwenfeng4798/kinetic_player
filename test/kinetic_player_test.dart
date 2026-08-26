@@ -90,4 +90,30 @@ void main() {
       );
     });
   });
+
+  test('KineticChromeStrings normalizes locale and falls back to zh', () {
+    expect(KineticChromeStrings.normalize(''), 'zh');
+    expect(KineticChromeStrings.normalize('zh-CN'), 'zh');
+    expect(KineticChromeStrings.normalize('tl'), 'fil');
+    expect(KineticChromeStrings.normalize('fil'), 'fil');
+    expect(KineticChromeStrings.normalize('unknown'), 'zh');
+    expect(
+      KineticChromeStrings.forLocale('en')['kinetic_settings_title'],
+      'Settings',
+    );
+    expect(
+      KineticChromeStrings.forLocale('xx')['kinetic_settings_title'],
+      '设置',
+    );
+    final params = KineticChromeStrings.toCreationParams('ms');
+    expect(params['locale'], 'ms');
+    expect((params['strings'] as Map)['kinetic_settings_title'], 'Tetapan');
+  });
+
+  test('KineticUiConfig embeds locale and strings under ui', () {
+    final params = const KineticUiConfig(locale: 'ms').toCreationParams();
+    final ui = params['ui'] as Map;
+    expect(ui['locale'], 'ms');
+    expect((ui['strings'] as Map)['kinetic_settings_title'], 'Tetapan');
+  });
 }

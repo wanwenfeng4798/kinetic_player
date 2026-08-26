@@ -67,36 +67,39 @@ Toolchain: `typescript` 7.0.2, `esbuild` 0.28.1.
 ```dart
 CommonVideoPlayerViewBuilder(
   url: videoUrl, // .m3u8 / .mpd auto-wires HLS/DASH
-  creationParams: ArtplayerUiConfig(
-    ui: const GsyUiConfig(
-      enableNativeControls: true,
-      showFullscreenButton: true,
-      pictureInPictureEnabled: true,
-      coverUrl: 'https://example.com/cover.jpg',
-    ),
-    artPlugins: {
-      ArtplayerPluginKeys.danmuku: {
-        'danmuku': [
-          {'text': 'hello', 'time': 1},
-        ],
+  creationParams: {
+    ...ArtplayerUiConfig(
+      ui: const KineticUiConfig(
+        enableNativeControls: true,
+        showFullscreenButton: true,
+        pictureInPictureEnabled: true,
+        coverUrl: 'https://example.com/cover.jpg',
+        locale: 'zh',
+      ),
+      artPlugins: {
+        ArtplayerPluginKeys.danmuku: {
+          'danmuku': [
+            {'text': 'hello', 'time': 1},
+          ],
+        },
+        ArtplayerPluginKeys.hlsControl: true,
+        ArtplayerPluginKeys.vttThumbnail: {
+          'vtt': 'https://example.com/thumbs.vtt',
+        },
+        ArtplayerPluginKeys.documentPip: true,
       },
-      ArtplayerPluginKeys.hlsControl: true,
-      ArtplayerPluginKeys.vttThumbnail: {
-        'vtt': 'https://example.com/thumbs.vtt',
+      artplayerOptions: {
+        // Passed through to new Artplayer({...})
       },
-      ArtplayerPluginKeys.documentPip: true,
-    },
-    artplayerOptions: {
-      // Passed through to new Artplayer({...})
-    },
-  ).toCreationParams(),
+    ).toCreationParams(),
+  },
   builder: (controller) { /* … */ },
 );
 ```
 
 | Field | Meaning |
 |-------|---------|
-| `ui` | Shared `GsyUiConfig` keys (chrome / PiP / cover / loop / rate) |
+| `ui` | Shared `KineticUiConfig` (chrome / PiP / cover / loop / rate / `locale`). Language is `ui.locale` + `ui.strings` (`KineticChromeStrings`) → Artplayer `lang`; `vi` / `ms` / `fil` filled from the same table |
 | `artPlugins` | Declarative official plugins (table below) |
 | `artplayerOptions` | Raw Artplayer Option passthrough |
 | `webCustomExtensions` | Host extension hook (may embed `artPlugins`) |

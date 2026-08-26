@@ -49,9 +49,12 @@ class ArtplayerViewHost {
       if (url is String && url.isNotEmpty) {
         config.setProperty('url'.toJS, url.toJS);
       }
-      final ui = params['gsyUi'];
-      if (ui is Map) {
-        config.setProperty('ui'.toJS, _mapToJs(ui));
+      final ui = params['ui'];
+      if (ui is Map && ui.isNotEmpty) {
+        config.setProperty(
+          'ui'.toJS,
+          _mapToJs(ui.map((k, v) => MapEntry(k.toString(), v))),
+        );
       }
       final artPlugins = params['artPlugins'];
       if (artPlugins is Map) {

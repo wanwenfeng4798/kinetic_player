@@ -1,21 +1,21 @@
-import '../gsy/gsy_ui_config.dart';
+import '../common/kinetic_ui_config.dart';
 
 /// Web-only Artplayer configuration extensions.
 ///
-/// Universal UI toggles reuse [GsyUiConfig] via [ui].
+/// Universal UI toggles reuse [KineticUiConfig] via [ui].
 /// Advanced Artplayer-only features go in [artplayerOptions] /
 /// [artPlugins] / [webCustomExtensions] and never pollute
 /// [CommonVideoController].
 class ArtplayerUiConfig {
   const ArtplayerUiConfig({
-    this.ui = const GsyUiConfig(),
+    this.ui = const KineticUiConfig(),
     this.artplayerOptions,
     this.artPlugins,
     this.webCustomExtensions,
   });
 
   /// Shared chrome / PiP / looping / cover options (same keys as native).
-  final GsyUiConfig ui;
+  final KineticUiConfig ui;
 
   /// Passed through to `new Artplayer({...})` (layers, theme, etc.).
   final Map<String, dynamic>? artplayerOptions;

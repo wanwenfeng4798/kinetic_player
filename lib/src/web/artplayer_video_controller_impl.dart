@@ -6,6 +6,7 @@ import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
 import '../common/common_video_size.dart';
 import '../common/platform_guard.dart';
+import '../gsy/gsy_chrome_strings.dart';
 import 'artplayer_ui_config.dart';
 import 'artplayer_view_host.dart';
 
@@ -138,6 +139,10 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
   @override
   Future<void> setLooping(bool looping) =>
       _invoke('setLooping', {'looping': looping});
+
+  @override
+  Future<void> setLocale(String locale) =>
+      _invoke('setLocale', KineticChromeStrings.toCreationParams(locale));
 
   @override
   Future<String?> captureFrame({

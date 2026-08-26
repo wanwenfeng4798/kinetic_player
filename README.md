@@ -10,6 +10,8 @@ English version: [README_EN.md](README_EN.md)
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
+需要 **Dart 3.12 / Flutter 3.44+**，并依赖 `material_ui: ^1.1.0`。
+
 ## 平台预览
 
 | Android | iOS |
@@ -80,11 +82,14 @@ import 'package:kinetic_player/kinetic_player.dart';
 
 CommonVideoPlayerViewBuilder(
   url: 'https://example.com/video.mp4',
-  creationParams: const GsyUiConfig(
-    showVolumeToolbar: true,
-    showSettingsButton: true,
-    pictureInPictureEnabled: true, // Android only
-  ).toCreationParams(),
+  creationParams: {
+    ...const KineticUiConfig(
+      showVolumeToolbar: true,
+      showSettingsButton: true,
+      pictureInPictureEnabled: true, // Android only
+      locale: 'zh',
+    ).toCreationParams(),
+  },
   builder: (controller) {
     // controller 为 CommonVideoController，可按平台向下转型
   },

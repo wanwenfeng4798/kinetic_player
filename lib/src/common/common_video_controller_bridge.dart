@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 
+import '../gsy/gsy_chrome_strings.dart';
 import 'common_audio_track.dart';
 import 'common_video_controller.dart';
 import 'common_video_size.dart';
@@ -66,6 +67,10 @@ mixin CommonVideoControllerBridge implements CommonVideoController {
   @override
   Future<void> setLooping(bool looping) =>
       _invoke('setLooping', {'looping': looping});
+
+  @override
+  Future<void> setLocale(String locale) =>
+      _invoke('setLocale', KineticChromeStrings.toCreationParams(locale));
 
   @override
   Future<String?> captureFrame({

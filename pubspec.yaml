@@ -1,12 +1,12 @@
 name: kinetic_player
 description: "Multi-core Flutter video player: GSYVideoPlayer 13.1.0 (Android) + SGPlayer (iOS/macOS) + Artplayer.js (Web)."
-version: 2.0.2
+version: 2.0.3
 homepage: https://github.com/wanwenfeng4798/kinetic_player
 license: MIT
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
-  flutter: '>=3.24.0'
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:
@@ -14,6 +14,7 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   web: ^1.1.0
+  material_ui: ^1.1.0
 
 dev_dependencies:
   flutter_test:

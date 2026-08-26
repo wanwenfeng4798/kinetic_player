@@ -1,3 +1,18 @@
+## 2.0.3
+
+### 新功能
+
+- **弹幕输入框**（Android）：输入框始终显示；点击弹幕图标改为启用/禁用，并同步开关弹幕画布。
+- **设置面板滚动**：一级 / 二级设置超出可用高度时可上下滚动（Android GSY 与 Darwin SGPlayer）。
+- **控制栏语言**：`KineticUiConfig.locale` + 公共 `setLocale` / `KineticChromeStrings`（`zh` / `en` / `vi` / `ms` / `id` / `fil`），下发 Android、共享 Darwin、Web Artplayer `lang`。
+- **KineticUiConfig**：由 `GsyUiConfig` 更名（全平台，非 Android 专属）。语言随 `creationParams['ui']` 下发。热切换仍用 `setLocale`。
+- **底栏图标**：第一行播放 / 音量 / 设置 / 全屏图标加大（20pt / 36dp 点击区）。
+- **material_ui**：依赖 `material_ui ^1.1.0`；最低 **Dart 3.12 / Flutter 3.44**。示例移除 `cupertino_icons`。
+
+### 文档
+
+- USAGE / README / Darwin / Web / Example：locale API、SDK 下限、版本 `2.0.3`。
+
 ## 2.0.2
 
 ### 新功能

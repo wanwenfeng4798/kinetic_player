@@ -27,6 +27,13 @@ abstract class CommonVideoController {
   Future<Duration> getCurrentPosition();
   Future<CommonVideoSize?> getVideoSize();
   Future<void> setLooping(bool looping);
+
+  /// Chrome copy language: `zh` / `en` / `vi` / `ms` / `id` / `fil`.
+  ///
+  /// Unknown codes fall back to `zh`. Pass `KineticUiConfig.locale` at create;
+  /// call this to hot-swap native / Artplayer chrome without `gsySetUiConfig`.
+  Future<void> setLocale(String locale);
+
   /// [includeOverlay] includes native chrome on Android (GSY); ignored on iOS.
   Future<String?> captureFrame({
     bool highQuality = true,

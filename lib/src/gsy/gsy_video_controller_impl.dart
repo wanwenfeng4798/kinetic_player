@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'gsy_ui_config.dart';
 import 'gsy_video_features.dart';
 import '../common/common_player_state.dart';
 import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
 import '../common/common_video_controller_bridge.dart';
+import '../common/kinetic_ui_config.dart';
 import '../common/platform_guard.dart';
 
 class GSYVideoControllerImpl
@@ -74,7 +74,7 @@ class GSYVideoControllerImpl
   Future<void> gsySetPreviewVttUrl(String? url) =>
       _invoke('gsySetPreviewVttUrl', {'url': url});
 
-  Future<void> gsySetUiConfig(GsyUiConfig config) =>
+  Future<void> gsySetUiConfig(KineticUiConfig config) =>
       _invoke('gsySetUiConfig', config.toCreationParams());
 
   Future<void> gsySetGsyShowType(GsyShowType type) =>

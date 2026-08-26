@@ -33,6 +33,8 @@ export interface ArtplayerUiConfig {
   startAfterPrepared?: boolean;
   /** ARGB int, default Bilibili pink 0xFFFB7299 */
   accentColor?: number;
+  locale?: string;
+  strings?: Record<string, string>;
 }
 
 /**
@@ -73,7 +75,7 @@ export type ArtplayerWithStream = Artplayer & {
 export interface KineticArtplayerConfig {
   container: HTMLDivElement;
   url?: string;
-  /** Mapped from GsyUiConfig / creationParams.gsyUi */
+  /** Mapped from KineticUiConfig / creationParams.ui */
   ui?: ArtplayerUiConfig;
   /**
    * Advanced Artplayer-only options (layers, etc.).

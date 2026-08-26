@@ -1,0 +1,279 @@
+/// Chrome copy for native / web players. Keys match Android `strings.xml`.
+///
+/// Supported [locale] codes: `zh`, `en`, `vi`, `ms`, `id`, `fil` (`tl` → `fil`).
+/// Unknown codes fall back to `zh`.
+abstract final class KineticChromeStrings {
+  static const List<String> supported = <String>[
+    'zh',
+    'en',
+    'vi',
+    'ms',
+    'id',
+    'fil',
+  ];
+
+  static String normalize(String locale) {
+    final raw = locale.trim().toLowerCase();
+    if (raw.isEmpty) return 'zh';
+    final code = raw.split(RegExp(r'[-_]')).first;
+    if (code == 'tl' || code == 'fil') return 'fil';
+    if (supported.contains(code)) return code;
+    return 'zh';
+  }
+
+  /// Payload for [CommonVideoController.setLocale] (`locale` + `strings`).
+  ///
+  /// Create-time language belongs on [KineticUiConfig.locale].
+  static Map<String, dynamic> toCreationParams(String locale) {
+    final resolvedLocale = normalize(locale);
+    return <String, dynamic>{
+      'locale': resolvedLocale,
+      'strings': forLocale(resolvedLocale),
+    };
+  }
+
+  static Map<String, String> forLocale(String locale) {
+    switch (normalize(locale)) {
+      case 'en':
+        return Map<String, String>.from(_en);
+      case 'vi':
+        return Map<String, String>.from(_vi);
+      case 'ms':
+        return Map<String, String>.from(_ms);
+      case 'id':
+        return Map<String, String>.from(_id);
+      case 'fil':
+        return Map<String, String>.from(_fil);
+      default:
+        return Map<String, String>.from(_zh);
+    }
+  }
+
+  static const Map<String, String> _zh = <String, String>{
+    'kinetic_volume_icon': '音量',
+    'kinetic_play_pause_icon': '播放或暂停',
+    'kinetic_settings_icon': '设置',
+    'kinetic_fullscreen_icon': '全屏',
+    'kinetic_rate_icon': '倍速',
+    'kinetic_quality_icon': '清晰度',
+    'kinetic_danmaku_toggle': '弹幕',
+    'kinetic_subtitle_toggle': '字幕',
+    'kinetic_danmaku_send': '发送',
+    'kinetic_danmaku_hint': '发个弹幕呗~',
+    'kinetic_settings_title': '设置',
+    'kinetic_settings_mirror': '镜像画面',
+    'kinetic_settings_loop': '单集循环',
+    'kinetic_settings_auto_play': '自动开播',
+    'kinetic_settings_more': '更多播放设置 ›',
+    'kinetic_settings_more_back': '‹ 返回',
+    'kinetic_settings_on': '开',
+    'kinetic_settings_off': '关',
+    'kinetic_settings_playback_mode': '播放方式',
+    'kinetic_settings_mode_pause': '播完暂停',
+    'kinetic_settings_mode_next': '播完切下一集',
+    'kinetic_settings_aspect': '视频比例',
+    'kinetic_settings_aspect_auto': '自动',
+    'kinetic_settings_aspect_16_9': '16:9',
+    'kinetic_settings_aspect_4_3': '4:3',
+    'kinetic_settings_other': '其它设置',
+    'kinetic_settings_hide_black_bars': '隐藏黑边',
+    'kinetic_settings_blackout': '关灯模式',
+    'kinetic_audio_tracks': '音轨',
+    'kinetic_no_audio_tracks': '暂无可用音轨',
+    'kinetic_rate_title': '倍速',
+    'kinetic_quality_title': '清晰度',
+    'kinetic_quality_auto': '自动',
+    'kinetic_ad_skip': '跳过广告',
+    'kinetic_ad_countdown': '广告 %1\$ds',
+  };
+
+  static const Map<String, String> _en = <String, String>{
+    'kinetic_volume_icon': 'Volume',
+    'kinetic_play_pause_icon': 'Play or pause',
+    'kinetic_settings_icon': 'Settings',
+    'kinetic_fullscreen_icon': 'Fullscreen',
+    'kinetic_rate_icon': 'Playback rate',
+    'kinetic_quality_icon': 'Quality',
+    'kinetic_danmaku_toggle': 'Danmaku',
+    'kinetic_subtitle_toggle': 'Subtitle',
+    'kinetic_danmaku_send': 'Send',
+    'kinetic_danmaku_hint': 'Send a danmaku~',
+    'kinetic_settings_title': 'Settings',
+    'kinetic_settings_mirror': 'Mirror',
+    'kinetic_settings_loop': 'Loop episode',
+    'kinetic_settings_auto_play': 'Auto play',
+    'kinetic_settings_more': 'More playback settings ›',
+    'kinetic_settings_more_back': '‹ Back',
+    'kinetic_settings_on': 'On',
+    'kinetic_settings_off': 'Off',
+    'kinetic_settings_playback_mode': 'Playback',
+    'kinetic_settings_mode_pause': 'Pause when finished',
+    'kinetic_settings_mode_next': 'Play next when finished',
+    'kinetic_settings_aspect': 'Aspect ratio',
+    'kinetic_settings_aspect_auto': 'Auto',
+    'kinetic_settings_aspect_16_9': '16:9',
+    'kinetic_settings_aspect_4_3': '4:3',
+    'kinetic_settings_other': 'Other',
+    'kinetic_settings_hide_black_bars': 'Hide black bars',
+    'kinetic_settings_blackout': 'Lights off',
+    'kinetic_audio_tracks': 'Audio tracks',
+    'kinetic_no_audio_tracks': 'No audio tracks',
+    'kinetic_rate_title': 'Speed',
+    'kinetic_quality_title': 'Quality',
+    'kinetic_quality_auto': 'Auto',
+    'kinetic_ad_skip': 'Skip ad',
+    'kinetic_ad_countdown': 'Ad %1\$ds',
+  };
+
+  static const Map<String, String> _vi = <String, String>{
+    'kinetic_volume_icon': 'Âm lượng',
+    'kinetic_play_pause_icon': 'Phát hoặc tạm dừng',
+    'kinetic_settings_icon': 'Cài đặt',
+    'kinetic_fullscreen_icon': 'Toàn màn hình',
+    'kinetic_rate_icon': 'Tốc độ',
+    'kinetic_quality_icon': 'Chất lượng',
+    'kinetic_danmaku_toggle': 'Danmaku',
+    'kinetic_subtitle_toggle': 'Phụ đề',
+    'kinetic_danmaku_send': 'Gửi',
+    'kinetic_danmaku_hint': 'Gửi một danmaku~',
+    'kinetic_settings_title': 'Cài đặt',
+    'kinetic_settings_mirror': 'Lật hình',
+    'kinetic_settings_loop': 'Lặp tập',
+    'kinetic_settings_auto_play': 'Tự phát',
+    'kinetic_settings_more': 'Cài đặt phát khác ›',
+    'kinetic_settings_more_back': '‹ Quay lại',
+    'kinetic_settings_on': 'Bật',
+    'kinetic_settings_off': 'Tắt',
+    'kinetic_settings_playback_mode': 'Cách phát',
+    'kinetic_settings_mode_pause': 'Tạm dừng khi hết',
+    'kinetic_settings_mode_next': 'Phát tập tiếp theo',
+    'kinetic_settings_aspect': 'Tỷ lệ',
+    'kinetic_settings_aspect_auto': 'Tự động',
+    'kinetic_settings_aspect_16_9': '16:9',
+    'kinetic_settings_aspect_4_3': '4:3',
+    'kinetic_settings_other': 'Khác',
+    'kinetic_settings_hide_black_bars': 'Ẩn viền đen',
+    'kinetic_settings_blackout': 'Tắt đèn',
+    'kinetic_audio_tracks': 'Âm thanh',
+    'kinetic_no_audio_tracks': 'Không có bản âm',
+    'kinetic_rate_title': 'Tốc độ',
+    'kinetic_quality_title': 'Độ nét',
+    'kinetic_quality_auto': 'Tự động',
+    'kinetic_ad_skip': 'Bỏ qua QC',
+    'kinetic_ad_countdown': 'QC %1\$ds',
+  };
+
+  static const Map<String, String> _ms = <String, String>{
+    'kinetic_volume_icon': 'Kelantangan',
+    'kinetic_play_pause_icon': 'Main atau jeda',
+    'kinetic_settings_icon': 'Tetapan',
+    'kinetic_fullscreen_icon': 'Skrin penuh',
+    'kinetic_rate_icon': 'Kelajuan',
+    'kinetic_quality_icon': 'Kualiti',
+    'kinetic_danmaku_toggle': 'Danmaku',
+    'kinetic_subtitle_toggle': 'Sarikata',
+    'kinetic_danmaku_send': 'Hantar',
+    'kinetic_danmaku_hint': 'Hantar danmaku~',
+    'kinetic_settings_title': 'Tetapan',
+    'kinetic_settings_mirror': 'Cermin',
+    'kinetic_settings_loop': 'Ulang episod',
+    'kinetic_settings_auto_play': 'Main auto',
+    'kinetic_settings_more': 'Lagi tetapan mainan ›',
+    'kinetic_settings_more_back': '‹ Kembali',
+    'kinetic_settings_on': 'Hidup',
+    'kinetic_settings_off': 'Mati',
+    'kinetic_settings_playback_mode': 'Cara main',
+    'kinetic_settings_mode_pause': 'Jeda bila tamat',
+    'kinetic_settings_mode_next': 'Main episod seterusnya',
+    'kinetic_settings_aspect': 'Nisbah',
+    'kinetic_settings_aspect_auto': 'Auto',
+    'kinetic_settings_aspect_16_9': '16:9',
+    'kinetic_settings_aspect_4_3': '4:3',
+    'kinetic_settings_other': 'Lain',
+    'kinetic_settings_hide_black_bars': 'Sembunyi bar hitam',
+    'kinetic_settings_blackout': 'Mod gelap',
+    'kinetic_audio_tracks': 'Trek audio',
+    'kinetic_no_audio_tracks': 'Tiada trek audio',
+    'kinetic_rate_title': 'Kelajuan',
+    'kinetic_quality_title': 'Kualiti',
+    'kinetic_quality_auto': 'Auto',
+    'kinetic_ad_skip': 'Langkau iklan',
+    'kinetic_ad_countdown': 'Iklan %1\$ds',
+  };
+
+  static const Map<String, String> _id = <String, String>{
+    'kinetic_volume_icon': 'Volume',
+    'kinetic_play_pause_icon': 'Putar atau jeda',
+    'kinetic_settings_icon': 'Pengaturan',
+    'kinetic_fullscreen_icon': 'Layar penuh',
+    'kinetic_rate_icon': 'Kecepatan',
+    'kinetic_quality_icon': 'Kualitas',
+    'kinetic_danmaku_toggle': 'Danmaku',
+    'kinetic_subtitle_toggle': 'Subtitle',
+    'kinetic_danmaku_send': 'Kirim',
+    'kinetic_danmaku_hint': 'Kirim danmaku~',
+    'kinetic_settings_title': 'Pengaturan',
+    'kinetic_settings_mirror': 'Cerminkan',
+    'kinetic_settings_loop': 'Ulang episode',
+    'kinetic_settings_auto_play': 'Putar otomatis',
+    'kinetic_settings_more': 'Pengaturan putar lainnya ›',
+    'kinetic_settings_more_back': '‹ Kembali',
+    'kinetic_settings_on': 'Aktif',
+    'kinetic_settings_off': 'Nonaktif',
+    'kinetic_settings_playback_mode': 'Cara putar',
+    'kinetic_settings_mode_pause': 'Jeda saat selesai',
+    'kinetic_settings_mode_next': 'Putar episode berikutnya',
+    'kinetic_settings_aspect': 'Rasio',
+    'kinetic_settings_aspect_auto': 'Otomatis',
+    'kinetic_settings_aspect_16_9': '16:9',
+    'kinetic_settings_aspect_4_3': '4:3',
+    'kinetic_settings_other': 'Lainnya',
+    'kinetic_settings_hide_black_bars': 'Sembunyikan bingkai hitam',
+    'kinetic_settings_blackout': 'Mode gelap',
+    'kinetic_audio_tracks': 'Trek audio',
+    'kinetic_no_audio_tracks': 'Tidak ada trek audio',
+    'kinetic_rate_title': 'Kecepatan',
+    'kinetic_quality_title': 'Kualitas',
+    'kinetic_quality_auto': 'Otomatis',
+    'kinetic_ad_skip': 'Lewati iklan',
+    'kinetic_ad_countdown': 'Iklan %1\$ds',
+  };
+
+  static const Map<String, String> _fil = <String, String>{
+    'kinetic_volume_icon': 'Volume',
+    'kinetic_play_pause_icon': 'I-play o i-pause',
+    'kinetic_settings_icon': 'Mga setting',
+    'kinetic_fullscreen_icon': 'Fullscreen',
+    'kinetic_rate_icon': 'Bilis',
+    'kinetic_quality_icon': 'Kalidad',
+    'kinetic_danmaku_toggle': 'Danmaku',
+    'kinetic_subtitle_toggle': 'Subtitle',
+    'kinetic_danmaku_send': 'Ipadala',
+    'kinetic_danmaku_hint': 'Magpadala ng danmaku~',
+    'kinetic_settings_title': 'Mga setting',
+    'kinetic_settings_mirror': 'Salaminin',
+    'kinetic_settings_loop': 'Ulitin ang episode',
+    'kinetic_settings_auto_play': 'Auto play',
+    'kinetic_settings_more': 'Higit pang setting ›',
+    'kinetic_settings_more_back': '‹ Bumalik',
+    'kinetic_settings_on': 'On',
+    'kinetic_settings_off': 'Off',
+    'kinetic_settings_playback_mode': 'Paraan ng pag-play',
+    'kinetic_settings_mode_pause': 'I-pause pagtapos',
+    'kinetic_settings_mode_next': 'I-play ang susunod',
+    'kinetic_settings_aspect': 'Aspect ratio',
+    'kinetic_settings_aspect_auto': 'Auto',
+    'kinetic_settings_aspect_16_9': '16:9',
+    'kinetic_settings_aspect_4_3': '4:3',
+    'kinetic_settings_other': 'Iba pa',
+    'kinetic_settings_hide_black_bars': 'Itago ang itim na gilid',
+    'kinetic_settings_blackout': 'Lights off',
+    'kinetic_audio_tracks': 'Mga audio track',
+    'kinetic_no_audio_tracks': 'Walang audio track',
+    'kinetic_rate_title': 'Bilis',
+    'kinetic_quality_title': 'Kalidad',
+    'kinetic_quality_auto': 'Auto',
+    'kinetic_ad_skip': 'Laktawan ang ad',
+    'kinetic_ad_countdown': 'Ad %1\$ds',
+  };
+}

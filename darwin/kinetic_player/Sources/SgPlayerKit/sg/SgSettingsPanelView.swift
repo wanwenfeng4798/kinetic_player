@@ -24,6 +24,8 @@ final class SgSettingsPanelView: UIView {
     private var aspect = 0
     private var hideBlackBars = false
     private var blackout = false
+    private var strings: [String: String] = [:]
+    private let scrollView = UIScrollView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -55,41 +57,74 @@ final class SgSettingsPanelView: UIView {
         rebuildLevel2()
     }
 
+    func applyStrings(_ strings: [String: String]) {
+        self.strings = strings
+        rebuildLevel1()
+        rebuildLevel2()
+        refreshContentSize()
+    }
+
+    private func t(_ key: String, _ fallback: String) -> String {
+        if let value = strings[key], !value.isEmpty { return value }
+        return fallback
+    }
+
+    override var intrinsicContentSize: CGSize {
+        let fittingWidth: CGFloat = 220
+        let size = contentStack.systemLayoutSizeFitting(
+            CGSize(width: fittingWidth, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel,
+        )
+        return CGSize(width: fittingWidth + 24, height: size.height + 24)
+    }
+
+    private func refreshContentSize() {
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
     func reloadTracks(_ tracks: [[String: Any]]) {
         tracksStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         if tracks.isEmpty {
-            tracksStack.addArrangedSubview(mutedLabel("暂无可用音轨"))
-            return
+            tracksStack.addArrangedSubview(mutedLabel(t("kinetic_no_audio_tracks", "暂无可用音轨")))
+        } else {
+            for track in tracks {
+                let index = track["index"] as? Int ?? 0
+                let label = track["label"] as? String ?? "Track \(index)"
+                let language = track["language"] as? String
+                let selected = track["selected"] as? Bool ?? false
+                let title = language.map { "\(label) (\($0))" } ?? label
+                tracksStack.addArrangedSubview(optionButton(title, selected: selected, tag: index, action: #selector(trackTapped(_:))))
+            }
         }
-        for track in tracks {
-            let index = track["index"] as? Int ?? 0
-            let label = track["label"] as? String ?? "Track \(index)"
-            let language = track["language"] as? String
-            let selected = track["selected"] as? Bool ?? false
-            let title = language.map { "\(label) (\($0))" } ?? label
-            tracksStack.addArrangedSubview(optionButton(title, selected: selected, tag: index, action: #selector(trackTapped(_:))))
-        }
+        refreshContentSize()
     }
 
     func showLevel1() {
         level1.isHidden = false
         level2.isHidden = true
-        setNeedsLayout()
-        invalidateIntrinsicContentSize()
+        refreshContentSize()
     }
 
     func showLevel2() {
         rebuildLevel2()
         level1.isHidden = true
         level2.isHidden = false
-        setNeedsLayout()
-        invalidateIntrinsicContentSize()
+        refreshContentSize()
     }
 
     private func setup() {
         backgroundColor = KineticPlayerColors.panelBackground
         layer.cornerRadius = 8
         clipsToBounds = true
+        setContentHuggingPriority(.defaultHigh, for: .vertical)
+        setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = false
+        scrollView.showsVerticalScrollIndicator = true
+        scrollView.clipsToBounds = true
 
         // Keep only one level in layout; pinning both level stacks to the panel
         // top+bottom made the panel as tall as level2 and stretched level1 rows.
@@ -112,43 +147,50 @@ final class SgSettingsPanelView: UIView {
 
         contentStack.addArrangedSubview(level1)
         contentStack.addArrangedSubview(level2)
-        addSubview(contentStack)
+        scrollView.addSubview(contentStack)
+        addSubview(scrollView)
         contentStack.setContentHuggingPriority(.required, for: .horizontal)
         contentStack.setContentCompressionResistancePriority(.required, for: .horizontal)
         NSLayoutConstraint.activate([
-            contentStack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
-            contentStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            contentStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            contentStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+            scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+            contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            contentStack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            contentStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
         ])
+        widthAnchor.constraint(equalToConstant: 220).isActive = true
         rebuildLevel1()
         rebuildLevel2()
     }
 
     private func rebuildLevel1() {
         level1.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        level1.addArrangedSubview(titleLabel("设置"))
-        level1.addArrangedSubview(toggleRow("镜像画面", on: mirrorOn, action: #selector(toggleMirror)))
-        level1.addArrangedSubview(toggleRow("单集循环", on: loopingOn, action: #selector(toggleLoop)))
-        level1.addArrangedSubview(toggleRow("自动开播", on: autoPlayOn, action: #selector(toggleAutoPlay)))
-        let more = optionButton("更多播放设置 ›", selected: false, tag: 0, action: #selector(openMore))
+        level1.addArrangedSubview(titleLabel(t("kinetic_settings_title", "设置")))
+        level1.addArrangedSubview(toggleRow(t("kinetic_settings_mirror", "镜像画面"), on: mirrorOn, action: #selector(toggleMirror)))
+        level1.addArrangedSubview(toggleRow(t("kinetic_settings_loop", "单集循环"), on: loopingOn, action: #selector(toggleLoop)))
+        level1.addArrangedSubview(toggleRow(t("kinetic_settings_auto_play", "自动开播"), on: autoPlayOn, action: #selector(toggleAutoPlay)))
+        let more = optionButton(t("kinetic_settings_more", "更多播放设置 ›"), selected: false, tag: 0, action: #selector(openMore))
         level1.addArrangedSubview(more)
     }
 
     private func rebuildLevel2() {
         level2.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        level2.addArrangedSubview(optionButton("‹ 返回", selected: false, tag: 0, action: #selector(backToLevel1)))
-        level2.addArrangedSubview(sectionLabel("播放方式"))
-        level2.addArrangedSubview(optionButton("播完暂停", selected: !autoPlayNext, tag: 0, action: #selector(modePause)))
-        level2.addArrangedSubview(optionButton("播完切下一集", selected: autoPlayNext, tag: 0, action: #selector(modeNext)))
-        level2.addArrangedSubview(sectionLabel("视频比例"))
-        level2.addArrangedSubview(optionButton("自动", selected: !hideBlackBars && aspect == 0, tag: 0, action: #selector(aspectAuto)))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_more_back", "‹ 返回"), selected: false, tag: 0, action: #selector(backToLevel1)))
+        level2.addArrangedSubview(sectionLabel(t("kinetic_settings_playback_mode", "播放方式")))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_mode_pause", "播完暂停"), selected: !autoPlayNext, tag: 0, action: #selector(modePause)))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_mode_next", "播完切下一集"), selected: autoPlayNext, tag: 0, action: #selector(modeNext)))
+        level2.addArrangedSubview(sectionLabel(t("kinetic_settings_aspect", "视频比例")))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_aspect_auto", "自动"), selected: !hideBlackBars && aspect == 0, tag: 0, action: #selector(aspectAuto)))
         level2.addArrangedSubview(optionButton("16:9", selected: !hideBlackBars && aspect == 1, tag: 0, action: #selector(aspect169)))
         level2.addArrangedSubview(optionButton("4:3", selected: !hideBlackBars && aspect == 2, tag: 0, action: #selector(aspect43)))
-        level2.addArrangedSubview(sectionLabel("其它设置"))
-        level2.addArrangedSubview(optionButton("隐藏黑边", selected: hideBlackBars, tag: 0, action: #selector(toggleHideBars)))
-        level2.addArrangedSubview(optionButton("关灯模式", selected: blackout, tag: 0, action: #selector(toggleBlackout)))
-        level2.addArrangedSubview(sectionLabel("音轨"))
+        level2.addArrangedSubview(sectionLabel(t("kinetic_settings_other", "其它设置")))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_hide_black_bars", "隐藏黑边"), selected: hideBlackBars, tag: 0, action: #selector(toggleHideBars)))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_blackout", "关灯模式"), selected: blackout, tag: 0, action: #selector(toggleBlackout)))
+        level2.addArrangedSubview(sectionLabel(t("kinetic_audio_tracks", "音轨")))
         level2.addArrangedSubview(tracksStack)
     }
 
@@ -186,7 +228,7 @@ final class SgSettingsPanelView: UIView {
         titleLabel.font = .systemFont(ofSize: 13)
         titleLabel.textColor = .white
         let value = UILabel()
-        value.text = on ? "开" : "关"
+        value.text = on ? t("kinetic_settings_on", "开") : t("kinetic_settings_off", "关")
         value.font = .systemFont(ofSize: 12)
         value.textColor = on ? KineticPlayerColors.seekActive : UIColor(white: 1, alpha: 0.8)
         value.textAlignment = .right
@@ -317,6 +359,7 @@ final class SgSettingsPanelView: NSView {
     private let level1 = NSStackView()
     private let level2 = NSStackView()
     private let tracksStack = NSStackView()
+    private let scrollView = NSScrollView()
 
     private var mirrorOn = false
     private var loopingOn = false
@@ -325,6 +368,7 @@ final class SgSettingsPanelView: NSView {
     private var aspect = 0
     private var hideBlackBars = false
     private var blackout = false
+    private var strings: [String: String] = [:]
 
     override var isFlipped: Bool { true }
 
@@ -358,10 +402,43 @@ final class SgSettingsPanelView: NSView {
         rebuildLevel2()
     }
 
+    func applyStrings(_ strings: [String: String]) {
+        self.strings = strings
+        rebuildLevel1()
+        rebuildLevel2()
+        refreshPanelHeightIfNeeded()
+    }
+
+    private func t(_ key: String, _ fallback: String) -> String {
+        if let value = strings[key], !value.isEmpty { return value }
+        return fallback
+    }
+
+    override var intrinsicContentSize: NSSize {
+        contentStack.layoutSubtreeIfNeeded()
+        let content = contentStack.fittingSize
+        return NSSize(width: max(content.width + 24, 220), height: content.height + 24)
+    }
+
+    override var fittingSize: NSSize { intrinsicContentSize }
+
+    override func layout() {
+        super.layout()
+        syncDocumentSize()
+    }
+
+    private func syncDocumentSize() {
+        let width = max(scrollView.contentView.bounds.width, 1)
+        let height = max(contentStack.fittingSize.height, 1)
+        if abs(contentStack.frame.width - width) > 0.5 || abs(contentStack.frame.height - height) > 0.5 {
+            contentStack.setFrameSize(NSSize(width: width, height: height))
+        }
+    }
+
     func reloadTracks(_ tracks: [[String: Any]]) {
         tracksStack.views.forEach { $0.removeFromSuperview() }
         if tracks.isEmpty {
-            tracksStack.addArrangedSubview(mutedLabel("暂无可用音轨"))
+            tracksStack.addArrangedSubview(mutedLabel(t("kinetic_no_audio_tracks", "暂无可用音轨")))
         } else {
             for track in tracks {
                 let index = track["index"] as? Int ?? 0
@@ -393,6 +470,7 @@ final class SgSettingsPanelView: NSView {
     }
 
     func refreshPanelHeightIfNeeded() {
+        invalidateIntrinsicContentSize()
         needsLayout = true
         layoutSubtreeIfNeeded()
         superview?.needsLayout = true
@@ -404,6 +482,13 @@ final class SgSettingsPanelView: NSView {
         layer?.backgroundColor = KineticPlayerColors.panelBackground.cgColor
         layer?.cornerRadius = 8
         layer?.masksToBounds = true
+
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
 
         // Same as iOS: only the visible level should drive panel height.
         contentStack.orientation = .vertical
@@ -431,14 +516,15 @@ final class SgSettingsPanelView: NSView {
 
         contentStack.addArrangedSubview(level1)
         contentStack.addArrangedSubview(level2)
-        addSubview(contentStack)
-        contentStack.setContentHuggingPriority(.required, for: .horizontal)
-        contentStack.setContentCompressionResistancePriority(.required, for: .horizontal)
+        contentStack.translatesAutoresizingMaskIntoConstraints = true
+        scrollView.documentView = contentStack
+        addSubview(scrollView)
         NSLayoutConstraint.activate([
-            contentStack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
-            contentStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            contentStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            contentStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+            scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
+            widthAnchor.constraint(equalToConstant: 220),
         ])
         rebuildLevel1()
         rebuildLevel2()
@@ -447,27 +533,29 @@ final class SgSettingsPanelView: NSView {
 
     private func rebuildLevel1() {
         level1.views.forEach { $0.removeFromSuperview() }
-        level1.addArrangedSubview(titleLabel("设置"))
-        level1.addArrangedSubview(optionButton("镜像画面  \(mirrorOn ? "开" : "关")", selected: mirrorOn, tag: 0, action: #selector(toggleMirror)))
-        level1.addArrangedSubview(optionButton("单集循环  \(loopingOn ? "开" : "关")", selected: loopingOn, tag: 0, action: #selector(toggleLoop)))
-        level1.addArrangedSubview(optionButton("自动开播  \(autoPlayOn ? "开" : "关")", selected: autoPlayOn, tag: 0, action: #selector(toggleAutoPlay)))
-        level1.addArrangedSubview(optionButton("更多播放设置 ›", selected: false, tag: 0, action: #selector(openMore)))
+        let on = t("kinetic_settings_on", "开")
+        let off = t("kinetic_settings_off", "关")
+        level1.addArrangedSubview(titleLabel(t("kinetic_settings_title", "设置")))
+        level1.addArrangedSubview(optionButton("\(t("kinetic_settings_mirror", "镜像画面"))  \(mirrorOn ? on : off)", selected: mirrorOn, tag: 0, action: #selector(toggleMirror)))
+        level1.addArrangedSubview(optionButton("\(t("kinetic_settings_loop", "单集循环"))  \(loopingOn ? on : off)", selected: loopingOn, tag: 0, action: #selector(toggleLoop)))
+        level1.addArrangedSubview(optionButton("\(t("kinetic_settings_auto_play", "自动开播"))  \(autoPlayOn ? on : off)", selected: autoPlayOn, tag: 0, action: #selector(toggleAutoPlay)))
+        level1.addArrangedSubview(optionButton(t("kinetic_settings_more", "更多播放设置 ›"), selected: false, tag: 0, action: #selector(openMore)))
     }
 
     private func rebuildLevel2() {
         level2.views.forEach { $0.removeFromSuperview() }
-        level2.addArrangedSubview(optionButton("‹ 返回", selected: false, tag: 0, action: #selector(backToLevel1)))
-        level2.addArrangedSubview(sectionLabel("播放方式"))
-        level2.addArrangedSubview(optionButton("播完暂停", selected: !autoPlayNext, tag: 0, action: #selector(modePause)))
-        level2.addArrangedSubview(optionButton("播完切下一集", selected: autoPlayNext, tag: 0, action: #selector(modeNext)))
-        level2.addArrangedSubview(sectionLabel("视频比例"))
-        level2.addArrangedSubview(optionButton("自动", selected: !hideBlackBars && aspect == 0, tag: 0, action: #selector(aspectAuto)))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_more_back", "‹ 返回"), selected: false, tag: 0, action: #selector(backToLevel1)))
+        level2.addArrangedSubview(sectionLabel(t("kinetic_settings_playback_mode", "播放方式")))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_mode_pause", "播完暂停"), selected: !autoPlayNext, tag: 0, action: #selector(modePause)))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_mode_next", "播完切下一集"), selected: autoPlayNext, tag: 0, action: #selector(modeNext)))
+        level2.addArrangedSubview(sectionLabel(t("kinetic_settings_aspect", "视频比例")))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_aspect_auto", "自动"), selected: !hideBlackBars && aspect == 0, tag: 0, action: #selector(aspectAuto)))
         level2.addArrangedSubview(optionButton("16:9", selected: !hideBlackBars && aspect == 1, tag: 0, action: #selector(aspect169)))
         level2.addArrangedSubview(optionButton("4:3", selected: !hideBlackBars && aspect == 2, tag: 0, action: #selector(aspect43)))
-        level2.addArrangedSubview(sectionLabel("其它设置"))
-        level2.addArrangedSubview(optionButton("隐藏黑边", selected: hideBlackBars, tag: 0, action: #selector(toggleHideBars)))
-        level2.addArrangedSubview(optionButton("关灯模式", selected: blackout, tag: 0, action: #selector(toggleBlackout)))
-        level2.addArrangedSubview(sectionLabel("音轨"))
+        level2.addArrangedSubview(sectionLabel(t("kinetic_settings_other", "其它设置")))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_hide_black_bars", "隐藏黑边"), selected: hideBlackBars, tag: 0, action: #selector(toggleHideBars)))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_blackout", "关灯模式"), selected: blackout, tag: 0, action: #selector(toggleBlackout)))
+        level2.addArrangedSubview(sectionLabel(t("kinetic_audio_tracks", "音轨")))
         level2.addArrangedSubview(tracksStack)
     }
 

@@ -22,6 +22,50 @@ function argbToCssHex(argb: number): string {
   return `#${rgb.toString(16).padStart(6, '0')}`;
 }
 
+function artLangFromLocale(locale?: string): string {
+  const code = (locale ?? 'zh').toLowerCase().split(/[-_]/)[0];
+  switch (code) {
+    case 'en':
+      return 'en';
+    case 'id':
+      return 'id';
+    case 'vi':
+      return 'vi';
+    case 'ms':
+      return 'ms';
+    case 'fil':
+    case 'tl':
+      return 'fil';
+    default:
+      return 'zh-cn';
+  }
+}
+
+function artI18nFromStrings(strings?: Record<string, string>): Record<string, string> {
+  if (!strings) return {};
+  const pick = (key: string, fallback: string): string => {
+    const value = strings[key];
+    return value && value.length > 0 ? value : fallback;
+  };
+  return {
+    Volume: pick('kinetic_volume_icon', 'Volume'),
+    Settings: pick('kinetic_settings_title', 'Settings'),
+    Fullscreen: pick('kinetic_fullscreen_icon', 'Fullscreen'),
+    'Play Speed': pick('kinetic_rate_title', 'Speed'),
+    'Aspect Ratio': pick('kinetic_settings_aspect', 'Aspect ratio'),
+    Loop: pick('kinetic_settings_loop', 'Loop'),
+  };
+}
+
+function artI18nOption(
+  locale?: string,
+  strings?: Record<string, string>,
+): Record<string, Record<string, string>> | undefined {
+  const lang = artLangFromLocale(locale);
+  if (lang === 'zh-cn' || lang === 'en' || lang === 'id') return undefined;
+  return { [lang]: artI18nFromStrings(strings) };
+}
+
 /**
  * Artplayer adapter for kinetic_player Web.
  * Maps public API (play/pause/seek/volume/rate/dispose/togglePip) to Artplayer.
@@ -90,6 +134,7 @@ export class KineticArtplayerAdapter {
     const accentArgb =
       typeof ui.accentColor === 'number' ? ui.accentColor : 0xfffb7299;
     const themeHex = argbToCssHex(accentArgb);
+    const i18n = artI18nOption(ui.locale, ui.strings);
 
     const option: ArtplayerOption = {
       container: config.container,
@@ -115,6 +160,8 @@ export class KineticArtplayerAdapter {
       gesture: enableControls,
       autoOrientation: false,
       theme: themeHex,
+      lang: artLangFromLocale(ui.locale),
+      ...(i18n ? { i18n } : {}),
       moreVideoAttr: {
         // Typed attr is playsInline; WebKit / X5 attrs set in applyMobileInlineAttributes.
         playsInline: true,
@@ -486,6 +533,16 @@ export class KineticArtplayerAdapter {
     if (ui.enableNativeControls === false) {
       this.hideNativeChrome();
     }
+  }
+
+  applyLocale(locale?: string, strings?: Record<string, string>): void {
+    const lang = artLangFromLocale(locale);
+    const extra = artI18nOption(locale, strings);
+    const i18n = this.art.i18n as { update?: (value: Record<string, Record<string, string>>) => void };
+    if (extra && typeof i18n?.update === 'function') {
+      i18n.update(extra);
+    }
+    this.art.option.lang = lang;
   }
 
   /** List of bundled plugin keys supported by this build. */

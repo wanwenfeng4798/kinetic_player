@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
+import 'dart:ui';
+
+import '../gsy/gsy_chrome_strings.dart';
 
 /// Default chrome accent (Bilibili pink).
 const int kKineticDefaultAccentColor = 0xFFFB7299;
 
-/// Native UI options passed via [CommonVideoPlayerView.creationParams].
+/// Shared player chrome options for [CommonVideoPlayerView.creationParams].
 ///
-/// Used by Android GSY, Darwin SGPlayer, and Web Artplayer. Only a subset applies
-/// on each platform — see USAGE platform notes. Defaults match
-/// [StandardGSYVideoPlayer] / [GSYVideoOptionBuilder] where applicable.
-class GsyUiConfig {
-  const GsyUiConfig({
+/// Used by Android GSY, Darwin SGPlayer, and Web Artplayer. Only a subset
+/// applies on each platform — see USAGE platform notes.
+class KineticUiConfig {
+  const KineticUiConfig({
     this.enableNativeControls = true,
     this.enableNativeControlsFullscreen = true,
     this.videoTitle = '',
@@ -45,6 +46,7 @@ class GsyUiConfig {
     this.thumbPlay = true,
     this.ijkEnableAccurateSeek = true,
     this.accentColor = const Color(kKineticDefaultAccentColor),
+    this.locale = 'zh',
   });
 
   /// Native chrome + pan gestures (seek / volume / brightness).
@@ -107,44 +109,51 @@ class GsyUiConfig {
   /// Chrome accent (seek bar, selected options, danmaku send). Default Bilibili pink.
   final Color accentColor;
 
-  Map<String, dynamic> toCreationParams() => <String, dynamic>{
-        'gsyUi': <String, dynamic>{
-          'enableNativeControls': enableNativeControls,
-          'enableNativeControlsFullscreen': enableNativeControlsFullscreen,
-          'videoTitle': videoTitle,
-          if (previewVttUrl != null) 'previewVttUrl': previewVttUrl,
-          'showFullscreenButton': showFullscreenButton,
-          'showLockButton': showLockButton,
-          'showVolumeToolbar': showVolumeToolbar,
-          'showSettingsButton': showSettingsButton,
-          'pictureInPictureEnabled': pictureInPictureEnabled,
-          'rotateViewAuto': rotateViewAuto,
-          'rotateWithSystem': rotateWithSystem,
-          'lockLand': lockLand,
-          'needOrientationUtils': needOrientationUtils,
-          'showFullAnimation': showFullAnimation,
-          'hideVirtualKey': hideVirtualKey,
-          'showPauseCover': showPauseCover,
-          'needShowWifiTip': needShowWifiTip,
-          'surfaceErrorPlay': surfaceErrorPlay,
-          'releaseWhenLossAudio': releaseWhenLossAudio,
-          'showDragProgressTextOnSeekBar': showDragProgressTextOnSeekBar,
-          'dismissControlTime': dismissControlTime,
-          'seekRatio': seekRatio,
-          'speed': speed,
-          'looping': looping,
-          if (seekOnStartMs >= 0) 'seekOnStartMs': seekOnStartMs,
-          'cacheWithPlay': cacheWithPlay,
-          'startAfterPrepared': startAfterPrepared,
-          'autoFullWithSize': autoFullWithSize,
-          'fullHideActionBar': fullHideActionBar,
-          'fullHideStatusBar': fullHideStatusBar,
-          'keepLastFrameWhenComplete': keepLastFrameWhenComplete,
-          if (coverUrl != null) 'coverUrl': coverUrl,
-          'thumbPlay': thumbPlay,
-          'ijkEnableAccurateSeek': ijkEnableAccurateSeek,
-          // ignore: deprecated_member_use — Color.value for Flutter 3.24 compat
-          'accentColor': accentColor.value,
-        },
-      };
+  /// Chrome language: `zh`, `en`, `vi`, `ms`, `id`, `fil`. Unknown codes fall back to `zh`.
+  final String locale;
+
+  Map<String, dynamic> toCreationParams() {
+    final resolvedLocale = KineticChromeStrings.normalize(locale);
+    return <String, dynamic>{
+      'ui': <String, dynamic>{
+        'enableNativeControls': enableNativeControls,
+        'enableNativeControlsFullscreen': enableNativeControlsFullscreen,
+        'videoTitle': videoTitle,
+        if (previewVttUrl != null) 'previewVttUrl': previewVttUrl,
+        'showFullscreenButton': showFullscreenButton,
+        'showLockButton': showLockButton,
+        'showVolumeToolbar': showVolumeToolbar,
+        'showSettingsButton': showSettingsButton,
+        'pictureInPictureEnabled': pictureInPictureEnabled,
+        'rotateViewAuto': rotateViewAuto,
+        'rotateWithSystem': rotateWithSystem,
+        'lockLand': lockLand,
+        'needOrientationUtils': needOrientationUtils,
+        'showFullAnimation': showFullAnimation,
+        'hideVirtualKey': hideVirtualKey,
+        'showPauseCover': showPauseCover,
+        'needShowWifiTip': needShowWifiTip,
+        'surfaceErrorPlay': surfaceErrorPlay,
+        'releaseWhenLossAudio': releaseWhenLossAudio,
+        'showDragProgressTextOnSeekBar': showDragProgressTextOnSeekBar,
+        'dismissControlTime': dismissControlTime,
+        'seekRatio': seekRatio,
+        'speed': speed,
+        'looping': looping,
+        if (seekOnStartMs >= 0) 'seekOnStartMs': seekOnStartMs,
+        'cacheWithPlay': cacheWithPlay,
+        'startAfterPrepared': startAfterPrepared,
+        'autoFullWithSize': autoFullWithSize,
+        'fullHideActionBar': fullHideActionBar,
+        'fullHideStatusBar': fullHideStatusBar,
+        'keepLastFrameWhenComplete': keepLastFrameWhenComplete,
+        if (coverUrl != null) 'coverUrl': coverUrl,
+        'thumbPlay': thumbPlay,
+        'ijkEnableAccurateSeek': ijkEnableAccurateSeek,
+        'accentColor': accentColor.toARGB32(),
+        'locale': resolvedLocale,
+        'strings': KineticChromeStrings.forLocale(resolvedLocale),
+      },
+    };
+  }
 }

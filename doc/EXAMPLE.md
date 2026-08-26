@@ -20,8 +20,8 @@ macOS 需 `MACOSX_DEPLOYMENT_TARGET = 11.0`（Example 已配置）。若在 Xcod
 
 ## 界面结构
 
-1. **视频区域** — `CommonVideoPlayerViewBuilder`；按平台注入 `GsyUiConfig` / `ArtplayerUiConfig`
-2. **公共控制** — 片源、音轨、倍速、音量/静音、循环、截图、Play/Pause/Seek
+1. **视频区域** — `CommonVideoPlayerViewBuilder`；按平台注入 `KineticUiConfig` / `ArtplayerUiConfig`
+2. **公共控制** — 片源、**控制栏语言**、音轨、倍速、音量/静音、循环、截图、Play/Pause/Seek
 3. **Android GSY** — 内核切换、GL 滤镜、字幕、弹幕、水印、片头/中插广告、GIF、保存截图、手动 PiP、播放列表、网速、Exo 视频轨、显示比例、纯播放、全屏；AppBar 进入**列表滑动自动播放**
 4. **iOS / macOS SG** — 旋转/镜像、封面/末帧、音高、VR/VRBox/视口、后台策略（iOS）、Demuxer、视频轨、多段资源、seekable、全屏
 5. **Web Artplayer** — 创建启用 danmuku / Document PiP / HLS·DASH 控制等；面板含 Video PiP、Document PiP、发送弹幕、可用插件列表

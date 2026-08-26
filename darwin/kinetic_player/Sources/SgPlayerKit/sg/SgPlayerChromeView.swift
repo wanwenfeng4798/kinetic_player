@@ -30,9 +30,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     weak var delegate: SgPlayerChromeDelegate?
 
-    /// Matches Android `kinetic_control_icon_size` (14dp) / GSY stock chrome.
-    private static let toolbarIconPointSize: CGFloat = 14
-    private static let toolbarButtonSize: CGFloat = 28
+    /// Matches Android `kinetic_control_icon_size` (20dp) / enlarged chrome.
+    private static let toolbarIconPointSize: CGFloat = 20
+    private static let toolbarButtonSize: CGFloat = 36
     private static let centerControlButtonSize: CGFloat = 60
     private static let centerControlIconPointSize: CGFloat = 26
     private static let lockButtonTrailingInset: CGFloat = 50
@@ -50,7 +50,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         weight: .semibold,
     )
 
-    private let config: SgUiConfig
+    private var config: SgUiConfig
     private let bottomPanel = UIView()
     private let progressRow = UIStackView()
     private let currentTimeLabel = UILabel()
@@ -110,6 +110,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         self.loopingEnabled = config.looping
         super.init(frame: .zero)
         KineticPlayerColors.applyAccent(argb: config.accentColor)
+        settingsPanel.applyStrings(config.strings)
         clipsToBounds = false
         isUserInteractionEnabled = true
         setupViews()
@@ -351,6 +352,8 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         addSubview(audioPanel)
 
         settingsPanel.translatesAutoresizingMaskIntoConstraints = false
+        settingsPanel.setContentHuggingPriority(.defaultHigh, for: .vertical)
+        settingsPanel.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         settingsPanel.isHidden = true
         settingsPanel.isUserInteractionEnabled = false
         settingsPanel.onSelectTrack = { [weak self] index in
@@ -436,13 +439,14 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             progressRow.trailingAnchor.constraint(equalTo: bottomPanel.trailingAnchor, constant: -8),
             progressRow.topAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: 4),
             progressRow.bottomAnchor.constraint(equalTo: bottomPanel.bottomAnchor, constant: -4),
-            progressRow.heightAnchor.constraint(equalToConstant: 36),
+            progressRow.heightAnchor.constraint(equalToConstant: 44),
 
             audioPanel.centerXAnchor.constraint(equalTo: volumeButton.centerXAnchor),
             audioPanel.bottomAnchor.constraint(equalTo: volumeButton.topAnchor, constant: -6),
 
             settingsPanel.trailingAnchor.constraint(equalTo: settingsButton.trailingAnchor),
             settingsPanel.bottomAnchor.constraint(equalTo: settingsButton.topAnchor, constant: -6),
+            settingsPanel.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8),
 
             ratePanel.centerXAnchor.constraint(equalTo: rateButton.centerXAnchor),
             ratePanel.bottomAnchor.constraint(equalTo: rateButton.topAnchor, constant: -6),
@@ -495,6 +499,26 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         bottomPanel.isUserInteractionEnabled = controlsVisible
         centerPlayButton.isUserInteractionEnabled = controlsVisible
         updateLockButtonVisibility()
+    }
+
+    func applyUiConfig(_ next: SgUiConfig) {
+        config = next
+        KineticPlayerColors.applyAccent(argb: next.accentColor)
+        settingsPanel.applyStrings(next.strings)
+        applyConfig()
+        reloadRatePanel()
+    }
+
+    func applyChromeLocale(locale: String, strings: [String: String]) {
+        config.locale = locale
+        config.strings = strings
+        settingsPanel.applyStrings(strings)
+        reloadRatePanel()
+    }
+
+    private func chromeString(_ key: String, _ fallback: String) -> String {
+        if let value = config.strings[key], !value.isEmpty { return value }
+        return fallback
     }
 
     private func updateCenterPlayIcon() {
@@ -582,7 +606,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         let options = Self.rateOptions.map { rate in
             (label: Self.formatRateLabel(rate), selected: abs(rate - currentRate) < 0.001)
         }
-        ratePanel.reload(title: "倍速", options: options)
+        ratePanel.reload(title: chromeString("kinetic_rate_title", "倍速"), options: options)
     }
 
     private static func formatRateLabel(_ rate: Double) -> String {
@@ -1121,8 +1145,8 @@ private final class SgChromeIconButton: NSButton {
 final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     weak var delegate: SgPlayerChromeDelegate?
 
-    private static let toolbarIconPointSize: CGFloat = 14
-    private static let toolbarButtonSize: CGFloat = 28
+    private static let toolbarIconPointSize: CGFloat = 20
+    private static let toolbarButtonSize: CGFloat = 36
     private static let centerControlButtonSize: CGFloat = 60
     private static let centerControlIconPointSize: CGFloat = 26
     private static let lockButtonTrailingInset: CGFloat = 50
@@ -1130,7 +1154,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private static let seekHoldTimeout: CFTimeInterval = 1.5
     private static let rateOptions: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
-    private let config: SgUiConfig
+    private var config: SgUiConfig
     private let bottomPanel = NSView()
     private let progressRow = NSStackView()
     private let currentTimeLabel = NSTextField(labelWithString: "00:00")
@@ -1181,6 +1205,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         super.init(frame: .zero)
         KineticPlayerColors.applyAccent(argb: config.accentColor)
         wantsLayer = true
+        settingsPanel.applyStrings(config.strings)
         setupViews()
         applyConfig()
         updateRateButtonTitle()
@@ -1269,7 +1294,9 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         let anchorFrame = anchor.convert(anchor.bounds, to: self)
         panel.layoutSubtreeIfNeeded()
         let resolvedWidth = width ?? max(panel.fittingSize.width, 1)
-        let height = max(panel.fittingSize.height, 1)
+        let unconstrainedHeight = max(panel.fittingSize.height, 1)
+        let maxHeight = max(anchorFrame.minY - gap - edgeInset, 1)
+        let height = min(unconstrainedHeight, maxHeight)
         let originX: CGFloat
         switch align {
         case .center:
@@ -1278,7 +1305,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             originX = anchorFrame.maxX - resolvedWidth
         }
         let clampedX = min(max(originX, edgeInset), max(edgeInset, bounds.width - resolvedWidth - edgeInset))
-        let originY = anchorFrame.minY - gap - height
+        let originY = max(edgeInset, anchorFrame.minY - gap - height)
         panel.frame = NSRect(x: clampedX, y: originY, width: resolvedWidth, height: height)
     }
 
@@ -1616,7 +1643,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             progressRow.trailingAnchor.constraint(equalTo: bottomPanel.trailingAnchor, constant: -8),
             progressRow.topAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: 4),
             progressRow.bottomAnchor.constraint(equalTo: bottomPanel.bottomAnchor, constant: -4),
-            progressRow.heightAnchor.constraint(equalToConstant: 36),
+            progressRow.heightAnchor.constraint(equalToConstant: 44),
             progressSlider.heightAnchor.constraint(equalToConstant: 20),
         ])
 
@@ -1649,6 +1676,26 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         setInteractive(bottomPanel, enabled: controlsVisible)
         centerPlayButton.isEnabled = controlsVisible
         updateLockButtonVisibility()
+    }
+
+    func applyUiConfig(_ next: SgUiConfig) {
+        config = next
+        KineticPlayerColors.applyAccent(argb: next.accentColor)
+        settingsPanel.applyStrings(next.strings)
+        applyConfig()
+        reloadRatePanel()
+    }
+
+    func applyChromeLocale(locale: String, strings: [String: String]) {
+        config.locale = locale
+        config.strings = strings
+        settingsPanel.applyStrings(strings)
+        reloadRatePanel()
+    }
+
+    private func chromeString(_ key: String, _ fallback: String) -> String {
+        if let value = config.strings[key], !value.isEmpty { return value }
+        return fallback
     }
 
     private func updateCenterPlayIcon() {
@@ -1796,7 +1843,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         let options = Self.rateOptions.map { rate in
             (label: Self.formatRateLabel(rate), selected: abs(rate - currentRate) < 0.001)
         }
-        ratePanel.reload(title: "倍速", options: options)
+        ratePanel.reload(title: chromeString("kinetic_rate_title", "倍速"), options: options)
     }
 
     private static func formatRateLabel(_ rate: Double) -> String {

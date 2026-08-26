@@ -2,6 +2,8 @@
 
 English version: [USAGE_EN.md](USAGE_EN.md)
 
+最低 SDK：**Dart 3.12 / Flutter 3.44**。宿主应用请依赖 `material_ui: ^1.1.0`，并 `import 'package:material_ui/material_ui.dart'`（不要再 `import package:flutter/material.dart`）。
+
 ## 架构概览
 
 ```
@@ -161,9 +163,10 @@ Web 独有能力（`artPlugins`、HLS/DASH、Document PiP、弹幕 API、TS 打�
 CommonVideoPlayerViewBuilder(
   url: videoUrl,
   creationParams: ArtplayerUiConfig(
-    ui: const GsyUiConfig(
+    ui: const KineticUiConfig(
       enableNativeControls: true,
       pictureInPictureEnabled: true,
+      locale: 'zh',
     ),
     artPlugins: {
       ArtplayerPluginKeys.hlsControl: true,
@@ -191,6 +194,7 @@ CommonVideoPlayerViewBuilder(
 | `getDuration()` / `getCurrentPosition()` | 读取当前进度（与 `duration`/`position` 一致） |
 | `getVideoSize()` | 视频宽高 |
 | `setLooping(bool)` | 循环（Android GSY 原生；iOS 播放结束时 seek(0)+play） |
+| `setLocale(String)` | 控制栏语言（`zh` / `en` / `vi` / `ms` / `id` / `fil`；创建时用 `KineticUiConfig.locale`） |
 | `captureFrame({highQuality, includeOverlay})` | 截图（Android 可含 UI overlay） |
 | `dispose()` | 释放 |
 | `playerState` | `ValueNotifier<CommonPlayerState>` |
@@ -211,15 +215,18 @@ CommonVideoPlayerViewBuilder(
 ```dart
 CommonVideoPlayerViewBuilder(
   url: videoUrl,
-  creationParams: const GsyUiConfig(
-    enableNativeControls: true,
-    showFullscreenButton: true,
-    showLockButton: true,
-    showVolumeToolbar: true,      // 底部喇叭按钮（弹出竖向音量条）
-    showSettingsButton: true,     // 底部齿轮按钮（弹出设置面板，含音轨）
-    pictureInPictureEnabled: true, // Android 默认开启 PiP
-    previewVttUrl: 'https://example.com/thumbs.vtt',
-  ).toCreationParams(),
+  creationParams: {
+    ...const KineticUiConfig(
+      enableNativeControls: true,
+      showFullscreenButton: true,
+      showLockButton: true,
+      showVolumeToolbar: true,      // 底部喇叭按钮（弹出竖向音量条）
+      showSettingsButton: true,     // 底部齿轮按钮（弹出设置面板，含音轨）
+      pictureInPictureEnabled: true, // Android 默认开启 PiP
+      previewVttUrl: 'https://example.com/thumbs.vtt',
+      locale: 'zh', // zh / en / vi / ms / id / fil
+    ).toCreationParams(),
+  },
   builder: (controller) {
     // 保存 controller 引用
   },
@@ -241,7 +248,9 @@ CommonVideoPlayerView(
 
 ## 原生控制栏 UI（双端对齐）
 
-Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏；默认强调色为 B 站粉 `#FB7299`（可通过 `GsyUiConfig.accentColor` 覆盖）。底栏含倍速弹窗；Android Exo 多档源时另显示清晰度（含「自动」）。
+Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏；默认强调色为 B 站粉 `#FB7299`（可通过 `KineticUiConfig.accentColor` 覆盖）。底栏含倍速弹窗；Android Exo 多档源时另显示清晰度（含「自动」）。设置面板（一级 / 二级）超出可用高度时可滚动。Android 第二行弹幕输入框始终显示，点击弹幕图标启用或禁用输入（同时开关弹幕画布）。
+
+控制栏文案语言由公共配置 `KineticUiConfig.locale` 决定（`zh` / `en` / `vi` / `ms` / `id` / `fil`，默认 `zh`；未知码回退中文）。`toCreationParams()` 把 `locale` 与 `KineticChromeStrings` 文案表放进 `creationParams['ui']`。Darwin 走共享源 `SgUiConfig.strings`，不使用独立 `.lproj`。运行时调用 `controller.setLocale(...)` 热切换（不要用 `gsySetUiConfig` 改语言）。
 
 | 能力 | Android | iOS | macOS | 配置 |
 |------|---------|-----|-------|------|
@@ -251,7 +260,7 @@ Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制�
 | **音量** | ✅ | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条；拖动时在滑轨**左侧**显示百分比（如 `50%`），松手后隐藏 |
 | **手势** | ✅ | ✅ | ❌ | Android / iOS：`enableNativeControls` 横向调进度、左半屏亮度、右半屏音量。macOS 在 Flutter `AppKitView` 内滑动不可靠且无系统亮度 API，改为与音轨相同的按钮弹窗：进度条 seek、喇叭调音量、齿轮选音轨 |
 | **音轨** | ✅ | ✅ | ✅ | 点击**齿轮（设置）**弹出面板选择；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
-| 全屏 | ✅ | ✅ | ✅ | 全屏按钮（与设置/音量图标同尺寸 28dp）/ `gsyStartFullscreen()` / `sgStartFullscreen()` |
+| 全屏 | ✅ | ✅ | ✅ | 全屏按钮（与设置/音量图标同尺寸 36dp）/ `gsyStartFullscreen()` / `sgStartFullscreen()` |
 | 画中画 PiP | ✅ 默认开启 | ❌ | ❌ | `pictureInPictureEnabled`（Android）/ Web 见下 |
 
 > **音量（Android）**：开启 `showVolumeToolbar` 后，画面右侧滑动调节的是**播放器音量**（与喇叭弹窗同源），不再用系统音量条。音量弹窗打开或正在拖动滑轨时，右侧滑动调音量会被暂时禁用，避免与竖向滑轨冲突。
@@ -282,7 +291,7 @@ if (controller is GSYVideoControllerImpl) {
   await controller.gsyToggleDanmaku(enabled: true);
   await controller.gsyStartFullscreen();
   await controller.gsySetPreviewVttUrl('https://example.com/thumbs.vtt');
-  await controller.gsySetUiConfig(const GsyUiConfig(videoTitle: 'Demo'));
+  await controller.gsySetUiConfig(const KineticUiConfig(videoTitle: 'Demo'));
   await controller.gsyEnterPictureInPicture(); // 手动进入 PiP
   await controller.gsySetRenderRotation(90);
   await controller.gsySetMirrorHorizontal(enabled: true);
@@ -292,7 +301,9 @@ if (controller is GSYVideoControllerImpl) {
 }
 ```
 
-#### GSY 原生 UI 配置项（`GsyUiConfig`）
+#### 公共 UI 配置项（`KineticUiConfig`）
+
+Android / iOS / macOS / Web 共用。创建时经 `creationParams['ui']` 下发；Android 运行时可用 `gsySetUiConfig` 更新外观（**不**改语言）。
 
 | 字段 | 默认 | 说明 |
 |------|------|------|
@@ -314,6 +325,7 @@ if (controller is GSYVideoControllerImpl) {
 | `thumbPlay` | `true` | 点击封面开始播放（Android） |
 | `ijkEnableAccurateSeek` | `true` | IJK 精确 seek，减轻拖动进度条关键帧回弹（仅 IJK 内核） |
 | `cacheWithPlay` | `true` | 边播边缓（HttpProxyCache）； |
+| `locale` | `'zh'` | 控制栏语言：`zh` / `en` / `vi` / `ms` / `id` / `fil` |
 
 其他 GSY 能力（滤镜、截图、GIF、字幕、列表等）见 [GSY_FEATURES.md](GSY_FEATURES.md)。
 
@@ -357,7 +369,7 @@ if (controller is SGVideoControllerImpl) {
 | `sgGetVideoTracks` / `sgSelectVideoTrack` | 视频轨 |
 | `sgSetBackgroundPlaybackPolicy` | 后台 / 中断策略 |
 
-`creationParams` / `gsyUi` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（Apple 端读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`。
+`creationParams` / `ui` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（Apple 端读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`、`locale`。
 
 ### Web — ArtplayerVideoControllerImpl
 
@@ -381,7 +393,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 
 | 能力 | Android (GSY) | iOS / macOS (SGPlayer) | Web (Artplayer) |
 |------|---------------|------------------------|-----------------|
-| 循环 | 原生 `isLooping`；`GsyUiConfig.looping` 创建生效 | 结束时 `seek(0)+play`；`GsyUiConfig.looping` / `speed` 创建生效 | Artplayer `loop` / 结束重播 |
+| 循环 | 原生 `isLooping`；`KineticUiConfig.looping` 创建生效 | 结束时 `seek(0)+play`；`KineticUiConfig.looping` / `speed` 创建生效 | Artplayer `loop` / 结束重播 |
 | 截图 overlay | `captureFrame(includeOverlay: true)` 含 UI | `includeOverlay` 无效 | 当前帧 canvas（跨域可能失败） |
 | 换源 | 重建播放器 | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
 | 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()`（应用内 overlay） | Artplayer `fullscreen` 控件 |
@@ -399,7 +411,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 | 缓冲 / 错误详情 | — | `buffered` / `playerError` | `error` 状态 |
 | 部署注意 | IJK 默认 arm64；混淆需宿主 ProGuard 规则；需转发 `handleBackPressed` | iOS：真机；macOS 11+；沙盒需 `network.client` | Chrome / Safari / 移动 Web；注意自动播放策略 |
 
-`GsyUiConfig` 字段中，Darwin（SG）实际生效的主要有：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`showLockButton`、`dismissControlTime`、`coverUrl`、`keepLastFrameWhenComplete`、`speed`、`looping`、`accentColor`。`pictureInPictureEnabled` 在 Apple 端**无效**（无系统 PiP）。`previewVttUrl` / `cacheWithPlay` / `rotateViewAuto` / `thumbPlay` 等为 **Android 专用**。
+`KineticUiConfig` 字段中，Darwin（SG）实际生效的主要有：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`showLockButton`、`dismissControlTime`、`coverUrl`、`keepLastFrameWhenComplete`、`speed`、`looping`、`accentColor`、`locale`。创建时语言走 `ui.locale` / `ui.strings`；运行时热切换用 `setLocale`，不是 `gsySetUiConfig`。`pictureInPictureEnabled` 在 Apple 端**无效**（无系统 PiP）。`previewVttUrl` / `cacheWithPlay` / `rotateViewAuto` / `thumbPlay` 等为 **Android 专用**。
 
 
 ## 监听状态
@@ -419,5 +431,5 @@ controller.position.addListener(() {
 1. 每个 `CommonVideoPlayerViewBuilder` 会在 dispose 时自动释放 controller；若手动持有 controller，需在页面 dispose 时调用 `controller.dispose()`。
 2. Android Activity 需转发 `onConfigurationChanged`、`onBackPressed`、`onUserLeaveHint`（见上文 Android 集成节）。
 3. iOS 需在真机测试 SGPlayer；macOS 需 11.0+，并开启出站网络 entitlement。
-4. 关闭画中画：`GsyUiConfig(pictureInPictureEnabled: false)`。
+4. 关闭画中画：`KineticUiConfig(pictureInPictureEnabled: false)`。
 5. Web 使用 Artplayer.js；独有能力见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。修改 `web/src` 后执行 `npm run build`。自动播放受浏览器策略限制。

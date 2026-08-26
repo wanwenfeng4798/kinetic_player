@@ -446,6 +446,12 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             coverOverlay.setCoverUrl(args?["url"] as? String)
             syncCoverVisibility()
             result(nil)
+        case "setLocale":
+            let args = call.arguments as? [String: Any]
+            let locale = args?["locale"] as? String ?? "zh"
+            let strings = SgUiConfig.parseStrings(args?["strings"])
+            chrome.applyChromeLocale(locale: locale, strings: strings)
+            result(nil)
         case "dispose":
             if fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.exitFullscreen()

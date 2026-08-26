@@ -107,6 +107,12 @@ export class ArtplayerWebBridge {
       case 'setLooping':
         adapter.setLooping(Boolean(args['looping']));
         return null;
+      case 'setLocale':
+        adapter.applyLocale(
+          typeof args['locale'] === 'string' ? args['locale'] : undefined,
+          (args['strings'] as Record<string, string> | undefined) ?? undefined,
+        );
+        return null;
       case 'captureFrame':
         return adapter.captureFrame();
       case 'togglePip':
@@ -117,7 +123,7 @@ export class ArtplayerWebBridge {
       case 'artIsPipActive':
         return adapter.isPipActive;
       case 'artSetUiConfig':
-        adapter.applyUiConfig((args['gsyUi'] as ArtplayerUiConfig) ?? (args as ArtplayerUiConfig));
+        adapter.applyUiConfig(args['ui'] as ArtplayerUiConfig | undefined);
         return null;
       case 'artAvailablePlugins':
         return [...KineticArtplayerAdapter.availablePlugins];

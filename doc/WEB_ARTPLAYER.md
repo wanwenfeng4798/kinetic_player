@@ -69,39 +69,42 @@ npm run build   # → assets/web/kinetic_artplayer.js
 ```dart
 CommonVideoPlayerViewBuilder(
   url: videoUrl, // .m3u8 / .mpd 自动挂 HLS/DASH
-  creationParams: ArtplayerUiConfig(
-    ui: const GsyUiConfig(
-      enableNativeControls: true,
-      showFullscreenButton: true,
-      pictureInPictureEnabled: true,
-      coverUrl: 'https://example.com/cover.jpg',
-    ),
-    artPlugins: {
-      ArtplayerPluginKeys.danmuku: {
-        'danmuku': [
-          {'text': 'hello', 'time': 1},
-        ],
+  creationParams: {
+    ...ArtplayerUiConfig(
+      ui: const KineticUiConfig(
+        enableNativeControls: true,
+        showFullscreenButton: true,
+        pictureInPictureEnabled: true,
+        coverUrl: 'https://example.com/cover.jpg',
+        locale: 'zh',
+      ),
+      artPlugins: {
+        ArtplayerPluginKeys.danmuku: {
+          'danmuku': [
+            {'text': 'hello', 'time': 1},
+          ],
+        },
+        ArtplayerPluginKeys.hlsControl: true,
+        ArtplayerPluginKeys.vttThumbnail: {
+          'vtt': 'https://example.com/thumbs.vtt',
+        },
+        ArtplayerPluginKeys.documentPip: true,
       },
-      ArtplayerPluginKeys.hlsControl: true,
-      ArtplayerPluginKeys.vttThumbnail: {
-        'vtt': 'https://example.com/thumbs.vtt',
+      artplayerOptions: {
+        // 透传给 new Artplayer({...})：theme / layers 等
       },
-      ArtplayerPluginKeys.documentPip: true,
-    },
-    artplayerOptions: {
-      // 透传给 new Artplayer({...})：theme / layers 等
-    },
-    webCustomExtensions: {
-      // 宿主扩展钩子（可选）
-    },
-  ).toCreationParams(),
+      webCustomExtensions: {
+        // 宿主扩展钩子（可选）
+      },
+    ).toCreationParams(),
+  },
   builder: (controller) { /* … */ },
 );
 ```
 
 | 字段 | 说明 |
 |------|------|
-| `ui` | 复用 `GsyUiConfig` 键（控制栏 / PiP / 封面 / 循环 / 倍速等） |
+| `ui` | 复用 `KineticUiConfig`（控制栏 / PiP / 封面 / 循环 / 倍速 / `locale`）。语言随 `ui.locale` + `ui.strings` 下发，映射 Artplayer `lang`；`vi` / `ms` / `fil` 用同一份 `KineticChromeStrings` 补 i18n |
 | `artPlugins` | 声明式启用官方插件（见下表） |
 | `artplayerOptions` | 透传 Artplayer Option |
 | `webCustomExtensions` | 宿主自定义扩展；也可内嵌 `artPlugins` |

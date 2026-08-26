@@ -24,6 +24,7 @@ Android uses **GSYVideoPlayer 13.1.0**. This doc lists **fully delivered** Andro
 | Detail seamless handoff | ❌ | Removed (`gsySeamlessHandoffParams` deleted) |
 | AliPlayer / customRatio | ❌ | Removed / unavailable |
 | Pure play mode | ✅ | Hides gestures, chrome buttons, volume, settings, title |
+| Chrome locale | ✅ | `KineticUiConfig.locale` + `setLocale` / `KineticChromeStrings`: `zh` / `en` / `vi` / `ms` / `id` / `fil` |
 | Subtitles / GIF / screenshot / rotation / mirror / filters | ✅ | Follow fullscreen window when applicable |
 | Android PiP | ✅ | Host Manifest + lifecycle required (⚠️) |
 | iOS/macOS PiP | ❌ | |

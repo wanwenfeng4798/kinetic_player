@@ -2,6 +2,8 @@
 
 Chinese version: [USAGE.md](USAGE.md)
 
+Minimum SDK: **Dart 3.12 / Flutter 3.44**. Host apps should depend on `material_ui: ^1.1.0` and `import 'package:material_ui/material_ui.dart'` (do not `import package:flutter/material.dart`).
+
 ## Architecture Overview
 
 ```
@@ -152,9 +154,10 @@ Web-only features (plugins, HLS/DASH, Document PiP, rebuild) are in a dedicated 
 CommonVideoPlayerViewBuilder(
   url: videoUrl,
   creationParams: ArtplayerUiConfig(
-    ui: const GsyUiConfig(
+    ui: const KineticUiConfig(
       enableNativeControls: true,
       pictureInPictureEnabled: true,
+      locale: 'zh',
     ),
     artPlugins: {
       ArtplayerPluginKeys.hlsControl: true,
@@ -182,6 +185,7 @@ CommonVideoPlayerViewBuilder(
 | `getDuration()` / `getCurrentPosition()` | Read current progress (matches `duration`/`position`) |
 | `getVideoSize()` | Video size (width/height) |
 | `setLooping(bool)` | Looping (Android GSY native; iOS seeks(0)+play after completion) |
+| `setLocale(String)` | Chrome language (`zh` / `en` / `vi` / `ms` / `id` / `fil`; set `KineticUiConfig.locale` at create) |
 | `captureFrame({highQuality, includeOverlay})` | Screenshot (Android can include UI overlay) |
 | `dispose()` | Release |
 | `playerState` | `ValueNotifier<CommonPlayerState>` |
@@ -202,15 +206,18 @@ Automatically creates a PlatformView and calls back the controller when ready:
 ```dart
 CommonVideoPlayerViewBuilder(
   url: videoUrl,
-  creationParams: const GsyUiConfig(
-    enableNativeControls: true,
-    showFullscreenButton: true,
-    showLockButton: true,
-    showVolumeToolbar: true,      // Bottom speaker button (popup vertical volume bar)
-    showSettingsButton: true,     // Bottom gear button (popup settings panel; includes audio tracks)
-    pictureInPictureEnabled: true, // Android PiP enabled by default
-    previewVttUrl: 'https://example.com/thumbs.vtt',
-  ).toCreationParams(),
+  creationParams: {
+    ...const KineticUiConfig(
+      enableNativeControls: true,
+      showFullscreenButton: true,
+      showLockButton: true,
+      showVolumeToolbar: true,      // Bottom speaker button (popup vertical volume bar)
+      showSettingsButton: true,     // Bottom gear button (popup settings panel; includes audio tracks)
+      pictureInPictureEnabled: true, // Android PiP enabled by default
+      previewVttUrl: 'https://example.com/thumbs.vtt',
+      locale: 'zh', // zh / en / vi / ms / id / fil
+    ).toCreationParams(),
+  },
   builder: (controller) {
     // Keep controller reference
   },
@@ -232,7 +239,9 @@ CommonVideoPlayerView(
 
 ## Native control bar UI (aligned across platforms)
 
-Android (GSY) and iOS / macOS (SGPlayer) both use a Bilibili-style native bottom control bar. Default accent is Bilibili pink `#FB7299` (override via `GsyUiConfig.accentColor`). The toolbar includes a playback-rate popup; on Android Exo with multiple video tracks, a quality picker (including Auto) is shown.
+Android (GSY) and iOS / macOS (SGPlayer) both use a Bilibili-style native bottom control bar. Default accent is Bilibili pink `#FB7299` (override via `KineticUiConfig.accentColor`). The toolbar includes a playback-rate popup; on Android Exo with multiple video tracks, a quality picker (including Auto) is shown. Settings (level 1 / 2) scroll when they exceed available height. On Android the danmaku input stays visible; tapping the danmaku icon enables or disables it (and the overlay).
+
+Chrome copy follows `KineticUiConfig.locale` (`zh` / `en` / `vi` / `ms` / `id` / `fil`, default `zh`). `toCreationParams()` puts `locale` and the `KineticChromeStrings` table under `creationParams['ui']`. Darwin uses shared `SgUiConfig.strings` (no `.lproj`). Hot-swap with `controller.setLocale(...)` (do not use `gsySetUiConfig` to change language).
 
 | Capability | Android | iOS | macOS | Configuration |
 |---|---|---|---|---|
@@ -242,7 +251,7 @@ Android (GSY) and iOS / macOS (SGPlayer) both use a Bilibili-style native bottom
 | **Volume** | ✅ | ✅ | ✅ | Tap **speaker** to pop up vertical volume bar; while dragging show percentage on the **left** of the slider (e.g. `50%`); hide when release |
 | **Gestures** | ✅ | ✅ | ❌ | Android / iOS: `enableNativeControls` — horizontal seek; left half brightness; right half volume. macOS pans are unreliable inside Flutter `AppKitView` and there is no public brightness API — use the same button/popup pattern as audio tracks: progress slider seek, speaker volume, gear tracks |
 | **Audio tracks** | ✅ | ✅ | ✅ | Tap **gear (settings)** to open the panel; or use Dart `getAudioTracks` / `selectAudioTrack` |
-| Fullscreen | ✅ | ✅ | ✅ | Fullscreen button (same size as settings/volume icons, 28dp) / `gsyStartFullscreen()` / `sgStartFullscreen()` |
+| Fullscreen | ✅ | ✅ | ✅ | Fullscreen button (same size as settings/volume icons, 36dp) / `gsyStartFullscreen()` / `sgStartFullscreen()` |
 | Picture-in-Picture PiP | ✅ default | ❌ | ❌ | `pictureInPictureEnabled` (Android only) |
 
 > **Volume (Android)**: when `showVolumeToolbar` is enabled, the right-side slider adjusts **player volume** (same source as the speaker popup), instead of the system volume slider. While the volume popup is open or dragging the slider, the right-side volume slider is temporarily disabled to avoid conflicts.
@@ -273,7 +282,7 @@ if (controller is GSYVideoControllerImpl) {
   await controller.gsyToggleDanmaku(enabled: true);
   await controller.gsyStartFullscreen();
   await controller.gsySetPreviewVttUrl('https://example.com/thumbs.vtt');
-  await controller.gsySetUiConfig(const GsyUiConfig(videoTitle: 'Demo'));
+  await controller.gsySetUiConfig(const KineticUiConfig(videoTitle: 'Demo'));
   await controller.gsyEnterPictureInPicture(); // manual PiP
   await controller.gsySetRenderRotation(90);
   await controller.gsySetMirrorHorizontal(enabled: true);
@@ -283,7 +292,9 @@ if (controller is GSYVideoControllerImpl) {
 }
 ```
 
-#### GSY native UI configuration items (`GsyUiConfig`)
+#### Shared UI configuration (`KineticUiConfig`)
+
+Used on Android / iOS / macOS / Web. Serialized under `creationParams['ui']`. Android can update chrome at runtime with `gsySetUiConfig` (**does not** change language).
 
 | Field | Default | Description |
 |---|---|---|
@@ -293,6 +304,7 @@ if (controller is GSYVideoControllerImpl) {
 | `showLockButton` | `true` | Lock button (Android) |
 | `showVolumeToolbar` | `true` | Speaker button + vertical volume popup |
 | `showSettingsButton` | `true` | Gear button + settings panel (audio tracks) |
+| `accentColor` | `#FB7299` | Seek bar / selected-state accent |
 | `pictureInPictureEnabled` | `true` | Android enters PiP automatically when backgrounding (API 26+) |
 | `showDragProgressTextOnSeekBar` | `false` | Show time text while dragging seek bar |
 | `previewVttUrl` | — | Seek bar thumbnail WebVTT |
@@ -304,6 +316,7 @@ if (controller is GSYVideoControllerImpl) {
 | `thumbPlay` | `true` | tap cover to start playing (Android) |
 | `ijkEnableAccurateSeek` | `true` | IJK accurate seek reduces keyframe bounce when dragging seek bar (IJK-only) |
 | `cacheWithPlay` | `true` | play while caching (HttpProxyCache) |
+| `locale` | `'zh'` | Chrome language: `zh` / `en` / `vi` / `ms` / `id` / `fil` |
 
 Other GSY capabilities (filters, screenshots, GIF, subtitles, playlist, etc.) see [GSY_FEATURES_EN.md](GSY_FEATURES_EN.md).
 
@@ -347,7 +360,7 @@ if (controller is SGVideoControllerImpl) {
 | `sgGetVideoTracks` / `sgSelectVideoTrack` | Video track |
 | `sgSetBackgroundPlaybackPolicy` | Background / interruption policy |
 
-`creationParams` / `gsyUi` fields: `enableNativeControls`, `showVolumeToolbar`, `showSettingsButton`, `showFullscreenButton`, `dismissControlTime`, `pictureInPictureEnabled` (read on Apple side but not effective), `coverUrl`, `keepLastFrameWhenComplete`.
+`creationParams` / `ui` fields: `enableNativeControls`, `showVolumeToolbar`, `showSettingsButton`, `showFullscreenButton`, `dismissControlTime`, `pictureInPictureEnabled` (read on Apple side but not effective), `coverUrl`, `keepLastFrameWhenComplete`, `locale`.
 
 ### Web — ArtplayerVideoControllerImpl
 
@@ -371,7 +384,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 
 | Capability | Android (GSY) | iOS / macOS (SGPlayer) | Web (Artplayer) |
 |---|---|---|---|
-| Loop | native `isLooping`; `GsyUiConfig.looping` at create | seek(0)+play; `speed`/`looping` at create | Artplayer `loop` / replay on ended |
+| Loop | native `isLooping`; `KineticUiConfig.looping` at create | seek(0)+play; `speed`/`looping` at create | Artplayer `loop` / replay on ended |
 | Screenshot overlay | `captureFrame(includeOverlay: true)` includes UI | `includeOverlay` ineffective | canvas frame (CORS may fail) |
 | Switch source | rebuild player | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
 | Fullscreen | `gsyStartFullscreen()` | `sgStartFullscreen()` (in-app overlay) | Artplayer fullscreen control |
@@ -389,7 +402,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 | Buffered / error details | — | `buffered` / `playerError` | `error` state |
 | Deployment notes | Default IJK is arm64; host ProGuard / `handleBackPressed` | iOS device; macOS 11+; sandbox `network.client` | Chrome / Safari / mobile Web; autoplay policy |
 
-`GsyUiConfig` fields actually applied on Darwin (SG): `enableNativeControls`, `showVolumeToolbar`, `showSettingsButton`, `showFullscreenButton`, `dismissControlTime`, `coverUrl`, `keepLastFrameWhenComplete`, `speed`, `looping`. `pictureInPictureEnabled` is **ignored** on Apple. `previewVttUrl` / `cacheWithPlay` / rotate / `thumbPlay` are **Android-only**.
+`KineticUiConfig` fields actually applied on Darwin (SG): `enableNativeControls`, `showVolumeToolbar`, `showSettingsButton`, `showFullscreenButton`, `showLockButton`, `dismissControlTime`, `coverUrl`, `keepLastFrameWhenComplete`, `speed`, `looping`, `accentColor`, `locale`. Create-time language uses `ui.locale` / `ui.strings`; hot-swap with `setLocale`, not `gsySetUiConfig`. `pictureInPictureEnabled` is **ignored** on Apple. `previewVttUrl` / `cacheWithPlay` / rotate / `thumbPlay` are **Android-only**.
 
 ## Listeners
 
@@ -408,6 +421,6 @@ controller.position.addListener(() {
 1. Each `CommonVideoPlayerViewBuilder` automatically releases the controller on dispose. If you manually hold a controller, dispose it when your page is disposed.
 2. Android Activity should forward `onConfigurationChanged`, `onBackPressed`, `onUserLeaveHint` (see the Android integration section).
 3. iOS needs device testing for SGPlayer features; macOS requires 11.0+ and outbound network entitlement.
-4. Disable PiP: `GsyUiConfig(pictureInPictureEnabled: false)`.
+4. Disable PiP: `KineticUiConfig(pictureInPictureEnabled: false)`.
 5. Web uses Artplayer.js; platform-only details live in [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md). Rebuild with `npm run build` after editing `web/src`.
 

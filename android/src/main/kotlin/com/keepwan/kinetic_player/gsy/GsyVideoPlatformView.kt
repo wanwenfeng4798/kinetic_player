@@ -47,6 +47,7 @@ class GsyVideoPlatformView(
     init {
         channel.setMethodCallHandler(this)
         player.applyUiConfig(uiConfig)
+        player.applyChromeLocale(uiConfig.strings)
         @Suppress("UNCHECKED_CAST")
         val playlist = creationParams?.get("playlist") as? List<*>
         val playlistUrls =
@@ -117,6 +118,10 @@ class GsyVideoPlatformView(
                 player.setLooping(call.argument<Boolean>("looping") ?: false)
                 result.success(null)
             }
+            "setLocale" -> {
+                player.applyChromeLocale(GsyUiConfig.parseChromeStrings(call.argument("strings")))
+                result.success(null)
+            }
             "captureFrame" -> {
                 val high = call.argument<Boolean>("highQuality") ?: true
                 val withView = call.argument<Boolean>("includeOverlay") ?: false
@@ -143,8 +148,8 @@ class GsyVideoPlatformView(
             }
             "gsySetUiConfig" -> {
                 @Suppress("UNCHECKED_CAST")
-                val ui = call.argument<Map<String, Any?>>("gsyUi")
-                player.applyUiConfig(GsyUiConfig.fromCreationParams(mapOf("gsyUi" to ui)))
+                val ui = call.argument<Map<String, Any?>>("ui")
+                player.applyUiConfig(GsyUiConfig.fromCreationParams(mapOf("ui" to ui)))
                 result.success(null)
             }
             "gsySetGsyShowType" -> {

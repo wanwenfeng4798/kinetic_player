@@ -211,6 +211,10 @@ class GsyNativePlayer(
         syncPictureInPictureParams()
     }
 
+    fun applyChromeLocale(strings: Map<String, String>) {
+        playerView.applyChromeLocale(strings)
+    }
+
     fun setKeepLastFrameWhenComplete(enabled: Boolean) {
         uiConfig = uiConfig.copy(keepLastFrameWhenComplete = enabled)
         playerView.setKeepLastFrameWhenComplete(enabled)

@@ -1,3 +1,18 @@
+## 2.0.3
+
+### Features
+
+- **Danmaku input** (Android): the input field stays visible; tapping the danmaku icon enables/disables it and toggles the overlay together.
+- **Settings panel scroll**: first- and second-level settings clamp to available height and scroll (Android GSY and Darwin SGPlayer).
+- **Chrome locale**: `KineticUiConfig.locale` plus common `setLocale` / `KineticChromeStrings` (`zh` / `en` / `vi` / `ms` / `id` / `fil`) applied on Android, shared Darwin, and Web Artplayer `lang`.
+- **KineticUiConfig**: renamed from `GsyUiConfig` (plugin-wide, not Android-only). Language is serialized under `creationParams['ui']`. Hot-swap still uses `setLocale`.
+- **Toolbar icons**: first-row play / volume / settings / fullscreen glyphs enlarged (20pt in a 36dp hit target).
+- **material_ui**: depends on `material_ui ^1.1.0`; minimum SDK **Dart 3.12 / Flutter 3.44**. Example no longer uses `cupertino_icons`.
+
+### Docs
+
+- USAGE / README / Darwin / Web / Example: locale API, SDK floor, version `2.0.3`.
+
 ## 2.0.2
 
 ### Features

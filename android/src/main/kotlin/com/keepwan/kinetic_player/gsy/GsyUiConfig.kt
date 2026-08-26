@@ -45,13 +45,32 @@ data class GsyUiConfig(
     val ijkEnableAccurateSeek: Boolean = true,
     /** ARGB accent; default Bilibili pink `#FB7299`. */
     val accentColor: Int = DEFAULT_ACCENT_COLOR,
+    /** Chrome language from Dart KineticUiConfig. Applied at create, not gsySetUiConfig. */
+    val locale: String = "zh",
+    /** Resolved chrome copy from Dart KineticChromeStrings. */
+    val strings: Map<String, String> = emptyMap(),
 ) {
     companion object {
         const val DEFAULT_ACCENT_COLOR: Int = 0xFFFB7299.toInt()
 
+        fun parseChromeStrings(raw: Any?): Map<String, String> {
+            val map = raw as? Map<*, *> ?: return emptyMap()
+            val out = LinkedHashMap<String, String>(map.size)
+            for ((key, value) in map) {
+                val k = key as? String ?: continue
+                val v = value as? String ?: continue
+                out[k] = v
+            }
+            return out
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        fun uiMap(params: Map<String, Any?>?): Map<String, Any?> {
+            return (params?.get("ui") as? Map<String, Any?>) ?: emptyMap()
+        }
+
         fun fromCreationParams(params: Map<String, Any?>?): GsyUiConfig {
-            @Suppress("UNCHECKED_CAST")
-            val ui = params?.get("gsyUi") as? Map<String, Any?> ?: emptyMap()
+            val ui = uiMap(params)
             return GsyUiConfig(
                 enableNativeControls = ui["enableNativeControls"] as? Boolean ?: true,
                 enableNativeControlsFullscreen =
@@ -98,6 +117,8 @@ data class GsyUiConfig(
                 ijkEnableAccurateSeek = ui["ijkEnableAccurateSeek"] as? Boolean ?: true,
                 accentColor =
                     (ui["accentColor"] as? Number)?.toInt() ?: DEFAULT_ACCENT_COLOR,
+                locale = ui["locale"] as? String ?: "zh",
+                strings = parseChromeStrings(ui["strings"]),
             )
         }
     }

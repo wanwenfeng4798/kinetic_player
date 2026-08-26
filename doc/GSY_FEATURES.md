@@ -42,13 +42,13 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 |------|------|-----|
 | 列表播放 / 连续播放 | ✅ | `creationParams['playlist']` / `gsySetPlaylist()` / `gsyPlayNextInPlaylist()` |
 | 列表滑动自动播放 | ✅ | `GsyAutoPlayVideoList` / `GsyAutoPlayCoordinator`（List 级可见区；非活跃 cell 不挂 PlatformView）。**不是** `ListGSYVideoPlayer`，**不是**详情页无缝 |
-| 重力 / 手动旋转 | ✅ | `GsyUiConfig.rotateViewAuto` + Activity `configChanges` 转发 |
+| 重力 / 手动旋转 | ✅ | `KineticUiConfig.rotateViewAuto` + Activity `configChanges` 转发 |
 | 手动旋转 0/90/180/270 | ✅ | `gsySetRenderRotation(degrees)`；全屏同步。Android 依赖 GSY MeasureHelper 重测布局 |
 | 水平 / 垂直镜像 | ✅ | `gsySetMirrorHorizontal` / `gsySetMirrorVertical`；全屏同步 |
-| 快播 / 慢播 | ✅ | `setRate()` 或 `GsyUiConfig.speed` |
+| 快播 / 慢播 | ✅ | `setRate()` 或 `KineticUiConfig.speed` |
 | 网络加载速度 | ✅ | `gsyGetNetSpeed()` |
-| 完成后保留最后一帧 | ✅ | `GsyUiConfig.keepLastFrameWhenComplete` |
-| 视频封面 | ✅ | `GsyUiConfig.coverUrl` / `gsySetCoverUrl` |
+| 完成后保留最后一帧 | ✅ | `KineticUiConfig.keepLastFrameWhenComplete` |
+| 视频封面 | ✅ | `KineticUiConfig.coverUrl` / `gsySetCoverUrl` |
 
 ---
 
@@ -79,10 +79,10 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 全屏 / 非全屏两套布局 | ✅ | `startWindowFullscreen` + `GsyUiConfig` |
+| 全屏 / 非全屏两套布局 | ✅ | `startWindowFullscreen` + `KineticUiConfig` |
 | 无控件纯播放 | ✅ | `gsySetPurePlayMode(true)` 关闭手势、全屏/锁、喇叭、齿轮与标题 |
 | 弹幕 | ✅ | `gsySetDanmakuUrl` + `gsyToggleDanmaku`（B 站 XML）；**内嵌与窗口全屏均显示并同步进度** |
-| B 站风格控制栏 | ✅ | 竖向音量 + 设置面板音轨 |
+| B 站风格控制栏 | ✅ | 竖向音量 + 设置面板音轨；控制栏语言走 `KineticUiConfig.locale` / `setLocale` |
 
 ---
 
