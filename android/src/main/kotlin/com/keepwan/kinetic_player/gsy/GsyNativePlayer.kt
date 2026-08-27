@@ -30,13 +30,14 @@ import com.shuyu.gsyvideoplayer.utils.GSYVideoType
 import com.shuyu.gsyvideoplayer.utils.GifCreateHelper
 import tv.danmaku.ijk.media.exo2.Exo2PlayerManager
 import com.shuyu.gsyvideoplayer.video.base.GSYVideoView
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import java.util.UUID
 
 interface GsyPlayerCallbacks {
     fun onPlayerStateChanged(state: CommonPlayerState)
     fun onPositionChanged(positionMs: Long, durationMs: Long)
+    fun onScreenshotCaptured(bytes: ByteArray?)
 }
 
 class GsyNativePlayer(
@@ -188,7 +189,10 @@ class GsyNativePlayer(
         playerView.onDanmakuVisibleChanged = { toggleDanmaku(it) }
         playerView.onDanmakuSend = { /* live danmaku already drawn; optional host hook */ }
         playerView.onCaptureScreenshot = { callback ->
-            takeScreenshot(withView = false, high = true, callback = callback)
+            takeScreenshot(withView = false, high = true) { bytes ->
+                callback(bytes)
+                callbacks.onScreenshotCaptured(bytes)
+            }
         }
         playerView.onStartGifRecording = { startGifRecording() }
         playerView.onStopGifRecording = { callback -> stopGifRecording(callback) }
@@ -561,10 +565,9 @@ class GsyNativePlayer(
     fun takeScreenshot(
         withView: Boolean,
         high: Boolean,
-        callback: (String?) -> Unit,
+        callback: (ByteArray?) -> Unit,
     ) {
         val target = activePlayer()
-        val output = File(cacheDir, "shot_${System.currentTimeMillis()}.png")
         val listener =
             object : GSYVideoShotListener {
                 override fun getBitmap(bitmap: Bitmap?) {
@@ -573,10 +576,9 @@ class GsyNativePlayer(
                         return
                     }
                     try {
-                        FileOutputStream(output).use { out ->
-                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                        }
-                        mainHandler.post { callback(output.absolutePath) }
+                        val stream = ByteArrayOutputStream()
+                        val ok = bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                        mainHandler.post { callback(if (ok) stream.toByteArray() else null) }
                     } catch (_: Exception) {
                         mainHandler.post { callback(null) }
                     }

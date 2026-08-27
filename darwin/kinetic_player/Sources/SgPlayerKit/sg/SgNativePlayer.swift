@@ -103,7 +103,7 @@ final class SgNativePlayer: NSObject {
     }
 
     func setLooping(_ looping: Bool) { bridge.setLooping(looping) }
-    func captureFrame() -> String? { bridge.captureFrame() }
+    func captureFrame() -> Data? { bridge.captureFrame() }
     func currentVolume() -> Double { bridge.currentVolume() }
     func isMuted() -> Bool { bridge.isMuted() }
     func setRenderMode(_ mode: Int) { bridge.setRenderMode(mode) }

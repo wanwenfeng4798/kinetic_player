@@ -39,6 +39,10 @@ class GsyVideoPlatformView(
                         ),
                     )
                 }
+
+                override fun onScreenshotCaptured(bytes: ByteArray?) {
+                    channel.invokeMethod("onScreenshotCaptured", mapOf("bytes" to bytes))
+                }
             },
             initialUiConfig = uiConfig,
             playTag = playTag,
@@ -128,7 +132,7 @@ class GsyVideoPlatformView(
                 player.takeScreenshot(
                     withView = withView,
                     high = high,
-                ) { path -> result.success(path) }
+                ) { bytes -> result.success(bytes) }
             }
             "gsySwitchRenderCore" -> {
                 val ok = player.changeRenderCore(call.argument<Int>("core") ?: 0)

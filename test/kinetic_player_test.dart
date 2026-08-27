@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinetic_player/kinetic_player.dart';
+import 'package:kinetic_player/src/common/common_video_controller_bridge.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -123,5 +126,15 @@ void main() {
     final ui = params['ui'] as Map;
     expect(ui['locale'], 'ms');
     expect((ui['strings'] as Map)['kinetic_settings_title'], 'Tetapan');
+  });
+
+  test('screenshotBytesFromNative accepts PNG bytes and data URLs', () {
+    final png = Uint8List.fromList(const [0x89, 0x50, 0x4E, 0x47]);
+    expect(screenshotBytesFromNative(png), png);
+    expect(screenshotBytesFromNative(null), isNull);
+    expect(
+      screenshotBytesFromNative('data:image/png;base64,${base64Encode(png)}'),
+      png,
+    );
   });
 }

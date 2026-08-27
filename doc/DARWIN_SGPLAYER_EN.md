@@ -25,7 +25,7 @@ Core: [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) (**m
 | PiP | ❌ | ❌ |
 | Outbound network (Example) | ATS / system network | App Sandbox needs `com.apple.security.network.client` |
 
-Other capabilities (bottom bar, audio tracks, cover, SG API) are shared; **pan gestures are iOS-only** (macOS uses the progress slider + speaker/gear buttons — see [USAGE_EN.md](USAGE_EN.md)). Chrome copy comes from `KineticUiConfig.locale` / `setLocale` via `SgUiConfig.strings` (shared Darwin, no `.lproj`). Android-only: [GSY_FEATURES_EN.md](GSY_FEATURES_EN.md). Web: [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md).
+Other capabilities (bottom bar, audio tracks, cover, SG API) are shared. Settings level 2 includes **Screenshot** (no GIF; PNG bytes + `onScreenshotCaptured`). Volume / settings / rate popups fade over 200ms; settings width wraps content and labels longer than 10 characters are ellipsized. **Pan gestures are iOS-only** (macOS uses the progress slider + speaker/gear buttons — see [USAGE_EN.md](USAGE_EN.md)). Chrome copy comes from `KineticUiConfig.locale` / `setLocale` via `SgUiConfig.strings` (shared Darwin, no `.lproj`). Android-only: [GSY_FEATURES_EN.md](GSY_FEATURES_EN.md). Web: [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md).
 
 ## Directory layout
 

@@ -96,7 +96,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     var onSubtitleEnabledChanged: ((Boolean) -> Unit)? = null
     var onDanmakuVisibleChanged: ((Boolean) -> Unit)? = null
     var onDanmakuSend: ((String) -> Unit)? = null
-    var onCaptureScreenshot: (((String?) -> Unit) -> Unit)? = null
+    var onCaptureScreenshot: (((ByteArray?) -> Unit) -> Unit)? = null
     var onStartGifRecording: (() -> Unit)? = null
     var onStopGifRecording: (((String?) -> Unit) -> Unit)? = null
     var isGifRecording: (() -> Boolean)? = null
@@ -249,15 +249,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         }
         findViewById<View>(R.id.settings_screenshot)?.setOnClickListener {
             hideSettingsPanel()
-            onCaptureScreenshot?.invoke { path ->
-                val message =
-                    if (path.isNullOrEmpty()) {
-                        chromeString("kinetic_screenshot_failed", R.string.kinetic_screenshot_failed)
-                    } else {
-                        chromeString("kinetic_screenshot_saved", R.string.kinetic_screenshot_saved)
-                    }
-                Toast.makeText(context.applicationContext, message, Toast.LENGTH_SHORT).show()
-            }
+            onCaptureScreenshot?.invoke { _ -> }
         }
         findViewById<View>(R.id.settings_gif)?.setOnClickListener {
             if (isGifRecording?.invoke() == true) {

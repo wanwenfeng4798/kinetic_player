@@ -408,7 +408,7 @@
                 }];
 }
 
-- (NSString *)captureFrame {
+- (NSData *)captureFrame {
   SGPLFImage *image = [_player.videoRenderer currentImage];
   if (!image) {
     return nil;
@@ -426,17 +426,7 @@
 #else
   pngData = UIImagePNGRepresentation(image);
 #endif
-  if (!pngData) {
-    return nil;
-  }
-  NSString *path = [NSTemporaryDirectory()
-      stringByAppendingPathComponent:
-          [NSString stringWithFormat:@"sg_frame_%lld.png",
-                                     (long long)(NSDate.date.timeIntervalSince1970 * 1000)]];
-  if (![pngData writeToFile:path atomically:YES]) {
-    return nil;
-  }
-  return path;
+  return pngData;
 }
 
 - (double)currentVolume {

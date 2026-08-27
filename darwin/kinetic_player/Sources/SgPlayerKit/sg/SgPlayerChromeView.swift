@@ -13,7 +13,7 @@ protocol SgPlayerChromeDelegate: AnyObject {
     /// 0 auto, 1 16:9, 2 4:3, 3 fill/hide bars
     func chromeDidChangeScaleMode(_ mode: Int)
     func chromeDidChangeBlackout(_ enabled: Bool)
-    func chromeDidRequestScreenshot() -> String?
+    func chromeDidRequestScreenshot()
 }
 
 #if os(iOS)
@@ -784,12 +784,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     private func captureScreenshotFromSettings() {
         hideSettingsPanel()
-        let path = delegate?.chromeDidRequestScreenshot()
-        let message =
-            path == nil
-                ? chromeString("kinetic_screenshot_failed", "截图失败")
-                : chromeString("kinetic_screenshot_saved", "截图已保存")
-        showChromeToast(message)
+        delegate?.chromeDidRequestScreenshot()
     }
 
     private func showRatePanel() {
@@ -2119,12 +2114,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private func captureScreenshotFromSettings() {
         hideSettingsPanel()
-        let path = delegate?.chromeDidRequestScreenshot()
-        let message =
-            path == nil
-                ? chromeString("kinetic_screenshot_failed", "截图失败")
-                : chromeString("kinetic_screenshot_saved", "截图已保存")
-        showChromeToast(message)
+        delegate?.chromeDidRequestScreenshot()
     }
 
     private func showRatePanel() {

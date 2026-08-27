@@ -46,6 +46,9 @@ class GSYVideoControllerImpl
         final args = call.arguments as Map;
         position.value = Duration(milliseconds: args['position'] as int);
         duration.value = Duration(milliseconds: args['duration'] as int);
+      case 'onScreenshotCaptured':
+        final args = call.arguments as Map?;
+        onScreenshotCaptured?.call(screenshotBytesFromNative(args?['bytes']));
     }
   }
 

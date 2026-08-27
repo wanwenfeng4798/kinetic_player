@@ -25,7 +25,7 @@ Requires **Dart 3.12 / Flutter 3.44+** and `material_ui: ^1.1.0`.
 
 - Unified `CommonVideoController` API (play / pause / seek / scale / rate / volume / tracks / loop / screenshot / etc.)
 - Platform auto-selection: Android → GSY, iOS / macOS → SGPlayer, Web → Artplayer; **Linux / Windows → GstPlayer**
-- Bilibili-style native control bar (vertical volume popup with percentage while dragging, settings panel for audio tracks, consistent progress bar + bottom bar icon sizing)
+- Bilibili-style native control bar (vertical volume popup with percentage while dragging, settings panel for tracks / screenshot / Android GIF, popup fade, consistent progress bar + bottom bar icon sizing)
 - **Android / iOS** pan gestures for seek / volume / brightness (`enableNativeControls`); **macOS** has no pans — progress bar + speaker / gear popups
 - Android Picture-in-Picture (PiP) **enabled by default** (API 26+)
 - Web: Video / Document PiP, HLS/DASH, official Artplayer plugins (danmaku / subtitles / Chromecast / …)

@@ -35,9 +35,16 @@ abstract class CommonVideoController {
   Future<void> setLocale(String locale);
 
   /// [includeOverlay] includes native chrome on Android (GSY); ignored on iOS.
-  Future<String?> captureFrame({
+  /// Returns PNG bytes, or null on failure. The plugin does not write files.
+  Future<Uint8List?> captureFrame({
     bool highQuality = true,
     bool includeOverlay = false,
   });
+
+  /// Native settings screenshot finished. [bytes] is PNG data (null on failure).
+  ///
+  /// The plugin does not write to disk or Photos; save [bytes] in the host.
+  void Function(Uint8List? bytes)? onScreenshotCaptured;
+
   Future<void> dispose();
 }

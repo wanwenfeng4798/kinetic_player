@@ -27,7 +27,7 @@ kinetic_player 在 **iOS** 与 **macOS** 上共用同一套 SGPlayer 集成方�
 | 画中画 | ❌ | ❌ |
 | 出站网络（Example） | ATS / 系统网络 | App Sandbox 需 `com.apple.security.network.client` |
 
-其余能力（底栏、音轨、封面、SG API）两端同源；**滑动手势仅 iOS**（macOS 用进度条 + 喇叭/齿轮按钮，见 [USAGE.md](USAGE.md)）。控制栏文案由 `KineticUiConfig.locale` / `setLocale` 经 `SgUiConfig.strings` 下发（共享 Darwin，无独立 `.lproj`）。Android 独有能力见 [GSY_FEATURES.md](GSY_FEATURES.md)；Web 见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。
+其余能力（底栏、音轨、封面、SG API）两端同源；设置面板二级含**截图**（不含 GIF；PNG 字节 + `onScreenshotCaptured`）；音量 / 设置 / 倍速弹窗 200ms 淡入淡出；设置宽度自适应、超 10 字省略。**滑动手势仅 iOS**（macOS 用进度条 + 喇叭/齿轮按钮，见 [USAGE.md](USAGE.md)）。控制栏文案由 `KineticUiConfig.locale` / `setLocale` 经 `SgUiConfig.strings` 下发（共享 Darwin，无独立 `.lproj`）。Android 独有能力见 [GSY_FEATURES.md](GSY_FEATURES.md)；Web 见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。
 
 ## 目录结构
 

@@ -29,10 +29,10 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 视频帧截图 | ✅ | `captureFrame()`（公共 API；全屏时截当前全屏窗）。设置面板二级「截图」同一能力（不含 chrome overlay） |
+| 视频帧截图 | ✅ | `captureFrame()`（公共 API；全屏时截当前全屏窗；返回 PNG 字节）。设置面板二级「截图」同一能力，完成后 `onScreenshotCaptured`（宿主自行保存） |
 | 播放器 UI 组合截图 | ✅ | `captureFrame(includeOverlay: true)` |
-| 保存截图到文件 | ✅ | `gsySaveScreenshot()` |
-| 生成 GIF | ✅ | `gsyStartGifRecording()` → `gsyStopGifRecording()`（全屏时录当前全屏窗）。设置面板「录制 GIF」同一能力（点开始、再点停止） |
+| 保存截图到文件 | ✅ | `gsySaveScreenshot()`（缓存 PNG 路径） |
+| 生成 GIF | ✅ | `gsyStartGifRecording()` → `gsyStopGifRecording()`（全屏时录当前全屏窗；缓存路径）。设置面板「录制 GIF」同一能力（点开始、再点停止） |
 
 ---
 

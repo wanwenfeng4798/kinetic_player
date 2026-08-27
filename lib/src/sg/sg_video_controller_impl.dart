@@ -71,6 +71,10 @@ class SGVideoControllerImpl
         playerError.value = args['message'] as String?;
         playerErrorCode.value = args['code'] as int? ?? 0;
         break;
+      case 'onScreenshotCaptured':
+        final args = call.arguments as Map?;
+        onScreenshotCaptured?.call(screenshotBytesFromNative(args?['bytes']));
+        break;
     }
   }
 

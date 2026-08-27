@@ -511,7 +511,7 @@ class _ControlPanelState extends State<_ControlPanel> {
   bool _watermarkEnabled = false;
   bool _purePlay = false;
   bool _gifRecording = false;
-  String? _lastCapturePath;
+  Uint8List? _lastCaptureBytes;
   String? _lastGifPath;
   String? _netSpeedText;
   int _renderRotation = 0;
@@ -528,6 +528,7 @@ class _ControlPanelState extends State<_ControlPanel> {
   @override
   void initState() {
     super.initState();
+    _bindScreenshotCallback(widget.controller);
     _loadFilters();
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       _DemoMedia.prepareSubtitleVttUri().then((uri) {
@@ -541,6 +542,7 @@ class _ControlPanelState extends State<_ControlPanel> {
 
   @override
   void dispose() {
+    widget.controller?.onScreenshotCaptured = null;
     _subtitleTextController.dispose();
     _danmakuTextController.dispose();
     super.dispose();
@@ -550,12 +552,28 @@ class _ControlPanelState extends State<_ControlPanel> {
   void didUpdateWidget(covariant _ControlPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.onScreenshotCaptured = null;
+      _bindScreenshotCallback(widget.controller);
       _renderRotation = 0;
       _keepLastFrame = false;
       _coverEnabled = true;
       _selectedRenderCore = GsyRenderCore.ijk;
       _loadFilters();
     }
+  }
+
+  void _bindScreenshotCallback(CommonVideoController? controller) {
+    controller?.onScreenshotCaptured = (bytes) {
+      if (!mounted) return;
+      setState(() => _lastCaptureBytes = bytes);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            bytes == null ? '截图失败' : '截图完成 ${bytes.length} 字节',
+          ),
+        ),
+      );
+    };
   }
 
   Future<void> _onDemoSourceChanged(String? url) async {
@@ -1102,16 +1120,18 @@ class _ControlPanelState extends State<_ControlPanel> {
                     ? null
                     : () async {
                         final messenger = ScaffoldMessenger.of(context);
-                        final path = await active.captureFrame(
+                        final bytes = await active.captureFrame(
                           highQuality: true,
                           includeOverlay: isAndroidGsy,
                         );
                         if (!mounted) return;
-                        setState(() => _lastCapturePath = path);
+                        setState(() => _lastCaptureBytes = bytes);
                         messenger.showSnackBar(
                           SnackBar(
                             content: Text(
-                              path == null ? '截图失败' : '已保存: $path',
+                              bytes == null
+                                  ? '截图失败'
+                                  : '截图 ${bytes.length} 字节',
                             ),
                           ),
                         );
@@ -1120,20 +1140,26 @@ class _ControlPanelState extends State<_ControlPanel> {
               ),
             ],
           ),
-          if (_lastCapturePath != null) ...[
+          if (_lastCaptureBytes != null) ...[
             const SizedBox(height: 4),
             Text(
-              '最近截图: $_lastCapturePath',
+              '最近截图 ${_lastCaptureBytes!.length} 字节',
               style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+            const SizedBox(height: 6),
+            Image.memory(
+              _lastCaptureBytes!,
+              height: 96,
+              fit: BoxFit.contain,
             ),
           ],
           const SizedBox(height: 4),
           Text(
             isAndroidGsy
-                ? '截图可用 includeOverlay。倍速/音量/循环请用原生底栏。'
+                ? '截图返回 PNG 字节；设置面板截图走 onScreenshotCaptured，由宿主决定保存位置。倍速/音量/循环请用原生底栏。'
                 : isWebArt
-                    ? 'Web：截图返回 data URL；倍速/音量用 Artplayer 控件。'
-                    : '截图为临时 PNG。倍速/音量/循环请用原生底栏。',
+                    ? 'Web：截图返回 PNG 字节；倍速/音量用 Artplayer 控件。'
+                    : '截图返回 PNG 字节；设置面板截图走 onScreenshotCaptured。倍速/音量/循环请用原生底栏。',
             style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
           if (isWebArt) ...[

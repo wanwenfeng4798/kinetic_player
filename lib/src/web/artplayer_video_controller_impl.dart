@@ -4,6 +4,7 @@ import '../common/common_audio_track.dart';
 import '../common/common_player_state.dart';
 import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
+import '../common/common_video_controller_bridge.dart';
 import '../common/common_video_size.dart';
 import '../common/platform_guard.dart';
 import '../gsy/gsy_chrome_strings.dart';
@@ -145,7 +146,10 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
       _invoke('setLocale', KineticChromeStrings.toCreationParams(locale));
 
   @override
-  Future<String?> captureFrame({
+  void Function(Uint8List? bytes)? onScreenshotCaptured;
+
+  @override
+  Future<Uint8List?> captureFrame({
     bool highQuality = true,
     bool includeOverlay = false,
   }) async {
@@ -155,7 +159,7 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
       'highQuality': highQuality,
       'includeOverlay': includeOverlay,
     });
-    return result is String ? result : null;
+    return screenshotBytesFromNative(result);
   }
 
   /// Toggle browser / Artplayer Picture-in-Picture.

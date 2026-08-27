@@ -195,7 +195,8 @@ CommonVideoPlayerViewBuilder(
 | `getVideoSize()` | 视频宽高 |
 | `setLooping(bool)` | 循环（Android GSY 原生；iOS 播放结束时 seek(0)+play） |
 | `setLocale(String)` | 控制栏语言（`zh` / `en` / `vi` / `ms` / `id` / `fil`；创建时用 `KineticUiConfig.locale`） |
-| `captureFrame({highQuality, includeOverlay})` | 截图（Android 可含 UI overlay） |
+| `captureFrame({highQuality, includeOverlay})` | 截当前帧，返回 PNG 字节 `Uint8List?`（Android 可含 UI overlay） |
+| `onScreenshotCaptured` | 设置面板截图完成回调（PNG 字节；宿主自行保存，插件不写文件/相册） |
 | `dispose()` | 释放 |
 | `playerState` | `ValueNotifier<CommonPlayerState>` |
 | `position` / `duration` | 进度（原生侧约 250ms 节流推送） |
@@ -248,7 +249,7 @@ CommonVideoPlayerView(
 
 ## 原生控制栏 UI（双端对齐）
 
-Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏；默认强调色为 B 站粉 `#FB7299`（可通过 `KineticUiConfig.accentColor` 覆盖）。底栏含倍速弹窗；Android Exo 多档源时另显示清晰度（含「自动」）。音量 / 设置 / 倍速 / 画质弹窗 200ms 淡入淡出（随控制栏收起时无动画）。设置面板（一级 / 二级）超出可用高度时可滚动；宽度随内容自适应（最小约 140，不超过播放器），超过 10 个字符的文案（含音轨名）截为省略号。二级「其它设置」含**截图**（全平台，当前帧不含控制栏）；Android 另有**录制 GIF**（点开始、再点停止）。Android 第二行弹幕输入框始终显示，点击弹幕图标启用或禁用输入（同时开关弹幕画布）。
+Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏；默认强调色为 B 站粉 `#FB7299`（可通过 `KineticUiConfig.accentColor` 覆盖）。底栏含倍速弹窗；Android Exo 多档源时另显示清晰度（含「自动」）。音量 / 设置 / 倍速 / 画质弹窗 200ms 淡入淡出（随控制栏收起时无动画）。设置面板（一级 / 二级）超出可用高度时可滚动；宽度随内容自适应（最小约 140，不超过播放器），超过 10 个字符的文案（含音轨名）截为省略号。二级「其它设置」含**截图**（全平台，当前帧不含控制栏；PNG 字节经 `onScreenshotCaptured` 回调，由宿主保存）；Android 另有**录制 GIF**（点开始、再点停止）。Android 第二行弹幕输入框始终显示，点击弹幕图标启用或禁用输入（同时开关弹幕画布）。
 
 控制栏文案语言由公共配置 `KineticUiConfig.locale` 决定（`zh` / `en` / `vi` / `ms` / `id` / `fil`，默认 `zh`；未知码回退中文）。`toCreationParams()` 把 `locale` 与 `KineticChromeStrings` 文案表放进 `creationParams['ui']`。Darwin 走共享源 `SgUiConfig.strings`，不使用独立 `.lproj`。运行时调用 `controller.setLocale(...)` 热切换（不要用 `gsySetUiConfig` 改语言）。
 
@@ -272,6 +273,8 @@ Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制�
 > **音量持久化**：通过滑轨或 `setVolume()` 设置的音量在暂停/恢复、播放完成重播、换源后会自动恢复，不会回到默认值。
 
 > **音轨**：不在音量弹窗内选择，请在设置面板（齿轮）或 Flutter 层调用 `selectAudioTrack`。
+
+> **截图**：设置面板截图与 `captureFrame()` 返回 PNG 字节（`Uint8List?`）。插件**不**写临时文件、也**不**写入系统相册。设置面板完成后走 `CommonVideoController.onScreenshotCaptured`；`captureFrame()` 把字节返回给调用方。宿主自行写入相册或其它位置。
 
 > **画中画**：SGPlayer 使用自定义渲染，无法接入系统 `AVPictureInPictureController`，iOS / macOS 当前均不支持 PiP。
 
@@ -395,6 +398,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 |------|---------------|------------------------|-----------------|
 | 循环 | 原生 `isLooping`；`KineticUiConfig.looping` 创建生效 | 结束时 `seek(0)+play`；`KineticUiConfig.looping` / `speed` 创建生效 | Artplayer `loop` / 结束重播 |
 | 截图 overlay | `captureFrame(includeOverlay: true)` 含 UI | `includeOverlay` 无效 | 当前帧 canvas（跨域可能失败） |
+| 设置内截图 / GIF | 二级截图（`onScreenshotCaptured`）+ GIF | 仅截图（`onScreenshotCaptured`） | — |
 | 换源 | 重建播放器 | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
 | 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()`（应用内 overlay） | Artplayer `fullscreen` 控件 |
 | 画中画 | 默认开启，需 Manifest + `onUserLeaveHint` | 不支持 | `togglePip()` / Document PiP（见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)） |

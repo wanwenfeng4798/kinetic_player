@@ -43,7 +43,7 @@ typedef void (^SgErrorChangedBlock)(NSString *_Nullable message, NSInteger code)
 - (BOOL)selectVideoTrack:(NSInteger)index;
 - (NSDictionary *_Nullable)getVideoSize;
 - (void)setLooping:(BOOL)looping;
-- (NSString *_Nullable)captureFrame;
+- (NSData *_Nullable)captureFrame;
 - (double)currentVolume;
 - (BOOL)isMuted;
 /// 0=Plane, 1=VR, 2=VRBox

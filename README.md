@@ -26,7 +26,7 @@ English version: [README_EN.md](README_EN.md)
 
 - 统一的 `CommonVideoController` API（播放 / 暂停 / 跳转 / 缩放 / 倍速 / 音量 / 音轨 / 循环 / 截图等）
 - 平台自动选型：Android → GSY，iOS / macOS → SGPlayer，Web → Artplayer；**Linux / Windows → GstPlayer**
-- B 站风格原生控制栏：竖向音量弹窗（拖动显示百分比）、设置面板选音轨、统一进度条与底栏图标尺寸
+- B 站风格原生控制栏：竖向音量弹窗（拖动显示百分比）、设置面板（音轨 / 截图；Android 含 GIF）、弹窗淡入淡出、统一进度条与底栏图标尺寸
 - **Android / iOS** 支持滑动手势调进度 / 音量 / 亮度（`enableNativeControls`）；**macOS** 无滑动手势，用进度条 + 喇叭/齿轮按钮
 - Android 画中画（PiP）**默认开启**（API 26+；播放中切后台自动进入，含 GSY 自动播放场景）
 - Web：Video / Document PiP、HLS/DASH、官方 Artplayer 插件（弹幕 / 字幕 / Chromecast 等）

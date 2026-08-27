@@ -263,8 +263,13 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
         _ = enabled
     }
 
-    func chromeDidRequestScreenshot() -> String? {
-        player.captureFrame()
+    func chromeDidRequestScreenshot() {
+        let data = player.captureFrame()
+        var args: [String: Any] = [:]
+        if let data = data {
+            args["bytes"] = FlutterStandardTypedData(bytes: data)
+        }
+        channel.invokeMethod("onScreenshotCaptured", arguments: args)
     }
 
     private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -342,7 +347,11 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             player.setLooping(looping)
             result(nil)
         case "captureFrame":
-            result(player.captureFrame())
+            if let data = player.captureFrame() {
+                result(FlutterStandardTypedData(bytes: data))
+            } else {
+                result(nil)
+            }
         case "sgStartFullscreen":
             if !fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.enterFullscreen(container: container)

@@ -4,7 +4,7 @@
 
 - **Danmaku input** (Android): the input field stays visible; tapping the danmaku icon enables/disables it and toggles the overlay together.
 - **Settings panel scroll**: first- and second-level settings clamp to available height and scroll (Android GSY and Darwin SGPlayer).
-- **Settings screenshot / GIF**: level-2 “Other” has **Screenshot** on all platforms (current frame, no chrome overlay; toast then closes the panel). Android also has **Record GIF** (tap to start, tap again to stop). Reuses `captureFrame()` / `gsyStartGifRecording()`; no new Flutter API.
+- **Settings screenshot / GIF**: level-2 “Other” has **Screenshot** on all platforms (current frame, no chrome overlay; PNG bytes via `captureFrame()` / `onScreenshotCaptured` so the host chooses where to save — the plugin does not write files or Photos). Android also has **Record GIF** (tap to start, tap again to stop). Reuses `captureFrame()` / `gsyStartGifRecording()`.
 - **Popup fade**: volume / settings / rate / quality (Android) popups fade in and out over 200ms. Closing with the control bar is instant so the animations do not stack.
 - **Settings panel width**: wrap-content (min ~140, capped to the player). Labels longer than **10 characters** are truncated with an ellipsis (including audio-track names).
 - **Chrome locale**: `KineticUiConfig.locale` plus common `setLocale` / `KineticChromeStrings` (`zh` / `en` / `vi` / `ms` / `id` / `fil`) applied on Android, shared Darwin, and Web Artplayer `lang`.
@@ -19,7 +19,7 @@
 ### Docs
 
 - USAGE / README / Darwin / Web / Example: locale API, SDK floor, version `2.0.3`.
-- USAGE / GSY_FEATURES: settings screenshot / GIF, popup fade, wrap-content labels, list auto-play rebuild.
+- USAGE / GSY_FEATURES: settings screenshot / GIF, `onScreenshotCaptured`, popup fade, wrap-content labels, list auto-play rebuild.
 
 ## 2.0.2
 

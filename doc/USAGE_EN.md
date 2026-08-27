@@ -186,7 +186,8 @@ CommonVideoPlayerViewBuilder(
 | `getVideoSize()` | Video size (width/height) |
 | `setLooping(bool)` | Looping (Android GSY native; iOS seeks(0)+play after completion) |
 | `setLocale(String)` | Chrome language (`zh` / `en` / `vi` / `ms` / `id` / `fil`; set `KineticUiConfig.locale` at create) |
-| `captureFrame({highQuality, includeOverlay})` | Screenshot (Android can include UI overlay) |
+| `captureFrame({highQuality, includeOverlay})` | Screenshot PNG bytes (`Uint8List?`; Android can include UI overlay) |
+| `onScreenshotCaptured` | Settings screenshot finished (PNG bytes; host saves them — plugin does not write files or Photos) |
 | `dispose()` | Release |
 | `playerState` | `ValueNotifier<CommonPlayerState>` |
 | `position` / `duration` | Progress (native side throttles push to ~250ms) |
@@ -239,7 +240,7 @@ CommonVideoPlayerView(
 
 ## Native control bar UI (aligned across platforms)
 
-Android (GSY) and iOS / macOS (SGPlayer) both use a Bilibili-style native bottom control bar. Default accent is Bilibili pink `#FB7299` (override via `KineticUiConfig.accentColor`). The toolbar includes a playback-rate popup; on Android Exo with multiple video tracks, a quality picker (including Auto) is shown. Volume / settings / rate / quality popups fade in and out over 200ms (instant when the control bar hides). Settings (level 1 / 2) scroll when they exceed available height; width wraps content (min ~140, capped to the player) and labels longer than 10 characters (including track names) are ellipsized. Level-2 Other includes **Screenshot** on all platforms (current frame, no chrome); Android also has **Record GIF** (tap to start, tap again to stop). On Android the danmaku input stays visible; tapping the danmaku icon enables or disables it (and the overlay).
+Android (GSY) and iOS / macOS (SGPlayer) both use a Bilibili-style native bottom control bar. Default accent is Bilibili pink `#FB7299` (override via `KineticUiConfig.accentColor`). The toolbar includes a playback-rate popup; on Android Exo with multiple video tracks, a quality picker (including Auto) is shown. Volume / settings / rate / quality popups fade in and out over 200ms (instant when the control bar hides). Settings (level 1 / 2) scroll when they exceed available height; width wraps content (min ~140, capped to the player) and labels longer than 10 characters (including track names) are ellipsized. Level-2 Other includes **Screenshot** on all platforms (current frame, no chrome; PNG bytes via `onScreenshotCaptured` so the host saves them); Android also has **Record GIF** (tap to start, tap again to stop). On Android the danmaku input stays visible; tapping the danmaku icon enables or disables it (and the overlay).
 
 Chrome copy follows `KineticUiConfig.locale` (`zh` / `en` / `vi` / `ms` / `id` / `fil`, default `zh`). `toCreationParams()` puts `locale` and the `KineticChromeStrings` table under `creationParams['ui']`. Darwin uses shared `SgUiConfig.strings` (no `.lproj`). Hot-swap with `controller.setLocale(...)` (do not use `gsySetUiConfig` to change language).
 
@@ -263,6 +264,8 @@ Chrome copy follows `KineticUiConfig.locale` (`zh` / `en` / `vi` / `ms` / `id` /
 > **Volume persistence**: volume set via slider or `setVolume()` is restored on pause/resume, replay after completion, and switching sources.
 
 > **Audio tracks**: select tracks in the settings panel (gear) or via Flutter `selectAudioTrack` (not in the volume popup).
+
+> **Screenshots**: settings capture and `captureFrame()` return PNG bytes (`Uint8List?`). The plugin does **not** write temp files or Photos. Settings finish with `CommonVideoController.onScreenshotCaptured`; `captureFrame()` returns the bytes to the caller. The host writes them wherever it wants.
 
 > **PiP**: SGPlayer uses custom rendering, so it cannot integrate with system `AVPictureInPictureController`. iOS / macOS PiP is currently not supported.
 
@@ -303,7 +306,7 @@ Used on Android / iOS / macOS / Web. Serialized under `creationParams['ui']`. An
 | `showFullscreenButton` | `true` | Fullscreen button |
 | `showLockButton` | `true` | Lock button (Android) |
 | `showVolumeToolbar` | `true` | Speaker button + vertical volume popup |
-| `showSettingsButton` | `true` | Gear button + settings panel (audio tracks) |
+| `showSettingsButton` | `true` | Gear button + two-level settings (screenshot; Android GIF) |
 | `accentColor` | `#FB7299` | Seek bar / selected-state accent |
 | `pictureInPictureEnabled` | `true` | Android enters PiP automatically when backgrounding (API 26+) |
 | `showDragProgressTextOnSeekBar` | `false` | Show time text while dragging seek bar |
@@ -386,6 +389,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 |---|---|---|---|
 | Loop | native `isLooping`; `KineticUiConfig.looping` at create | seek(0)+play; `speed`/`looping` at create | Artplayer `loop` / replay on ended |
 | Screenshot overlay | `captureFrame(includeOverlay: true)` includes UI | `includeOverlay` ineffective | canvas frame (CORS may fail) |
+| Settings screenshot / GIF | Screenshot (`onScreenshotCaptured`) + GIF | Screenshot (`onScreenshotCaptured`) | — |
 | Switch source | rebuild player | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
 | Fullscreen | `gsyStartFullscreen()` | `sgStartFullscreen()` (in-app overlay) | Artplayer fullscreen control |
 | PiP | enabled by default (manifest + `onUserLeaveHint`) | not supported | `togglePip()` / Document PiP |

@@ -25,7 +25,7 @@ Android uses **GSYVideoPlayer 13.1.0**. This doc lists **fully delivered** Andro
 | AliPlayer / customRatio | ❌ | Removed / unavailable |
 | Pure play mode | ✅ | Hides gestures, chrome buttons, volume, settings, title |
 | Chrome locale | ✅ | `KineticUiConfig.locale` + `setLocale` / `KineticChromeStrings`: `zh` / `en` / `vi` / `ms` / `id` / `fil` |
-| Subtitles / GIF / screenshot / rotation / mirror / filters | ✅ | Follow fullscreen window when applicable. Settings panel: Screenshot (all) / Record GIF (Android) |
+| Subtitles / GIF / screenshot / rotation / mirror / filters | ✅ | Follow fullscreen window when applicable. Settings screenshot: PNG bytes + `onScreenshotCaptured` (host saves). Record GIF on Android |
 | Android PiP | ✅ | Host Manifest + lifecycle required (⚠️) |
 | iOS/macOS PiP | ❌ | |
 
