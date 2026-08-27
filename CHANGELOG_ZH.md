@@ -1,3 +1,17 @@
+## 2.0.4
+
+### 新功能
+
+- **截图数据**：`captureFrame()` / `onScreenshotCaptured` 返回 PNG 字节（`Uint8List?`）。插件不写临时文件，由宿主自行保存。
+
+### 修复
+
+- **macOS 工具栏弹窗**：打开音量 / 设置 / 倍速不再触发 Swift 独占访问冲突（`layout()` 里 `repositionToolbarPanels` 的 `swift_beginAccess`）。
+
+### 文档
+
+- USAGE / README / Darwin / Web / Example：版本 `2.0.4`。
+
 ## 2.0.3
 
 ### 新功能
@@ -15,7 +29,6 @@
 ### 修复
 
 - **列表滑动自动播放**：`GsyAutoPlayCoordinator` 变更时 cell 会 rebuild，活跃项才会挂载播放器。播放窗口相对 **ListView** 计算，不再用全屏 `MediaQuery`（避免被 AppBar 算偏）。
-- **macOS 工具栏弹窗**：打开音量 / 设置 / 倍速不再触发 Swift 独占访问冲突（`layout()` 里 `repositionToolbarPanels` 的 `swift_beginAccess`）。
 
 ### 文档
 

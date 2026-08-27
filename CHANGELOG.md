@@ -1,3 +1,17 @@
+## 2.0.4
+
+### Features
+
+- **Screenshot data**: `captureFrame()` and `onScreenshotCaptured` return PNG bytes (`Uint8List?`). The plugin does not write a temp file; the host saves the bytes.
+
+### Fixes
+
+- **macOS toolbar popups**: opening volume / settings / rate no longer trips Swift exclusivity (`swift_beginAccess` in `repositionToolbarPanels` during `layout()`).
+
+### Docs
+
+- USAGE / README / Darwin / Web / Example: version `2.0.4`.
+
 ## 2.0.3
 
 ### Features
@@ -15,7 +29,6 @@
 ### Fixes
 
 - **List auto-play**: `GsyAutoPlayVideoList` rebuilds when `GsyAutoPlayCoordinator` changes so the active cell actually mounts a player. The play window is computed against the **ListView** bounds, not full-screen `MediaQuery` (avoids AppBar offset).
-- **macOS toolbar popups**: opening volume / settings / rate no longer trips Swift exclusivity (`swift_beginAccess` in `repositionToolbarPanels` during `layout()`).
 
 ### Docs
 
