@@ -19,13 +19,13 @@ Android uses **GSYVideoPlayer 13.1.0**. This doc lists **fully delivered** Andro
 | GL filters | ✅ | Names from `gsyListEffectFilters()` only (no mosaic) |
 | Watermark / danmaku | ✅ | Both work in embedded **and** window fullscreen |
 | Pre-roll / mid-roll ads + skip | ✅ | `gsyPlayWithPreRollAd` / `gsySetMidRollAds` / `gsySkipAd` |
-| List scroll auto-play | ✅ | `GsyAutoPlayVideoList` (not ListGSYVideoPlayer; not detail seamless) |
+| List scroll auto-play | ✅ | `GsyAutoPlayVideoList` (ListView-relative play window; not ListGSYVideoPlayer; not detail seamless) |
 | Multi-instance simultaneous play | ❌ | GSY singleton manager |
 | Detail seamless handoff | ❌ | Removed (`gsySeamlessHandoffParams` deleted) |
 | AliPlayer / customRatio | ❌ | Removed / unavailable |
 | Pure play mode | ✅ | Hides gestures, chrome buttons, volume, settings, title |
 | Chrome locale | ✅ | `KineticUiConfig.locale` + `setLocale` / `KineticChromeStrings`: `zh` / `en` / `vi` / `ms` / `id` / `fil` |
-| Subtitles / GIF / screenshot / rotation / mirror / filters | ✅ | Follow fullscreen window when applicable |
+| Subtitles / GIF / screenshot / rotation / mirror / filters | ✅ | Follow fullscreen window when applicable. Settings panel: Screenshot (all) / Record GIF (Android) |
 | Android PiP | ✅ | Host Manifest + lifecycle required (⚠️) |
 | iOS/macOS PiP | ❌ | |
 

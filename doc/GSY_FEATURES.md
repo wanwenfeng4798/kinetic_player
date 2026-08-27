@@ -29,10 +29,10 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 
 | 能力 | 状态 | API |
 |------|------|-----|
-| 视频帧截图 | ✅ | `captureFrame()`（公共 API；全屏时截当前全屏窗） |
+| 视频帧截图 | ✅ | `captureFrame()`（公共 API；全屏时截当前全屏窗）。设置面板二级「截图」同一能力（不含 chrome overlay） |
 | 播放器 UI 组合截图 | ✅ | `captureFrame(includeOverlay: true)` |
 | 保存截图到文件 | ✅ | `gsySaveScreenshot()` |
-| 生成 GIF | ✅ | `gsyStartGifRecording()` → `gsyStopGifRecording()`（全屏时录当前全屏窗） |
+| 生成 GIF | ✅ | `gsyStartGifRecording()` → `gsyStopGifRecording()`（全屏时录当前全屏窗）。设置面板「录制 GIF」同一能力（点开始、再点停止） |
 
 ---
 
@@ -41,7 +41,7 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 | 能力 | 状态 | API |
 |------|------|-----|
 | 列表播放 / 连续播放 | ✅ | `creationParams['playlist']` / `gsySetPlaylist()` / `gsyPlayNextInPlaylist()` |
-| 列表滑动自动播放 | ✅ | `GsyAutoPlayVideoList` / `GsyAutoPlayCoordinator`（List 级可见区；非活跃 cell 不挂 PlatformView）。**不是** `ListGSYVideoPlayer`，**不是**详情页无缝 |
+| 列表滑动自动播放 | ✅ | `GsyAutoPlayVideoList` / `GsyAutoPlayCoordinator`（相对 ListView 可见区；仅活跃 cell 挂载 PlatformView）。**不是** `ListGSYVideoPlayer`，**不是**详情页无缝 |
 | 重力 / 手动旋转 | ✅ | `KineticUiConfig.rotateViewAuto` + Activity `configChanges` 转发 |
 | 手动旋转 0/90/180/270 | ✅ | `gsySetRenderRotation(degrees)`；全屏同步。Android 依赖 GSY MeasureHelper 重测布局 |
 | 水平 / 垂直镜像 | ✅ | `gsySetMirrorHorizontal` / `gsySetMirrorVertical`；全屏同步 |
@@ -82,7 +82,7 @@ Android 侧基于 **GSYVideoPlayer 13.1.0**（`io.github.carguo:gsyvideoplayer-*
 | 全屏 / 非全屏两套布局 | ✅ | `startWindowFullscreen` + `KineticUiConfig` |
 | 无控件纯播放 | ✅ | `gsySetPurePlayMode(true)` 关闭手势、全屏/锁、喇叭、齿轮与标题 |
 | 弹幕 | ✅ | `gsySetDanmakuUrl` + `gsyToggleDanmaku`（B 站 XML）；**内嵌与窗口全屏均显示并同步进度** |
-| B 站风格控制栏 | ✅ | 竖向音量 + 设置面板音轨；控制栏语言走 `KineticUiConfig.locale` / `setLocale` |
+| B 站风格控制栏 | ✅ | 竖向音量 + 设置面板（音轨 / 截图 / GIF）；弹窗 200ms 淡入淡出；设置宽度自适应、超 10 字省略；控制栏语言走 `KineticUiConfig.locale` / `setLocale` |
 
 ---
 
