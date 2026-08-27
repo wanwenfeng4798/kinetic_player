@@ -30,9 +30,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
 
     weak var delegate: SgPlayerChromeDelegate?
 
-    /// Matches Android `kinetic_control_icon_size` (20dp) / enlarged chrome.
-    private static let toolbarIconPointSize: CGFloat = 20
-    private static let toolbarButtonSize: CGFloat = 36
+    /// Matches Android `kinetic_control_icon_size` (20dp glyph in 28dp hit target).
+    private static let toolbarIconPointSize: CGFloat = 18
+    private static let toolbarButtonSize: CGFloat = 28
     private static let centerControlButtonSize: CGFloat = 60
     private static let centerControlIconPointSize: CGFloat = 26
     private static let lockButtonTrailingInset: CGFloat = 50
@@ -352,7 +352,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         addSubview(audioPanel)
 
         settingsPanel.translatesAutoresizingMaskIntoConstraints = false
+        settingsPanel.setContentHuggingPriority(.required, for: .horizontal)
         settingsPanel.setContentHuggingPriority(.defaultHigh, for: .vertical)
+        settingsPanel.setContentCompressionResistancePriority(.required, for: .horizontal)
         settingsPanel.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         settingsPanel.isHidden = true
         settingsPanel.isUserInteractionEnabled = false
@@ -439,12 +441,13 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             progressRow.trailingAnchor.constraint(equalTo: bottomPanel.trailingAnchor, constant: -8),
             progressRow.topAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: 4),
             progressRow.bottomAnchor.constraint(equalTo: bottomPanel.bottomAnchor, constant: -4),
-            progressRow.heightAnchor.constraint(equalToConstant: 44),
+            progressRow.heightAnchor.constraint(equalToConstant: 36),
 
             audioPanel.centerXAnchor.constraint(equalTo: volumeButton.centerXAnchor),
             audioPanel.bottomAnchor.constraint(equalTo: volumeButton.topAnchor, constant: -6),
 
-            settingsPanel.trailingAnchor.constraint(equalTo: settingsButton.trailingAnchor),
+            settingsPanel.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 8),
+            settingsPanel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
             settingsPanel.bottomAnchor.constraint(equalTo: settingsButton.topAnchor, constant: -6),
             settingsPanel.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8),
 
@@ -464,6 +467,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             gestureOverlay.centerXAnchor.constraint(equalTo: centerXAnchor),
             gestureOverlay.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
+        let settingsCenter = settingsPanel.centerXAnchor.constraint(equalTo: settingsButton.centerXAnchor)
+        settingsCenter.priority = .defaultHigh
+        settingsCenter.isActive = true
 
         updateCenterPlayIcon()
         updateFullscreenIcon(isFullscreen: false)
@@ -1145,8 +1151,8 @@ private final class SgChromeIconButton: NSButton {
 final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     weak var delegate: SgPlayerChromeDelegate?
 
-    private static let toolbarIconPointSize: CGFloat = 20
-    private static let toolbarButtonSize: CGFloat = 36
+    private static let toolbarIconPointSize: CGFloat = 18
+    private static let toolbarButtonSize: CGFloat = 28
     private static let centerControlButtonSize: CGFloat = 60
     private static let centerControlIconPointSize: CGFloat = 26
     private static let lockButtonTrailingInset: CGFloat = 50
@@ -1265,7 +1271,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             layoutToolbarPanel(
                 settingsPanel,
                 above: settingsButton,
-                align: .trailing,
+                align: .center,
                 gap: gap,
                 edgeInset: edgeInset,
             )
@@ -1643,7 +1649,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             progressRow.trailingAnchor.constraint(equalTo: bottomPanel.trailingAnchor, constant: -8),
             progressRow.topAnchor.constraint(equalTo: bottomPanel.topAnchor, constant: 4),
             progressRow.bottomAnchor.constraint(equalTo: bottomPanel.bottomAnchor, constant: -4),
-            progressRow.heightAnchor.constraint(equalToConstant: 44),
+            progressRow.heightAnchor.constraint(equalToConstant: 36),
             progressSlider.heightAnchor.constraint(equalToConstant: 20),
         ])
 

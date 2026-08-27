@@ -3,19 +3,20 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:background="@drawable/kinetic_audio_panel_bg"
+    android:minWidth="@dimen/kinetic_settings_panel_min_width"
     android:padding="@dimen/kinetic_settings_panel_padding">
 
     <!-- Level 1: mirror / loop / auto-play / more -->
     <ScrollView
         android:id="@+id/settings_level1"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fillViewport="false"
         android:overScrollMode="ifContentScrolls"
         android:scrollbars="vertical">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
@@ -41,6 +42,7 @@
                     android:id="@+id/settings_mirror_label"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
                     android:layout_weight="1"
                     android:text="@string/kinetic_settings_mirror"
                     android:textColor="#FFFFFF"
@@ -68,6 +70,7 @@
                     android:id="@+id/settings_loop_label"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
                     android:layout_weight="1"
                     android:text="@string/kinetic_settings_loop"
                     android:textColor="#FFFFFF"
@@ -95,6 +98,7 @@
                     android:id="@+id/settings_auto_play_label"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
                     android:layout_weight="1"
                     android:text="@string/kinetic_settings_auto_play"
                     android:textColor="#FFFFFF"
@@ -111,8 +115,10 @@
 
             <TextView
                 android:id="@+id/settings_row_more"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:paddingTop="10dp"
                 android:paddingBottom="4dp"
                 android:text="@string/kinetic_settings_more"
@@ -124,7 +130,7 @@
     <!-- Level 2: playback mode / aspect / others / audio tracks -->
     <ScrollView
         android:id="@+id/settings_level2"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fillViewport="false"
         android:overScrollMode="ifContentScrolls"
@@ -132,7 +138,7 @@
         android:visibility="gone">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
@@ -155,8 +161,10 @@
 
             <TextView
                 android:id="@+id/settings_mode_pause"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:paddingTop="6dp"
                 android:paddingBottom="4dp"
                 android:text="@string/kinetic_settings_mode_pause"
@@ -165,8 +173,10 @@
 
             <TextView
                 android:id="@+id/settings_mode_next"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:paddingTop="4dp"
                 android:paddingBottom="8dp"
                 android:text="@string/kinetic_settings_mode_next"
@@ -183,7 +193,7 @@
 
             <TextView
                 android:id="@+id/settings_aspect_auto"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingTop="6dp"
                 android:paddingBottom="4dp"
@@ -193,7 +203,7 @@
 
             <TextView
                 android:id="@+id/settings_aspect_16_9"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingTop="4dp"
                 android:paddingBottom="4dp"
@@ -203,7 +213,7 @@
 
             <TextView
                 android:id="@+id/settings_aspect_4_3"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingTop="4dp"
                 android:paddingBottom="8dp"
@@ -221,8 +231,10 @@
 
             <TextView
                 android:id="@+id/settings_hide_black_bars"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:paddingTop="6dp"
                 android:paddingBottom="4dp"
                 android:text="@string/kinetic_settings_hide_black_bars"
@@ -231,8 +243,10 @@
 
             <TextView
                 android:id="@+id/settings_blackout"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:paddingTop="4dp"
                 android:paddingBottom="8dp"
                 android:text="@string/kinetic_settings_blackout"

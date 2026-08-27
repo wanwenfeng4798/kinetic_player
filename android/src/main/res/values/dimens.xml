@@ -6,7 +6,13 @@
     <dimen name="kinetic_panel_popup_margin_bottom">6dp</dimen>
     <dimen name="kinetic_option_panel_width">120dp</dimen>
     <dimen name="kinetic_settings_panel_padding">12dp</dimen>
+    <dimen name="kinetic_settings_panel_min_width">140dp</dimen>
+    <dimen name="kinetic_settings_panel_max_width">280dp</dimen>
     <dimen name="kinetic_control_icon_size">20dp</dimen>
+    <dimen name="kinetic_toolbar_icon_hit">28dp</dimen>
+    <dimen name="kinetic_toolbar_icon_padding">4dp</dimen>
+    <dimen name="kinetic_toolbar_row_height">36dp</dimen>
+    <dimen name="kinetic_danmaku_row_height">32dp</dimen>
     <!-- GSY seek-preview thumbnail width (used by preview_layout + KineticPreViewGSYVideoPlayer). -->
     <dimen name="seek_bar_image">150dp</dimen>
 </resources>

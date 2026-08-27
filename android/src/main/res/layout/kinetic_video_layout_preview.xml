@@ -79,7 +79,7 @@
         <LinearLayout
             android:id="@+id/progress_row"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="@dimen/kinetic_toolbar_row_height"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="8dp"
@@ -87,9 +87,10 @@
 
             <ImageView
                 android:id="@+id/toolbar_play"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="@dimen/kinetic_toolbar_icon_hit"
+                android:layout_height="@dimen/kinetic_toolbar_icon_hit"
                 android:contentDescription="@string/kinetic_play_pause_icon"
+                android:padding="@dimen/kinetic_toolbar_icon_padding"
                 android:scaleType="fitCenter"
                 android:src="@drawable/kinetic_ic_play" />
 
@@ -132,7 +133,7 @@
                 android:layout_height="match_parent"
                 android:contentDescription="@string/kinetic_rate_icon"
                 android:gravity="center"
-                android:minWidth="36dp"
+                android:minWidth="@dimen/kinetic_toolbar_icon_hit"
                 android:paddingStart="2dp"
                 android:paddingEnd="2dp"
                 android:text="1.0x"
@@ -145,7 +146,7 @@
                 android:layout_height="match_parent"
                 android:contentDescription="@string/kinetic_quality_icon"
                 android:gravity="center"
-                android:minWidth="36dp"
+                android:minWidth="@dimen/kinetic_toolbar_icon_hit"
                 android:paddingStart="2dp"
                 android:paddingEnd="2dp"
                 android:text="@string/kinetic_quality_auto"
@@ -155,26 +156,28 @@
 
             <ImageView
                 android:id="@+id/settings_trigger"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="@dimen/kinetic_toolbar_icon_hit"
+                android:layout_height="@dimen/kinetic_toolbar_icon_hit"
                 android:contentDescription="@string/kinetic_settings_icon"
+                android:padding="@dimen/kinetic_toolbar_icon_padding"
                 android:scaleType="fitCenter"
                 android:src="@drawable/kinetic_ic_settings" />
 
             <ImageView
                 android:id="@+id/volume_trigger"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="@dimen/kinetic_toolbar_icon_hit"
+                android:layout_height="@dimen/kinetic_toolbar_icon_hit"
                 android:contentDescription="@string/kinetic_volume_icon"
+                android:padding="@dimen/kinetic_toolbar_icon_padding"
                 android:scaleType="fitCenter"
                 android:src="@drawable/kinetic_ic_volume_on" />
 
             <ImageView
                 android:id="@+id/fullscreen"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="@dimen/kinetic_toolbar_icon_hit"
+                android:layout_height="@dimen/kinetic_toolbar_icon_hit"
                 android:contentDescription="@string/kinetic_fullscreen_icon"
-                android:paddingEnd="4dp"
+                android:padding="@dimen/kinetic_toolbar_icon_padding"
                 android:scaleType="fitCenter"
                 android:src="@drawable/video_enlarge" />
         </LinearLayout>
@@ -183,7 +186,7 @@
         <LinearLayout
             android:id="@+id/danmaku_bar"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="@dimen/kinetic_danmaku_row_height"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="10dp"
@@ -191,10 +194,10 @@
 
             <ImageView
                 android:id="@+id/danmaku_toggle"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="@dimen/kinetic_toolbar_icon_hit"
+                android:layout_height="@dimen/kinetic_toolbar_icon_hit"
                 android:contentDescription="@string/kinetic_danmaku_toggle"
-                android:padding="7dp"
+                android:padding="@dimen/kinetic_toolbar_icon_padding"
                 android:scaleType="fitCenter"
                 android:src="@drawable/kinetic_ic_danmaku_on" />
 
@@ -231,10 +234,10 @@
 
             <ImageView
                 android:id="@+id/subtitle_toggle"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="@dimen/kinetic_toolbar_icon_hit"
+                android:layout_height="@dimen/kinetic_toolbar_icon_hit"
                 android:contentDescription="@string/kinetic_subtitle_toggle"
-                android:padding="7dp"
+                android:padding="@dimen/kinetic_toolbar_icon_padding"
                 android:scaleType="fitCenter"
                 android:src="@drawable/kinetic_ic_subtitle_on" />
         </LinearLayout>
@@ -257,8 +260,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_above="@id/layout_bottom"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="12dp"
         android:layout_marginBottom="@dimen/kinetic_panel_popup_margin_bottom"
         android:visibility="gone" />
 

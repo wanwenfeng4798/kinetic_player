@@ -449,7 +449,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         positionPanelAboveAnchor(
             panel = settingsPanel,
             anchor = settingsTrigger,
-            align = PanelHorizontalAlign.TRAILING,
         )
         settingsPanel?.bringToFront()
     }
@@ -501,7 +500,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             positionPanelAboveAnchor(
                 panel = settingsPanel,
                 anchor = settingsTrigger,
-                align = PanelHorizontalAlign.TRAILING,
             )
         }
     }
@@ -552,6 +550,14 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     text = chromeString("kinetic_no_audio_tracks", R.string.kinetic_no_audio_tracks)
                     setTextColor(Color.parseColor("#99FFFFFF"))
                     textSize = 12f
+                    maxLines = 1
+                    isSingleLine = true
+                    ellipsize = TextUtils.TruncateAt.END
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
                 }
             trackList.addView(empty)
             return
@@ -569,6 +575,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     setPadding(0, padV, 0, padV)
                     textSize = 13f
                     maxLines = 1
+                    isSingleLine = true
                     ellipsize = TextUtils.TruncateAt.END
                     setTextColor(if (selected) accentColor else Color.WHITE)
                     layoutParams =
@@ -1082,7 +1089,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             positionPanelAboveAnchor(
                 panel = settingsPanel,
                 anchor = settingsTrigger,
-                align = PanelHorizontalAlign.TRAILING,
             )
         }
         if (ratePanelVisible) {
@@ -1107,6 +1113,51 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     private enum class PanelHorizontalAlign {
         CENTER,
         TRAILING,
+    }
+
+    /** Content-sized width for wrap_content popups (settings), capped to the player. */
+    private fun wrapContentPanelWidth(
+        panel: View,
+        maxWidth: Int,
+    ): Int {
+        val minWidth = resources.getDimensionPixelSize(R.dimen.kinetic_settings_panel_min_width)
+        val maxPanelWidth =
+            minOf(
+                maxWidth,
+                resources.getDimensionPixelSize(R.dimen.kinetic_settings_panel_max_width),
+            )
+        val visibleLevel =
+            if (panel === settingsPanel) {
+                if (settingsLevel2?.visibility == View.VISIBLE) {
+                    settingsLevel2
+                } else {
+                    settingsLevel1
+                }
+            } else {
+                null
+            }
+        val content = (visibleLevel as? ViewGroup)?.getChildAt(0) ?: panel
+        val tracks = if (panel === settingsPanel) settingsPanelTrackList else null
+        val tracksVisibility = tracks?.visibility
+        tracks?.visibility = View.GONE
+        val contentLp = content.layoutParams
+        if (contentLp != null) {
+            contentLp.width = ViewGroup.LayoutParams.WRAP_CONTENT
+            content.layoutParams = contentLp
+        }
+        content.measure(
+            View.MeasureSpec.makeMeasureSpec(maxPanelWidth, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+        )
+        tracks?.visibility = tracksVisibility ?: View.VISIBLE
+        val padding =
+            if (content === panel) {
+                0
+            } else {
+                panel.paddingLeft + panel.paddingRight
+            }
+        return (content.measuredWidth + padding)
+            .coerceIn(minWidth, maxPanelWidth.coerceAtLeast(minWidth))
     }
 
     /** Positions popup above a bottom-toolbar anchor; re-run on layout / resize. */
@@ -1135,12 +1186,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                 if (fixedWidthPx != null) {
                     fixedWidthPx
                 } else {
-                    val maxWidth = host.width.coerceAtLeast(1)
-                    panelView.measure(
-                        View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST),
-                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    wrapContentPanelWidth(
+                        panel = panelView,
+                        maxWidth = host.width.coerceAtLeast(1),
                     )
-                    panelView.measuredWidth.coerceAtLeast(1)
                 }
             val hostLoc = IntArray(2)
             val anchorLoc = IntArray(2)
@@ -1158,7 +1207,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             val maxLeft = (host.width - measuredWidth).coerceAtLeast(0)
             val panelBottom = anchorTop - bottomMarginPx
             val lp = panelView.layoutParams as RelativeLayout.LayoutParams
-            lp.width = fixedWidthPx ?: ViewGroup.LayoutParams.WRAP_CONTENT
+            lp.width = measuredWidth
             lp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
             lp.removeRule(RelativeLayout.ABOVE)
             lp.removeRule(RelativeLayout.ALIGN_PARENT_START)
@@ -1187,6 +1236,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     }
                 visibleLevel?.let { level ->
                     val levelLp = level.layoutParams
+                    levelLp.width = ViewGroup.LayoutParams.MATCH_PARENT
                     levelLp.height =
                         if (capHeight) {
                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -1194,6 +1244,11 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                             ViewGroup.LayoutParams.WRAP_CONTENT
                         }
                     level.layoutParams = levelLp
+                    (level as? ViewGroup)?.getChildAt(0)?.let { inner ->
+                        val innerLp = inner.layoutParams
+                        innerLp.width = ViewGroup.LayoutParams.MATCH_PARENT
+                        inner.layoutParams = innerLp
+                    }
                 }
             }
             panelView.layoutParams = lp

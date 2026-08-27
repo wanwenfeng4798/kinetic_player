@@ -26,6 +26,7 @@ final class SgSettingsPanelView: UIView {
     private var blackout = false
     private var strings: [String: String] = [:]
     private let scrollView = UIScrollView()
+    private var widthConstraint: NSLayoutConstraint?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -70,16 +71,68 @@ final class SgSettingsPanelView: UIView {
     }
 
     override var intrinsicContentSize: CGSize {
-        let fittingWidth: CGFloat = 220
-        let size = contentStack.systemLayoutSizeFitting(
-            CGSize(width: fittingWidth, height: 0),
-            withHorizontalFittingPriority: .required,
+        let size = visibleLevel().systemLayoutSizeFitting(
+            UIView.layoutFittingCompressedSize,
+            withHorizontalFittingPriority: .fittingSizeLevel,
             verticalFittingPriority: .fittingSizeLevel,
         )
-        return CGSize(width: fittingWidth + 24, height: size.height + 24)
+        return CGSize(
+            width: preferredWidth(forContentWidth: contentFittingWidth(of: visibleLevel())),
+            height: size.height + 24,
+        )
+    }
+
+    private func visibleLevel() -> UIStackView {
+        level2.isHidden ? level1 : level2
+    }
+
+    private func contentFittingWidth(of stack: UIStackView) -> CGFloat {
+        var maxWidth: CGFloat = 0
+        for view in stack.arrangedSubviews where !view.isHidden {
+            if view === tracksStack {
+                continue
+            }
+            if let nested = view as? UIStackView {
+                maxWidth = max(maxWidth, contentFittingWidth(of: nested))
+                continue
+            }
+            if let inner = view.subviews.compactMap({ $0 as? UIStackView }).first {
+                if inner.axis == .horizontal {
+                    let spacing = inner.spacing * CGFloat(max(inner.arrangedSubviews.count - 1, 0))
+                    let sum =
+                        inner.arrangedSubviews.reduce(CGFloat.zero) { partial, child in
+                            partial + child.intrinsicContentSize.width
+                        } + spacing
+                    maxWidth = max(maxWidth, sum)
+                    continue
+                }
+                maxWidth = max(maxWidth, contentFittingWidth(of: inner))
+                continue
+            }
+            maxWidth = max(
+                maxWidth,
+                view.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize).width,
+            )
+        }
+        return maxWidth
+    }
+
+    private func preferredWidth(forContentWidth contentWidth: CGFloat) -> CGFloat {
+        let padded = contentWidth + 24
+        let minWidth: CGFloat = 140
+        let maxWidth: CGFloat = 280
+        let maxAllowed: CGFloat
+        if let superview, superview.bounds.width > 16 {
+            maxAllowed = min(maxWidth, superview.bounds.width - 16)
+        } else {
+            maxAllowed = maxWidth
+        }
+        return min(max(padded, minWidth), max(maxAllowed, minWidth))
     }
 
     private func refreshContentSize() {
+        let width = preferredWidth(forContentWidth: contentFittingWidth(of: visibleLevel()))
+        widthConstraint?.constant = width
         invalidateIntrinsicContentSize()
         setNeedsLayout()
     }
@@ -95,7 +148,15 @@ final class SgSettingsPanelView: UIView {
                 let language = track["language"] as? String
                 let selected = track["selected"] as? Bool ?? false
                 let title = language.map { "\(label) (\($0))" } ?? label
-                tracksStack.addArrangedSubview(optionButton(title, selected: selected, tag: index, action: #selector(trackTapped(_:))))
+                tracksStack.addArrangedSubview(
+                    optionButton(
+                        title,
+                        selected: selected,
+                        tag: index,
+                        action: #selector(trackTapped(_:)),
+                        truncates: true,
+                    ),
+                )
             }
         }
         refreshContentSize()
@@ -118,7 +179,9 @@ final class SgSettingsPanelView: UIView {
         backgroundColor = KineticPlayerColors.panelBackground
         layer.cornerRadius = 8
         clipsToBounds = true
+        setContentHuggingPriority(.required, for: .horizontal)
         setContentHuggingPriority(.defaultHigh, for: .vertical)
+        setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .vertical)
 
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -144,13 +207,16 @@ final class SgSettingsPanelView: UIView {
 
         tracksStack.axis = .vertical
         tracksStack.spacing = 4
+        tracksStack.alignment = .fill
+        tracksStack.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        tracksStack.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         contentStack.addArrangedSubview(level1)
         contentStack.addArrangedSubview(level2)
         scrollView.addSubview(contentStack)
         addSubview(scrollView)
         contentStack.setContentHuggingPriority(.required, for: .horizontal)
-        contentStack.setContentCompressionResistancePriority(.required, for: .horizontal)
+        contentStack.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 12),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
@@ -162,9 +228,13 @@ final class SgSettingsPanelView: UIView {
             contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
             contentStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
         ])
-        widthAnchor.constraint(equalToConstant: 220).isActive = true
+        let width = widthAnchor.constraint(equalToConstant: 140)
+        width.priority = .defaultHigh
+        width.isActive = true
+        widthConstraint = width
         rebuildLevel1()
         rebuildLevel2()
+        refreshContentSize()
     }
 
     private func rebuildLevel1() {
@@ -217,6 +287,9 @@ final class SgSettingsPanelView: UIView {
         label.text = text
         label.font = .systemFont(ofSize: 12)
         label.textColor = UIColor(white: 1, alpha: 0.6)
+        label.lineBreakMode = .byTruncatingTail
+        label.numberOfLines = 1
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return label
     }
 
@@ -234,6 +307,7 @@ final class SgSettingsPanelView: UIView {
         value.textAlignment = .right
         let stack = UIStackView(arrangedSubviews: [titleLabel, value])
         stack.axis = .horizontal
+        stack.spacing = 16
         stack.isUserInteractionEnabled = false
         stack.translatesAutoresizingMaskIntoConstraints = false
         row.addSubview(stack)
@@ -245,20 +319,37 @@ final class SgSettingsPanelView: UIView {
             row.heightAnchor.constraint(equalToConstant: 28),
         ])
         row.setContentHuggingPriority(.required, for: .vertical)
+        row.setContentHuggingPriority(.required, for: .horizontal)
         row.setContentCompressionResistancePriority(.required, for: .vertical)
+        row.setContentCompressionResistancePriority(.required, for: .horizontal)
         row.addTarget(self, action: action, for: .touchUpInside)
         return row
     }
 
-    private func optionButton(_ title: String, selected: Bool, tag: Int, action: Selector) -> UIButton {
+    private func optionButton(
+        _ title: String,
+        selected: Bool,
+        tag: Int,
+        action: Selector,
+        truncates: Bool = false,
+    ) -> UIButton {
         let button = UIButton(type: .system)
         button.contentHorizontalAlignment = .leading
         button.titleLabel?.font = .systemFont(ofSize: 13)
+        button.titleLabel?.numberOfLines = 1
+        button.titleLabel?.lineBreakMode = .byTruncatingTail
         button.setTitle(title, for: .normal)
         button.setTitleColor(selected ? KineticPlayerColors.seekActive : .white, for: .normal)
         button.tag = tag
         button.setContentHuggingPriority(.required, for: .vertical)
         button.setContentCompressionResistancePriority(.required, for: .vertical)
+        if truncates {
+            button.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        } else {
+            button.setContentHuggingPriority(.required, for: .horizontal)
+            button.setContentCompressionResistancePriority(.required, for: .horizontal)
+        }
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
     }
@@ -417,7 +508,31 @@ final class SgSettingsPanelView: NSView {
     override var intrinsicContentSize: NSSize {
         contentStack.layoutSubtreeIfNeeded()
         let content = contentStack.fittingSize
-        return NSSize(width: max(content.width + 24, 220), height: content.height + 24)
+        return NSSize(
+            width: preferredWidth(forContentWidth: contentFittingWidth()),
+            height: content.height + 24,
+        )
+    }
+
+    private func contentFittingWidth() -> CGFloat {
+        let stack = level2.isHidden ? level1 : level2
+        return stack.views
+            .filter { $0 !== tracksStack && !$0.isHidden }
+            .map(\.fittingSize.width)
+            .max() ?? 0
+    }
+
+    private func preferredWidth(forContentWidth contentWidth: CGFloat) -> CGFloat {
+        let padded = contentWidth + 24
+        let minWidth: CGFloat = 140
+        let maxWidth: CGFloat = 280
+        let maxAllowed: CGFloat
+        if let superview, superview.bounds.width > 16 {
+            maxAllowed = min(maxWidth, superview.bounds.width - 16)
+        } else {
+            maxAllowed = maxWidth
+        }
+        return min(max(padded, minWidth), max(maxAllowed, minWidth))
     }
 
     override var fittingSize: NSSize { intrinsicContentSize }
@@ -446,7 +561,15 @@ final class SgSettingsPanelView: NSView {
                 let language = track["language"] as? String
                 let selected = track["selected"] as? Bool ?? false
                 let title = language.map { "\(label) (\($0))" } ?? label
-                tracksStack.addArrangedSubview(optionButton(title, selected: selected, tag: index, action: #selector(trackTapped(_:))))
+                tracksStack.addArrangedSubview(
+                    optionButton(
+                        title,
+                        selected: selected,
+                        tag: index,
+                        action: #selector(trackTapped(_:)),
+                        truncates: true,
+                    ),
+                )
             }
         }
         refreshPanelHeightIfNeeded()
@@ -482,6 +605,8 @@ final class SgSettingsPanelView: NSView {
         layer?.backgroundColor = KineticPlayerColors.panelBackground.cgColor
         layer?.cornerRadius = 8
         layer?.masksToBounds = true
+        setContentHuggingPriority(.required, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
 
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -513,6 +638,8 @@ final class SgSettingsPanelView: NSView {
         tracksStack.spacing = 4
         tracksStack.alignment = .width
         tracksStack.setContentHuggingPriority(.required, for: .vertical)
+        tracksStack.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        tracksStack.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         contentStack.addArrangedSubview(level1)
         contentStack.addArrangedSubview(level2)
@@ -524,7 +651,6 @@ final class SgSettingsPanelView: NSView {
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
-            widthAnchor.constraint(equalToConstant: 220),
         ])
         rebuildLevel1()
         rebuildLevel2()
@@ -579,21 +705,44 @@ final class SgSettingsPanelView: NSView {
         let label = NSTextField(labelWithString: text)
         label.font = .systemFont(ofSize: 12)
         label.textColor = NSColor(white: 1, alpha: 0.6)
+        label.lineBreakMode = .byTruncatingTail
+        label.cell?.lineBreakMode = .byTruncatingTail
         label.setContentHuggingPriority(.required, for: .vertical)
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return label
     }
 
-    private func optionButton(_ title: String, selected: Bool, tag: Int, action: Selector) -> NSButton {
+    private func optionButton(
+        _ title: String,
+        selected: Bool,
+        tag: Int,
+        action: Selector,
+        truncates: Bool = false,
+    ) -> NSButton {
         let button = NSButton(title: title, target: self, action: action)
         button.isBordered = false
         button.setButtonType(.momentaryChange)
         button.alignment = .left
+        button.lineBreakMode = .byTruncatingTail
         button.tag = tag
         button.setContentHuggingPriority(.required, for: .vertical)
+        if truncates {
+            button.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        } else {
+            button.setContentHuggingPriority(.required, for: .horizontal)
+            button.setContentCompressionResistancePriority(.required, for: .horizontal)
+        }
         let color: NSColor = selected ? KineticPlayerColors.seekActive : .white
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byTruncatingTail
         button.attributedTitle = NSAttributedString(
             string: title,
-            attributes: [.foregroundColor: color, .font: NSFont.systemFont(ofSize: 13)],
+            attributes: [
+                .foregroundColor: color,
+                .font: NSFont.systemFont(ofSize: 13),
+                .paragraphStyle: paragraph,
+            ],
         )
         return button
     }
