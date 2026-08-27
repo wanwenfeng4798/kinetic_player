@@ -11,6 +11,7 @@ final class SgSettingsPanelView: UIView {
     var onAspectChanged: ((Int) -> Void)?
     var onHideBlackBarsChanged: ((Bool) -> Void)?
     var onBlackoutChanged: ((Bool) -> Void)?
+    var onScreenshot: (() -> Void)?
 
     private let contentStack = UIStackView()
     private let level1 = UIStackView()
@@ -70,6 +71,13 @@ final class SgSettingsPanelView: UIView {
         return fallback
     }
 
+    private static let maxLabelChars = 10
+
+    private func displayLabel(_ text: String) -> String {
+        guard text.count > Self.maxLabelChars else { return text }
+        return String(text.prefix(Self.maxLabelChars)) + "…"
+    }
+
     override var intrinsicContentSize: CGSize {
         let size = visibleLevel().systemLayoutSizeFitting(
             UIView.layoutFittingCompressedSize,
@@ -89,9 +97,6 @@ final class SgSettingsPanelView: UIView {
     private func contentFittingWidth(of stack: UIStackView) -> CGFloat {
         var maxWidth: CGFloat = 0
         for view in stack.arrangedSubviews where !view.isHidden {
-            if view === tracksStack {
-                continue
-            }
             if let nested = view as? UIStackView {
                 maxWidth = max(maxWidth, contentFittingWidth(of: nested))
                 continue
@@ -120,12 +125,11 @@ final class SgSettingsPanelView: UIView {
     private func preferredWidth(forContentWidth contentWidth: CGFloat) -> CGFloat {
         let padded = contentWidth + 24
         let minWidth: CGFloat = 140
-        let maxWidth: CGFloat = 280
         let maxAllowed: CGFloat
         if let superview, superview.bounds.width > 16 {
-            maxAllowed = min(maxWidth, superview.bounds.width - 16)
+            maxAllowed = superview.bounds.width - 16
         } else {
-            maxAllowed = maxWidth
+            maxAllowed = max(padded, minWidth)
         }
         return min(max(padded, minWidth), max(maxAllowed, minWidth))
     }
@@ -181,7 +185,7 @@ final class SgSettingsPanelView: UIView {
         clipsToBounds = true
         setContentHuggingPriority(.required, for: .horizontal)
         setContentHuggingPriority(.defaultHigh, for: .vertical)
-        setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .vertical)
 
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -229,7 +233,7 @@ final class SgSettingsPanelView: UIView {
             contentStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
         ])
         let width = widthAnchor.constraint(equalToConstant: 140)
-        width.priority = .defaultHigh
+        width.priority = .required
         width.isActive = true
         widthConstraint = width
         rebuildLevel1()
@@ -260,13 +264,14 @@ final class SgSettingsPanelView: UIView {
         level2.addArrangedSubview(sectionLabel(t("kinetic_settings_other", "其它设置")))
         level2.addArrangedSubview(optionButton(t("kinetic_settings_hide_black_bars", "隐藏黑边"), selected: hideBlackBars, tag: 0, action: #selector(toggleHideBars)))
         level2.addArrangedSubview(optionButton(t("kinetic_settings_blackout", "关灯模式"), selected: blackout, tag: 0, action: #selector(toggleBlackout)))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_screenshot", "截图"), selected: false, tag: 0, action: #selector(captureScreenshot)))
         level2.addArrangedSubview(sectionLabel(t("kinetic_audio_tracks", "音轨")))
         level2.addArrangedSubview(tracksStack)
     }
 
     private func titleLabel(_ text: String) -> UILabel {
         let label = UILabel()
-        label.text = text
+        label.text = displayLabel(text)
         label.font = .boldSystemFont(ofSize: 14)
         label.textColor = .white
         label.setContentHuggingPriority(.required, for: .vertical)
@@ -275,7 +280,7 @@ final class SgSettingsPanelView: UIView {
 
     private func sectionLabel(_ text: String) -> UILabel {
         let label = UILabel()
-        label.text = text
+        label.text = displayLabel(text)
         label.font = .systemFont(ofSize: 12)
         label.textColor = UIColor(white: 1, alpha: 0.8)
         label.setContentHuggingPriority(.required, for: .vertical)
@@ -284,7 +289,7 @@ final class SgSettingsPanelView: UIView {
 
     private func mutedLabel(_ text: String) -> UILabel {
         let label = UILabel()
-        label.text = text
+        label.text = displayLabel(text)
         label.font = .systemFont(ofSize: 12)
         label.textColor = UIColor(white: 1, alpha: 0.6)
         label.lineBreakMode = .byTruncatingTail
@@ -297,14 +302,17 @@ final class SgSettingsPanelView: UIView {
         let row = UIButton(type: .system)
         row.contentHorizontalAlignment = .fill
         let titleLabel = UILabel()
-        titleLabel.text = title
+        titleLabel.text = displayLabel(title)
         titleLabel.font = .systemFont(ofSize: 13)
         titleLabel.textColor = .white
+        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         let value = UILabel()
         value.text = on ? t("kinetic_settings_on", "开") : t("kinetic_settings_off", "关")
         value.font = .systemFont(ofSize: 12)
         value.textColor = on ? KineticPlayerColors.seekActive : UIColor(white: 1, alpha: 0.8)
         value.textAlignment = .right
+        value.setContentCompressionResistancePriority(.required, for: .horizontal)
         let stack = UIStackView(arrangedSubviews: [titleLabel, value])
         stack.axis = .horizontal
         stack.spacing = 16
@@ -319,9 +327,9 @@ final class SgSettingsPanelView: UIView {
             row.heightAnchor.constraint(equalToConstant: 28),
         ])
         row.setContentHuggingPriority(.required, for: .vertical)
-        row.setContentHuggingPriority(.required, for: .horizontal)
+        row.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         row.setContentCompressionResistancePriority(.required, for: .vertical)
-        row.setContentCompressionResistancePriority(.required, for: .horizontal)
+        row.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         row.addTarget(self, action: action, for: .touchUpInside)
         return row
     }
@@ -338,7 +346,7 @@ final class SgSettingsPanelView: UIView {
         button.titleLabel?.font = .systemFont(ofSize: 13)
         button.titleLabel?.numberOfLines = 1
         button.titleLabel?.lineBreakMode = .byTruncatingTail
-        button.setTitle(title, for: .normal)
+        button.setTitle(displayLabel(title), for: .normal)
         button.setTitleColor(selected ? KineticPlayerColors.seekActive : .white, for: .normal)
         button.tag = tag
         button.setContentHuggingPriority(.required, for: .vertical)
@@ -347,8 +355,8 @@ final class SgSettingsPanelView: UIView {
             button.setContentHuggingPriority(.defaultLow, for: .horizontal)
             button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         } else {
-            button.setContentHuggingPriority(.required, for: .horizontal)
-            button.setContentCompressionResistancePriority(.required, for: .horizontal)
+            button.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+            button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         }
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
@@ -428,6 +436,10 @@ final class SgSettingsPanelView: UIView {
         rebuildLevel2()
     }
 
+    @objc private func captureScreenshot() {
+        onScreenshot?()
+    }
+
     @objc private func trackTapped(_ sender: UIButton) {
         onSelectTrack?(sender.tag)
     }
@@ -445,6 +457,7 @@ final class SgSettingsPanelView: NSView {
     var onAspectChanged: ((Int) -> Void)?
     var onHideBlackBarsChanged: ((Bool) -> Void)?
     var onBlackoutChanged: ((Bool) -> Void)?
+    var onScreenshot: (() -> Void)?
 
     private let contentStack = NSStackView()
     private let level1 = NSStackView()
@@ -505,6 +518,13 @@ final class SgSettingsPanelView: NSView {
         return fallback
     }
 
+    private static let maxLabelChars = 10
+
+    private func displayLabel(_ text: String) -> String {
+        guard text.count > Self.maxLabelChars else { return text }
+        return String(text.prefix(Self.maxLabelChars)) + "…"
+    }
+
     override var intrinsicContentSize: NSSize {
         contentStack.layoutSubtreeIfNeeded()
         let content = contentStack.fittingSize
@@ -517,7 +537,7 @@ final class SgSettingsPanelView: NSView {
     private func contentFittingWidth() -> CGFloat {
         let stack = level2.isHidden ? level1 : level2
         return stack.views
-            .filter { $0 !== tracksStack && !$0.isHidden }
+            .filter { !$0.isHidden }
             .map(\.fittingSize.width)
             .max() ?? 0
     }
@@ -525,12 +545,11 @@ final class SgSettingsPanelView: NSView {
     private func preferredWidth(forContentWidth contentWidth: CGFloat) -> CGFloat {
         let padded = contentWidth + 24
         let minWidth: CGFloat = 140
-        let maxWidth: CGFloat = 280
         let maxAllowed: CGFloat
         if let superview, superview.bounds.width > 16 {
-            maxAllowed = min(maxWidth, superview.bounds.width - 16)
+            maxAllowed = superview.bounds.width - 16
         } else {
-            maxAllowed = maxWidth
+            maxAllowed = max(padded, minWidth)
         }
         return min(max(padded, minWidth), max(maxAllowed, minWidth))
     }
@@ -606,7 +625,7 @@ final class SgSettingsPanelView: NSView {
         layer?.cornerRadius = 8
         layer?.masksToBounds = true
         setContentHuggingPriority(.required, for: .horizontal)
-        setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -681,12 +700,13 @@ final class SgSettingsPanelView: NSView {
         level2.addArrangedSubview(sectionLabel(t("kinetic_settings_other", "其它设置")))
         level2.addArrangedSubview(optionButton(t("kinetic_settings_hide_black_bars", "隐藏黑边"), selected: hideBlackBars, tag: 0, action: #selector(toggleHideBars)))
         level2.addArrangedSubview(optionButton(t("kinetic_settings_blackout", "关灯模式"), selected: blackout, tag: 0, action: #selector(toggleBlackout)))
+        level2.addArrangedSubview(optionButton(t("kinetic_settings_screenshot", "截图"), selected: false, tag: 0, action: #selector(captureScreenshot)))
         level2.addArrangedSubview(sectionLabel(t("kinetic_audio_tracks", "音轨")))
         level2.addArrangedSubview(tracksStack)
     }
 
     private func titleLabel(_ text: String) -> NSTextField {
-        let label = NSTextField(labelWithString: text)
+        let label = NSTextField(labelWithString: displayLabel(text))
         label.font = .boldSystemFont(ofSize: 14)
         label.textColor = .white
         label.setContentHuggingPriority(.required, for: .vertical)
@@ -694,7 +714,7 @@ final class SgSettingsPanelView: NSView {
     }
 
     private func sectionLabel(_ text: String) -> NSTextField {
-        let label = NSTextField(labelWithString: text)
+        let label = NSTextField(labelWithString: displayLabel(text))
         label.font = .systemFont(ofSize: 12)
         label.textColor = NSColor(white: 1, alpha: 0.8)
         label.setContentHuggingPriority(.required, for: .vertical)
@@ -702,7 +722,7 @@ final class SgSettingsPanelView: NSView {
     }
 
     private func mutedLabel(_ text: String) -> NSTextField {
-        let label = NSTextField(labelWithString: text)
+        let label = NSTextField(labelWithString: displayLabel(text))
         label.font = .systemFont(ofSize: 12)
         label.textColor = NSColor(white: 1, alpha: 0.6)
         label.lineBreakMode = .byTruncatingTail
@@ -719,7 +739,8 @@ final class SgSettingsPanelView: NSView {
         action: Selector,
         truncates: Bool = false,
     ) -> NSButton {
-        let button = NSButton(title: title, target: self, action: action)
+        let shown = displayLabel(title)
+        let button = NSButton(title: shown, target: self, action: action)
         button.isBordered = false
         button.setButtonType(.momentaryChange)
         button.alignment = .left
@@ -730,14 +751,14 @@ final class SgSettingsPanelView: NSView {
             button.setContentHuggingPriority(.defaultLow, for: .horizontal)
             button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         } else {
-            button.setContentHuggingPriority(.required, for: .horizontal)
-            button.setContentCompressionResistancePriority(.required, for: .horizontal)
+            button.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+            button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         }
         let color: NSColor = selected ? KineticPlayerColors.seekActive : .white
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
         button.attributedTitle = NSAttributedString(
-            string: title,
+            string: shown,
             attributes: [
                 .foregroundColor: color,
                 .font: NSFont.systemFont(ofSize: 13),
@@ -817,6 +838,10 @@ final class SgSettingsPanelView: NSView {
         blackout.toggle()
         onBlackoutChanged?(blackout)
         rebuildLevel2()
+    }
+
+    @objc private func captureScreenshot() {
+        onScreenshot?()
     }
 
     @objc private func trackTapped(_ sender: NSButton) {

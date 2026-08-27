@@ -23,6 +23,7 @@ import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import com.keepwan.kinetic_player.R
 import com.shuyu.gsyvideoplayer.utils.CommonUtil
 import com.shuyu.gsyvideoplayer.utils.Debuger
@@ -95,6 +96,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     var onSubtitleEnabledChanged: ((Boolean) -> Unit)? = null
     var onDanmakuVisibleChanged: ((Boolean) -> Unit)? = null
     var onDanmakuSend: ((String) -> Unit)? = null
+    var onCaptureScreenshot: (((String?) -> Unit) -> Unit)? = null
+    var onStartGifRecording: (() -> Unit)? = null
+    var onStopGifRecording: (((String?) -> Unit) -> Unit)? = null
+    var isGifRecording: (() -> Boolean)? = null
 
     private var audioPanel: View? = null
     private var settingsPanel: View? = null
@@ -179,6 +184,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         settingsPanelTrackList = findViewById(R.id.settings_panel_track_list)
         settingsLevel1 = findViewById(R.id.settings_level1)
         settingsLevel2 = findViewById(R.id.settings_level2)
+        findViewById<View>(R.id.settings_gif)?.visibility = View.VISIBLE
         settingsTrigger?.setOnClickListener { toggleSettingsPanel() }
         findViewById<View>(R.id.settings_row_mirror)?.setOnClickListener {
             chromeMirrorHorizontal = !chromeMirrorHorizontal
@@ -240,6 +246,36 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             chromeBlackout = !chromeBlackout
             blackoutOverlay?.visibility = if (chromeBlackout) View.VISIBLE else View.GONE
             refreshSettingsLevel2()
+        }
+        findViewById<View>(R.id.settings_screenshot)?.setOnClickListener {
+            hideSettingsPanel()
+            onCaptureScreenshot?.invoke { path ->
+                val message =
+                    if (path.isNullOrEmpty()) {
+                        chromeString("kinetic_screenshot_failed", R.string.kinetic_screenshot_failed)
+                    } else {
+                        chromeString("kinetic_screenshot_saved", R.string.kinetic_screenshot_saved)
+                    }
+                Toast.makeText(context.applicationContext, message, Toast.LENGTH_SHORT).show()
+            }
+        }
+        findViewById<View>(R.id.settings_gif)?.setOnClickListener {
+            if (isGifRecording?.invoke() == true) {
+                onStopGifRecording?.invoke { path ->
+                    val message =
+                        if (path.isNullOrEmpty()) {
+                            chromeString("kinetic_gif_failed", R.string.kinetic_gif_failed)
+                        } else {
+                            chromeString("kinetic_gif_saved", R.string.kinetic_gif_saved)
+                        }
+                    Toast.makeText(context.applicationContext, message, Toast.LENGTH_SHORT).show()
+                    refreshSettingsLevel2()
+                }
+            } else {
+                onStartGifRecording?.invoke()
+                refreshSettingsLevel2()
+                hideSettingsPanel()
+            }
         }
     }
 
@@ -368,20 +404,54 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         volumeTrigger?.setOnClickListener { toggleAudioPanel() }
     }
 
-    private fun hideAllPopups() {
-        hideAudioPanel()
-        hideSettingsPanel()
-        hideRatePanel()
-        hideQualityPanel()
+    private fun hideAllPopups(animated: Boolean = false) {
+        hideAudioPanel(animated)
+        hideSettingsPanel(animated)
+        hideRatePanel(animated)
+        hideQualityPanel(animated)
+    }
+
+    private fun setPopupVisible(
+        panel: View?,
+        visible: Boolean,
+        animated: Boolean = true,
+    ) {
+        val view = panel ?: return
+        view.animate().cancel()
+        if (visible) {
+            if (view.visibility != View.VISIBLE) {
+                view.alpha = 0f
+                view.visibility = View.VISIBLE
+            }
+            if (animated) {
+                view.animate().alpha(1f).setDuration(200).start()
+            } else {
+                view.alpha = 1f
+            }
+        } else {
+            if (!animated || view.visibility != View.VISIBLE) {
+                view.visibility = View.GONE
+                view.alpha = 1f
+                return
+            }
+            view.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction {
+                    view.visibility = View.GONE
+                    view.alpha = 1f
+                }
+                .start()
+        }
     }
 
     private fun toggleAudioPanel() {
         if (audioPanelVisible) {
             hideAudioPanel()
         } else {
-            hideSettingsPanel()
-            hideRatePanel()
-            hideQualityPanel()
+            hideSettingsPanel(animated = false)
+            hideRatePanel(animated = false)
+            hideQualityPanel(animated = false)
             showAudioPanel()
         }
     }
@@ -390,9 +460,9 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (settingsPanelVisible) {
             hideSettingsPanel()
         } else {
-            hideAudioPanel()
-            hideRatePanel()
-            hideQualityPanel()
+            hideAudioPanel(animated = false)
+            hideRatePanel(animated = false)
+            hideQualityPanel(animated = false)
             showSettingsPanel()
         }
     }
@@ -401,9 +471,9 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (ratePanelVisible) {
             hideRatePanel()
         } else {
-            hideAudioPanel()
-            hideSettingsPanel()
-            hideQualityPanel()
+            hideAudioPanel(animated = false)
+            hideSettingsPanel(animated = false)
+            hideQualityPanel(animated = false)
             showRatePanel()
         }
     }
@@ -412,15 +482,15 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (qualityPanelVisible) {
             hideQualityPanel()
         } else {
-            hideAudioPanel()
-            hideSettingsPanel()
-            hideRatePanel()
+            hideAudioPanel(animated = false)
+            hideSettingsPanel(animated = false)
+            hideRatePanel(animated = false)
             showQualityPanel()
         }
     }
 
     private fun showAudioPanel() {
-        audioPanel?.visibility = View.VISIBLE
+        setPopupVisible(audioPanel, visible = true)
         audioPanelVisible = true
         positionPanelAboveAnchor(
             panel = audioPanel,
@@ -432,8 +502,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         syncGestureVolumeDuringPanelInteraction()
     }
 
-    fun hideAudioPanel() {
-        audioPanel?.visibility = View.GONE
+    fun hideAudioPanel(animated: Boolean = true) {
+        setPopupVisible(audioPanel, visible = false, animated = animated)
         audioPanelVisible = false
         volumeDragging = false
         syncGestureVolumeDuringPanelInteraction()
@@ -444,7 +514,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         refreshSettingsLevel1()
         refreshSettingsLevel2()
         refreshSettingsTracks()
-        settingsPanel?.visibility = View.VISIBLE
+        setPopupVisible(settingsPanel, visible = true)
         settingsPanelVisible = true
         positionPanelAboveAnchor(
             panel = settingsPanel,
@@ -453,14 +523,14 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         settingsPanel?.bringToFront()
     }
 
-    fun hideSettingsPanel() {
-        settingsPanel?.visibility = View.GONE
+    fun hideSettingsPanel(animated: Boolean = true) {
+        setPopupVisible(settingsPanel, visible = false, animated = animated)
         settingsPanelVisible = false
     }
 
     private fun showRatePanel() {
         refreshRateList()
-        ratePanel?.visibility = View.VISIBLE
+        setPopupVisible(ratePanel, visible = true)
         ratePanelVisible = true
         positionPanelAboveAnchor(
             panel = ratePanel,
@@ -470,14 +540,14 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         ratePanel?.bringToFront()
     }
 
-    private fun hideRatePanel() {
-        ratePanel?.visibility = View.GONE
+    private fun hideRatePanel(animated: Boolean = true) {
+        setPopupVisible(ratePanel, visible = false, animated = animated)
         ratePanelVisible = false
     }
 
     private fun showQualityPanel() {
         refreshQualityList()
-        qualityPanel?.visibility = View.VISIBLE
+        setPopupVisible(qualityPanel, visible = true)
         qualityPanelVisible = true
         positionPanelAboveAnchor(
             panel = qualityPanel,
@@ -487,8 +557,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         qualityPanel?.bringToFront()
     }
 
-    private fun hideQualityPanel() {
-        qualityPanel?.visibility = View.GONE
+    private fun hideQualityPanel(animated: Boolean = true) {
+        setPopupVisible(qualityPanel, visible = false, animated = animated)
         qualityPanelVisible = false
     }
 
@@ -530,6 +600,15 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         styleOption(R.id.settings_aspect_4_3, !chromeHideBlackBars && chromeShowType == 2)
         styleOption(R.id.settings_hide_black_bars, chromeHideBlackBars)
         styleOption(R.id.settings_blackout, chromeBlackout)
+        val gifLabel = findViewById<TextView>(R.id.settings_gif)
+        gifLabel?.text =
+            truncateSettingsLabel(
+                if (isGifRecording?.invoke() == true) {
+                    chromeString("kinetic_settings_gif_stop", R.string.kinetic_settings_gif_stop)
+                } else {
+                    chromeString("kinetic_settings_gif", R.string.kinetic_settings_gif)
+                },
+            )
     }
 
     private fun styleOption(
@@ -547,7 +626,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         if (tracks.isEmpty()) {
             val empty =
                 TextView(context).apply {
-                    text = chromeString("kinetic_no_audio_tracks", R.string.kinetic_no_audio_tracks)
+                    text =
+                        truncateSettingsLabel(
+                            chromeString("kinetic_no_audio_tracks", R.string.kinetic_no_audio_tracks),
+                        )
                     setTextColor(Color.parseColor("#99FFFFFF"))
                     textSize = 12f
                     maxLines = 1
@@ -555,7 +637,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     ellipsize = TextUtils.TruncateAt.END
                     layoutParams =
                         LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
                             LinearLayout.LayoutParams.WRAP_CONTENT,
                         )
                 }
@@ -571,7 +653,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             val title = if (!language.isNullOrEmpty()) "$label ($language)" else label
             val item =
                 TextView(context).apply {
-                    text = title
+                    text = truncateSettingsLabel(title)
                     setPadding(0, padV, 0, padV)
                     textSize = 13f
                     maxLines = 1
@@ -580,7 +662,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                     setTextColor(if (selected) accentColor else Color.WHITE)
                     layoutParams =
                         LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
                             LinearLayout.LayoutParams.WRAP_CONTENT,
                         )
                     setOnClickListener {
@@ -915,6 +997,12 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             R.string.kinetic_settings_blackout,
         )
         setTextIfPresent(
+            R.id.settings_screenshot,
+            "kinetic_settings_screenshot",
+            R.string.kinetic_settings_screenshot,
+        )
+        setTextIfPresent(R.id.settings_gif, "kinetic_settings_gif", R.string.kinetic_settings_gif)
+        setTextIfPresent(
             R.id.settings_audio_tracks_label,
             "kinetic_audio_tracks",
             R.string.kinetic_audio_tracks,
@@ -929,7 +1017,25 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     }
 
     private fun setTextIfPresent(id: Int, key: String, fallbackRes: Int) {
-        findViewById<TextView>(id)?.text = chromeString(key, fallbackRes)
+        val view = findViewById<TextView>(id) ?: return
+        val text = chromeString(key, fallbackRes)
+        view.text = if (isUnderSettingsPanel(view)) truncateSettingsLabel(text) else text
+    }
+
+    private fun isUnderSettingsPanel(view: View): Boolean {
+        var current: View? = view
+        while (current != null) {
+            if (current === settingsPanel) return true
+            current = current.parent as? View
+        }
+        return false
+    }
+
+    private fun truncateSettingsLabel(text: String): String {
+        val count = text.codePointCount(0, text.length)
+        if (count <= SETTINGS_LABEL_MAX_CHARS) return text
+        val end = text.offsetByCodePoints(0, SETTINGS_LABEL_MAX_CHARS)
+        return text.substring(0, end) + "…"
     }
 
     open fun applyUiConfig() {
@@ -1121,11 +1227,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         maxWidth: Int,
     ): Int {
         val minWidth = resources.getDimensionPixelSize(R.dimen.kinetic_settings_panel_min_width)
-        val maxPanelWidth =
-            minOf(
-                maxWidth,
-                resources.getDimensionPixelSize(R.dimen.kinetic_settings_panel_max_width),
-            )
+        val maxPanelWidth = maxWidth
         val visibleLevel =
             if (panel === settingsPanel) {
                 if (settingsLevel2?.visibility == View.VISIBLE) {
@@ -1137,9 +1239,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
                 null
             }
         val content = (visibleLevel as? ViewGroup)?.getChildAt(0) ?: panel
-        val tracks = if (panel === settingsPanel) settingsPanelTrackList else null
-        val tracksVisibility = tracks?.visibility
-        tracks?.visibility = View.GONE
         val contentLp = content.layoutParams
         if (contentLp != null) {
             contentLp.width = ViewGroup.LayoutParams.WRAP_CONTENT
@@ -1149,7 +1248,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             View.MeasureSpec.makeMeasureSpec(maxPanelWidth, View.MeasureSpec.AT_MOST),
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
         )
-        tracks?.visibility = tracksVisibility ?: View.VISIBLE
         val padding =
             if (content === panel) {
                 0
@@ -1686,6 +1784,10 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         toPlayer.onSubtitleEnabledChanged = fromPlayer.onSubtitleEnabledChanged
         toPlayer.onDanmakuVisibleChanged = fromPlayer.onDanmakuVisibleChanged
         toPlayer.onDanmakuSend = fromPlayer.onDanmakuSend
+        toPlayer.onCaptureScreenshot = fromPlayer.onCaptureScreenshot
+        toPlayer.onStartGifRecording = fromPlayer.onStartGifRecording
+        toPlayer.onStopGifRecording = fromPlayer.onStopGifRecording
+        toPlayer.isGifRecording = fromPlayer.isGifRecording
         toPlayer.onDanmakuPlaybackStart = fromPlayer.onDanmakuPlaybackStart
         toPlayer.onDanmakuPlaybackPause = fromPlayer.onDanmakuPlaybackPause
         toPlayer.onDanmakuPlaybackComplete = fromPlayer.onDanmakuPlaybackComplete
@@ -1798,5 +1900,6 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
 
     companion object {
         private val DEFAULT_UI_CONFIG = GsyUiConfig()
+        private const val SETTINGS_LABEL_MAX_CHARS = 10
     }
 }

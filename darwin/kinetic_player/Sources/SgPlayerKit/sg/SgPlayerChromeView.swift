@@ -13,6 +13,7 @@ protocol SgPlayerChromeDelegate: AnyObject {
     /// 0 auto, 1 16:9, 2 4:3, 3 fill/hide bars
     func chromeDidChangeScaleMode(_ mode: Int)
     func chromeDidChangeBlackout(_ enabled: Bool)
+    func chromeDidRequestScreenshot() -> String?
 }
 
 #if os(iOS)
@@ -33,6 +34,8 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     /// Matches Android `kinetic_control_icon_size` (20dp glyph in 28dp hit target).
     private static let toolbarIconPointSize: CGFloat = 18
     private static let toolbarButtonSize: CGFloat = 28
+    private static let toastTag = 91_017
+    private static let popupAnimationDuration: TimeInterval = 0.2
     private static let centerControlButtonSize: CGFloat = 60
     private static let centerControlIconPointSize: CGFloat = 26
     private static let lockButtonTrailingInset: CGFloat = 50
@@ -70,6 +73,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
     private let gestureOverlay = SgGestureOverlayView()
 
     private var hideTimer: Timer?
+    private var popupAnimationGeneration = 0
     private var controlsVisible = true
     private var audioPanelVisible = false
     private var settingsPanelVisible = false
@@ -227,9 +231,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             self.centerPlayButton.isUserInteractionEnabled = visible
             self.updateLockButtonVisibility()
             if !visible {
-                self.hideAudioPanel()
-                self.hideSettingsPanel()
-                self.hideRatePanel()
+                self.hideAudioPanel(animated: false)
+                self.hideSettingsPanel(animated: false)
+                self.hideRatePanel(animated: false)
             }
         }
         if animated {
@@ -354,7 +358,7 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         settingsPanel.translatesAutoresizingMaskIntoConstraints = false
         settingsPanel.setContentHuggingPriority(.required, for: .horizontal)
         settingsPanel.setContentHuggingPriority(.defaultHigh, for: .vertical)
-        settingsPanel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        settingsPanel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         settingsPanel.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         settingsPanel.isHidden = true
         settingsPanel.isUserInteractionEnabled = false
@@ -396,6 +400,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             guard let self else { return }
             self.setBlackoutEnabled(enabled)
             self.delegate?.chromeDidChangeBlackout(enabled)
+        }
+        settingsPanel.onScreenshot = { [weak self] in
+            self?.captureScreenshotFromSettings()
         }
         addSubview(settingsPanel)
 
@@ -527,6 +534,42 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         return fallback
     }
 
+    private func showChromeToast(_ message: String) {
+        viewWithTag(Self.toastTag)?.removeFromSuperview()
+        let pill = UIView()
+        pill.tag = Self.toastTag
+        pill.backgroundColor = UIColor(white: 0, alpha: 0.72)
+        pill.layer.cornerRadius = 8
+        pill.translatesAutoresizingMaskIntoConstraints = false
+        let label = UILabel()
+        label.text = message
+        label.textColor = .white
+        label.font = .systemFont(ofSize: 13, weight: .medium)
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        pill.addSubview(label)
+        addSubview(pill)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: pill.topAnchor, constant: 8),
+            label.bottomAnchor.constraint(equalTo: pill.bottomAnchor, constant: -8),
+            label.leadingAnchor.constraint(equalTo: pill.leadingAnchor, constant: 14),
+            label.trailingAnchor.constraint(equalTo: pill.trailingAnchor, constant: -14),
+            pill.centerXAnchor.constraint(equalTo: centerXAnchor),
+            pill.centerYAnchor.constraint(equalTo: centerYAnchor),
+            pill.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -32),
+        ])
+        pill.alpha = 0
+        UIView.animate(withDuration: 0.2, animations: { pill.alpha = 1 }) { _ in
+            UIView.animate(
+                withDuration: 0.2,
+                delay: 1.4,
+                options: [],
+                animations: { pill.alpha = 0 },
+                completion: { _ in pill.removeFromSuperview() },
+            )
+        }
+    }
+
     private func updateCenterPlayIcon() {
         let symbol = isPlaying ? "pause.fill" : "play.fill"
         centerPlayButton.setImage(
@@ -567,9 +610,9 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
             self.centerPlayButton.alpha = 0
             self.bottomPanel.isUserInteractionEnabled = false
             self.centerPlayButton.isUserInteractionEnabled = false
-            self.hideAudioPanel()
-            self.hideSettingsPanel()
-            self.hideRatePanel()
+            self.hideAudioPanel(animated: false)
+            self.hideSettingsPanel(animated: false)
+            self.hideRatePanel(animated: false)
             self.updateLockButtonVisibility()
         }
         if animated {
@@ -641,8 +684,8 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         if audioPanelVisible {
             hideAudioPanel()
         } else {
-            hideSettingsPanel()
-            hideRatePanel()
+            hideSettingsPanel(animated: false)
+            hideRatePanel(animated: false)
             showAudioPanel()
         }
     }
@@ -651,8 +694,8 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         if settingsPanelVisible {
             hideSettingsPanel()
         } else {
-            hideAudioPanel()
-            hideRatePanel()
+            hideAudioPanel(animated: false)
+            hideRatePanel(animated: false)
             showSettingsPanel()
         }
     }
@@ -661,25 +704,63 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         if ratePanelVisible {
             hideRatePanel()
         } else {
-            hideAudioPanel()
-            hideSettingsPanel()
+            hideAudioPanel(animated: false)
+            hideSettingsPanel(animated: false)
             showRatePanel()
         }
     }
 
-    private func showAudioPanel() {
-        audioPanel.isHidden = false
-        audioPanel.isUserInteractionEnabled = true
-        audioPanelVisible = true
-        bringSubviewToFront(audioPanel)
-        hideTimer?.invalidate()
+    private func setPopupVisible(
+        _ panel: UIView,
+        visible: Bool,
+        flag: inout Bool,
+        animated: Bool = true,
+    ) {
+        popupAnimationGeneration += 1
+        let generation = popupAnimationGeneration
+        panel.layer.removeAllAnimations()
+        if visible {
+            flag = true
+            panel.isHidden = false
+            panel.isUserInteractionEnabled = true
+            bringSubviewToFront(panel)
+            hideTimer?.invalidate()
+            if animated {
+                panel.alpha = 0
+                UIView.animate(withDuration: Self.popupAnimationDuration) {
+                    panel.alpha = 1
+                }
+            } else {
+                panel.alpha = 1
+            }
+        } else {
+            flag = false
+            panel.isUserInteractionEnabled = false
+            let finish = {
+                panel.isHidden = true
+                panel.alpha = 1
+            }
+            if !animated || panel.isHidden {
+                finish()
+                scheduleAutoHide()
+                return
+            }
+            UIView.animate(withDuration: Self.popupAnimationDuration, animations: {
+                panel.alpha = 0
+            }) { finished in
+                guard finished, generation == self.popupAnimationGeneration else { return }
+                finish()
+                self.scheduleAutoHide()
+            }
+        }
     }
 
-    private func hideAudioPanel() {
-        audioPanel.isHidden = true
-        audioPanel.isUserInteractionEnabled = false
-        audioPanelVisible = false
-        scheduleAutoHide()
+    private func showAudioPanel() {
+        setPopupVisible(audioPanel, visible: true, flag: &audioPanelVisible)
+    }
+
+    private func hideAudioPanel(animated: Bool = true) {
+        setPopupVisible(audioPanel, visible: false, flag: &audioPanelVisible, animated: animated)
     }
 
     private func showSettingsPanel() {
@@ -694,34 +775,30 @@ final class SgPlayerChromeView: UIView, UIGestureRecognizerDelegate {
         )
         settingsPanel.showLevel1()
         reloadSettingsTracks()
-        settingsPanel.isHidden = false
-        settingsPanel.isUserInteractionEnabled = true
-        settingsPanelVisible = true
-        bringSubviewToFront(settingsPanel)
-        hideTimer?.invalidate()
+        setPopupVisible(settingsPanel, visible: true, flag: &settingsPanelVisible)
     }
 
-    private func hideSettingsPanel() {
-        settingsPanel.isHidden = true
-        settingsPanel.isUserInteractionEnabled = false
-        settingsPanelVisible = false
-        scheduleAutoHide()
+    private func hideSettingsPanel(animated: Bool = true) {
+        setPopupVisible(settingsPanel, visible: false, flag: &settingsPanelVisible, animated: animated)
+    }
+
+    private func captureScreenshotFromSettings() {
+        hideSettingsPanel()
+        let path = delegate?.chromeDidRequestScreenshot()
+        let message =
+            path == nil
+                ? chromeString("kinetic_screenshot_failed", "截图失败")
+                : chromeString("kinetic_screenshot_saved", "截图已保存")
+        showChromeToast(message)
     }
 
     private func showRatePanel() {
         reloadRatePanel()
-        ratePanel.isHidden = false
-        ratePanel.isUserInteractionEnabled = true
-        ratePanelVisible = true
-        bringSubviewToFront(ratePanel)
-        hideTimer?.invalidate()
+        setPopupVisible(ratePanel, visible: true, flag: &ratePanelVisible)
     }
 
-    private func hideRatePanel() {
-        ratePanel.isHidden = true
-        ratePanel.isUserInteractionEnabled = false
-        ratePanelVisible = false
-        scheduleAutoHide()
+    private func hideRatePanel(animated: Bool = true) {
+        setPopupVisible(ratePanel, visible: false, flag: &ratePanelVisible, animated: animated)
     }
 
     private func reloadSettingsTracks() {
@@ -1153,6 +1230,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private static let toolbarIconPointSize: CGFloat = 18
     private static let toolbarButtonSize: CGFloat = 28
+    private static let popupAnimationDuration: TimeInterval = 0.2
     private static let centerControlButtonSize: CGFloat = 60
     private static let centerControlIconPointSize: CGFloat = 26
     private static let lockButtonTrailingInset: CGFloat = 50
@@ -1179,6 +1257,8 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private let ratePanel = SgOptionListPanelView()
 
     private var hideTimer: Timer?
+    private var chromeToastView: NSView?
+    private var popupAnimationGeneration = 0
     private var controlsVisible = true
     private var audioPanelVisible = false
     private var settingsPanelVisible = false
@@ -1407,9 +1487,9 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         centerPlayButton.isEnabled = visible
         updateLockButtonVisibility()
         if !visible {
-            hideAudioPanel()
-            hideSettingsPanel()
-            hideRatePanel()
+            hideAudioPanel(animated: false)
+            hideSettingsPanel(animated: false)
+            hideRatePanel(animated: false)
         }
         if visible {
             scheduleAutoHide()
@@ -1586,6 +1666,9 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             self.setBlackoutEnabled(enabled)
             self.delegate?.chromeDidChangeBlackout(enabled)
         }
+        settingsPanel.onScreenshot = { [weak self] in
+            self?.captureScreenshotFromSettings()
+        }
         addSubview(settingsPanel)
 
         ratePanel.translatesAutoresizingMaskIntoConstraints = true
@@ -1704,6 +1787,47 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         return fallback
     }
 
+    private func showChromeToast(_ message: String) {
+        chromeToastView?.removeFromSuperview()
+        let pill = NSView()
+        pill.wantsLayer = true
+        pill.layer?.backgroundColor = NSColor(white: 0, alpha: 0.72).cgColor
+        pill.layer?.cornerRadius = 8
+        pill.translatesAutoresizingMaskIntoConstraints = false
+        let label = NSTextField(labelWithString: message)
+        label.textColor = .white
+        label.font = .systemFont(ofSize: 13, weight: .medium)
+        label.alignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        pill.addSubview(label)
+        addSubview(pill)
+        chromeToastView = pill
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: pill.topAnchor, constant: 8),
+            label.bottomAnchor.constraint(equalTo: pill.bottomAnchor, constant: -8),
+            label.leadingAnchor.constraint(equalTo: pill.leadingAnchor, constant: 14),
+            label.trailingAnchor.constraint(equalTo: pill.trailingAnchor, constant: -14),
+            pill.centerXAnchor.constraint(equalTo: centerXAnchor),
+            pill.centerYAnchor.constraint(equalTo: centerYAnchor),
+            pill.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -32),
+        ])
+        pill.alphaValue = 0
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            pill.animator().alphaValue = 1
+        } completionHandler: {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self, weak pill] in
+                guard self != nil, let pill else { return }
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.2
+                    pill.animator().alphaValue = 0
+                } completionHandler: {
+                    pill.removeFromSuperview()
+                }
+            }
+        }
+    }
+
     private func updateCenterPlayIcon() {
         let symbol = isPlaying ? "pause.fill" : "play.fill"
         guard let image = KineticPlayerSymbols.image(
@@ -1792,9 +1916,9 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             self.centerPlayButton.alphaValue = 0
             self.setInteractive(self.bottomPanel, enabled: false)
             self.centerPlayButton.isEnabled = false
-            self.hideAudioPanel()
-            self.hideSettingsPanel()
-            self.hideRatePanel()
+            self.hideAudioPanel(animated: false)
+            self.hideSettingsPanel(animated: false)
+            self.hideRatePanel(animated: false)
             self.updateLockButtonVisibility()
         }
         if animated {
@@ -1885,8 +2009,8 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         if audioPanelVisible {
             hideAudioPanel()
         } else {
-            hideSettingsPanel()
-            hideRatePanel()
+            hideSettingsPanel(animated: false)
+            hideRatePanel(animated: false)
             showAudioPanel()
         }
     }
@@ -1895,8 +2019,8 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         if settingsPanelVisible {
             hideSettingsPanel()
         } else {
-            hideAudioPanel()
-            hideRatePanel()
+            hideAudioPanel(animated: false)
+            hideRatePanel(animated: false)
             showSettingsPanel()
         }
     }
@@ -1905,26 +2029,69 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         if ratePanelVisible {
             hideRatePanel()
         } else {
-            hideAudioPanel()
-            hideSettingsPanel()
+            hideAudioPanel(animated: false)
+            hideSettingsPanel(animated: false)
             showRatePanel()
         }
     }
 
-    private func showAudioPanel() {
-        audioPanel.isHidden = false
-        audioPanelVisible = true
-        bringToFront(audioPanel)
-        needsLayout = true
-        layoutSubtreeIfNeeded()
-        repositionToolbarPanels()
-        hideTimer?.invalidate()
+    private func setPopupVisible(
+        _ panel: NSView,
+        visible: Bool,
+        flag: inout Bool,
+        animated: Bool = true,
+        afterShow: (() -> Void)? = nil,
+    ) {
+        popupAnimationGeneration += 1
+        let generation = popupAnimationGeneration
+        panel.layer?.removeAllAnimations()
+        if visible {
+            flag = true
+            panel.isHidden = false
+            bringToFront(panel)
+            afterShow?()
+            hideTimer?.invalidate()
+            if animated {
+                panel.alphaValue = 0
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = Self.popupAnimationDuration
+                    panel.animator().alphaValue = 1
+                }
+            } else {
+                panel.alphaValue = 1
+            }
+        } else {
+            flag = false
+            let finish = {
+                panel.isHidden = true
+                panel.alphaValue = 1
+            }
+            if !animated || panel.isHidden {
+                finish()
+                scheduleAutoHide()
+                return
+            }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = Self.popupAnimationDuration
+                panel.animator().alphaValue = 0
+            } completionHandler: {
+                guard generation == self.popupAnimationGeneration else { return }
+                finish()
+                self.scheduleAutoHide()
+            }
+        }
     }
 
-    private func hideAudioPanel() {
-        audioPanel.isHidden = true
-        audioPanelVisible = false
-        scheduleAutoHide()
+    private func showAudioPanel() {
+        setPopupVisible(audioPanel, visible: true, flag: &audioPanelVisible) {
+            self.needsLayout = true
+            self.layoutSubtreeIfNeeded()
+            self.repositionToolbarPanels()
+        }
+    }
+
+    private func hideAudioPanel(animated: Bool = true) {
+        setPopupVisible(audioPanel, visible: false, flag: &audioPanelVisible, animated: animated)
     }
 
     private func showSettingsPanel() {
@@ -1939,36 +2106,38 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         )
         settingsPanel.showLevel1()
         reloadSettingsTracks()
-        settingsPanel.isHidden = false
-        settingsPanelVisible = true
-        bringToFront(settingsPanel)
-        needsLayout = true
-        layoutSubtreeIfNeeded()
-        repositionToolbarPanels()
-        hideTimer?.invalidate()
+        setPopupVisible(settingsPanel, visible: true, flag: &settingsPanelVisible) {
+            self.needsLayout = true
+            self.layoutSubtreeIfNeeded()
+            self.repositionToolbarPanels()
+        }
     }
 
-    private func hideSettingsPanel() {
-        settingsPanel.isHidden = true
-        settingsPanelVisible = false
-        scheduleAutoHide()
+    private func hideSettingsPanel(animated: Bool = true) {
+        setPopupVisible(settingsPanel, visible: false, flag: &settingsPanelVisible, animated: animated)
+    }
+
+    private func captureScreenshotFromSettings() {
+        hideSettingsPanel()
+        let path = delegate?.chromeDidRequestScreenshot()
+        let message =
+            path == nil
+                ? chromeString("kinetic_screenshot_failed", "截图失败")
+                : chromeString("kinetic_screenshot_saved", "截图已保存")
+        showChromeToast(message)
     }
 
     private func showRatePanel() {
         reloadRatePanel()
-        ratePanel.isHidden = false
-        ratePanelVisible = true
-        bringToFront(ratePanel)
-        needsLayout = true
-        layoutSubtreeIfNeeded()
-        repositionToolbarPanels()
-        hideTimer?.invalidate()
+        setPopupVisible(ratePanel, visible: true, flag: &ratePanelVisible) {
+            self.needsLayout = true
+            self.layoutSubtreeIfNeeded()
+            self.repositionToolbarPanels()
+        }
     }
 
-    private func hideRatePanel() {
-        ratePanel.isHidden = true
-        ratePanelVisible = false
-        scheduleAutoHide()
+    private func hideRatePanel(animated: Bool = true) {
+        setPopupVisible(ratePanel, visible: false, flag: &ratePanelVisible, animated: animated)
     }
 
     private func reloadSettingsTracks() {

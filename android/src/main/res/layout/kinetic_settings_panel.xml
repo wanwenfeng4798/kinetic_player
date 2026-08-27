@@ -248,10 +248,35 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:paddingTop="4dp"
-                android:paddingBottom="8dp"
+                android:paddingBottom="4dp"
                 android:text="@string/kinetic_settings_blackout"
                 android:textColor="#FFFFFF"
                 android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/settings_screenshot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:text="@string/kinetic_settings_screenshot"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/settings_gif"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingTop="4dp"
+                android:paddingBottom="8dp"
+                android:text="@string/kinetic_settings_gif"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/settings_audio_tracks_label"
@@ -263,7 +288,7 @@
 
             <LinearLayout
                 android:id="@+id/settings_panel_track_list"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:orientation="vertical" />

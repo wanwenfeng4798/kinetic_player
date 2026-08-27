@@ -4,14 +4,22 @@
 
 - **弹幕输入框**（Android）：输入框始终显示；点击弹幕图标改为启用/禁用，并同步开关弹幕画布。
 - **设置面板滚动**：一级 / 二级设置超出可用高度时可上下滚动（Android GSY 与 Darwin SGPlayer）。
+- **设置截图 / GIF**：二级「其它设置」全平台增加**截图**（当前帧、不含控制栏；Toast 后关面板）。Android 额外**录制 GIF**（点开始、再点停止）。复用 `captureFrame()` / `gsyStartGifRecording()`，不新增 Flutter API。
+- **弹窗淡入淡出**：音量 / 设置 / 倍速 / 画质（Android）弹窗 200ms 淡入淡出。随控制栏收起时无动画，避免叠在一起。
+- **设置面板宽度**：按内容自适应（最小约 140，不超过播放器）。超过 **10 个字符** 的文案（含音轨名）截为省略号。
 - **控制栏语言**：`KineticUiConfig.locale` + 公共 `setLocale` / `KineticChromeStrings`（`zh` / `en` / `vi` / `ms` / `id` / `fil`），下发 Android、共享 Darwin、Web Artplayer `lang`。
 - **KineticUiConfig**：由 `GsyUiConfig` 更名（全平台，非 Android 专属）。语言随 `creationParams['ui']` 下发。热切换仍用 `setLocale`。
 - **底栏图标**：第一行播放 / 音量 / 设置 / 全屏图标加大（20pt / 36dp 点击区）。
 - **material_ui**：依赖 `material_ui ^1.1.0`；最低 **Dart 3.12 / Flutter 3.44**。示例移除 `cupertino_icons`。
 
+### 修复
+
+- **列表滑动自动播放**：`GsyAutoPlayCoordinator` 变更时 cell 会 rebuild，活跃项才会挂载播放器。播放窗口相对 **ListView** 计算，不再用全屏 `MediaQuery`（避免被 AppBar 算偏）。
+
 ### 文档
 
 - USAGE / README / Darwin / Web / Example：locale API、SDK 下限、版本 `2.0.3`。
+- USAGE / GSY_FEATURES：设置截图 / GIF、弹窗淡入淡出、自适应宽度与 10 字省略、列表自动播放 rebuild。
 
 ## 2.0.2
 

@@ -28,6 +28,13 @@
     <string name="kinetic_settings_other">其它设置</string>
     <string name="kinetic_settings_hide_black_bars">隐藏黑边</string>
     <string name="kinetic_settings_blackout">关灯模式</string>
+    <string name="kinetic_settings_screenshot">截图</string>
+    <string name="kinetic_settings_gif">录制 GIF</string>
+    <string name="kinetic_settings_gif_stop">停止录制</string>
+    <string name="kinetic_screenshot_saved">截图已保存</string>
+    <string name="kinetic_screenshot_failed">截图失败</string>
+    <string name="kinetic_gif_saved">GIF 已保存</string>
+    <string name="kinetic_gif_failed">GIF 保存失败</string>
     <string name="kinetic_audio_tracks">音轨</string>
     <string name="kinetic_no_audio_tracks">暂无可用音轨</string>
     <string name="kinetic_rate_title">倍速</string>

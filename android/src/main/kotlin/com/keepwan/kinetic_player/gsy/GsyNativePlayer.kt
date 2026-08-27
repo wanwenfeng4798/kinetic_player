@@ -187,6 +187,12 @@ class GsyNativePlayer(
         playerView.onSubtitleEnabledChanged = { setSubtitleEnabled(it) }
         playerView.onDanmakuVisibleChanged = { toggleDanmaku(it) }
         playerView.onDanmakuSend = { /* live danmaku already drawn; optional host hook */ }
+        playerView.onCaptureScreenshot = { callback ->
+            takeScreenshot(withView = false, high = true, callback = callback)
+        }
+        playerView.onStartGifRecording = { startGifRecording() }
+        playerView.onStopGifRecording = { callback -> stopGifRecording(callback) }
+        playerView.isGifRecording = { isGifRecording() }
         playerView.syncVolumeToolbar(savedVolume, muted)
         mainHandler.post(progressRunnable)
         GsyPlayerDefaults.applyIjkOptions(initialUiConfig.ijkEnableAccurateSeek)
@@ -602,6 +608,8 @@ class GsyNativePlayer(
             target.saveFrame(output, high, listener)
         }
     }
+
+    fun isGifRecording(): Boolean = gifHelper != null
 
     fun startGifRecording() {
         stopGifRecordingInternal(save = false)

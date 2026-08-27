@@ -248,7 +248,7 @@ CommonVideoPlayerView(
 
 ## 原生控制栏 UI（双端对齐）
 
-Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏；默认强调色为 B 站粉 `#FB7299`（可通过 `KineticUiConfig.accentColor` 覆盖）。底栏含倍速弹窗；Android Exo 多档源时另显示清晰度（含「自动」）。设置面板（一级 / 二级）超出可用高度时可滚动。Android 第二行弹幕输入框始终显示，点击弹幕图标启用或禁用输入（同时开关弹幕画布）。
+Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏；默认强调色为 B 站粉 `#FB7299`（可通过 `KineticUiConfig.accentColor` 覆盖）。底栏含倍速弹窗；Android Exo 多档源时另显示清晰度（含「自动」）。音量 / 设置 / 倍速 / 画质弹窗 200ms 淡入淡出（随控制栏收起时无动画）。设置面板（一级 / 二级）超出可用高度时可滚动；宽度随内容自适应（最小约 140，不超过播放器），超过 10 个字符的文案（含音轨名）截为省略号。二级「其它设置」含**截图**（全平台，当前帧不含控制栏）；Android 另有**录制 GIF**（点开始、再点停止）。Android 第二行弹幕输入框始终显示，点击弹幕图标启用或禁用输入（同时开关弹幕画布）。
 
 控制栏文案语言由公共配置 `KineticUiConfig.locale` 决定（`zh` / `en` / `vi` / `ms` / `id` / `fil`，默认 `zh`；未知码回退中文）。`toCreationParams()` 把 `locale` 与 `KineticChromeStrings` 文案表放进 `creationParams['ui']`。Darwin 走共享源 `SgUiConfig.strings`，不使用独立 `.lproj`。运行时调用 `controller.setLocale(...)` 热切换（不要用 `gsySetUiConfig` 改语言）。
 
@@ -312,7 +312,7 @@ Android / iOS / macOS / Web 共用。创建时经 `creationParams['ui']` 下发�
 | `showFullscreenButton` | `true` | 全屏按钮 |
 | `showLockButton` | `true` | 全屏锁屏按钮（Android） |
 | `showVolumeToolbar` | `true` | 喇叭按钮 + 竖向音量弹窗 |
-| `showSettingsButton` | `true` | 齿轮按钮 + 两级设置面板 |
+| `showSettingsButton` | `true` | 齿轮按钮 + 两级设置面板（截图；Android 含 GIF） |
 | `accentColor` | `#FB7299` | 进度条 / 选中态强调色 |
 | `pictureInPictureEnabled` | `true` | Android 播放中切后台自动 PiP（API 26+） |
 | `showDragProgressTextOnSeekBar` | `false` | 拖动进度时间文字 |

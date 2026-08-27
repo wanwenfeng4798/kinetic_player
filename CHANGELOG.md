@@ -4,14 +4,22 @@
 
 - **Danmaku input** (Android): the input field stays visible; tapping the danmaku icon enables/disables it and toggles the overlay together.
 - **Settings panel scroll**: first- and second-level settings clamp to available height and scroll (Android GSY and Darwin SGPlayer).
+- **Settings screenshot / GIF**: level-2 “Other” has **Screenshot** on all platforms (current frame, no chrome overlay; toast then closes the panel). Android also has **Record GIF** (tap to start, tap again to stop). Reuses `captureFrame()` / `gsyStartGifRecording()`; no new Flutter API.
+- **Popup fade**: volume / settings / rate / quality (Android) popups fade in and out over 200ms. Closing with the control bar is instant so the animations do not stack.
+- **Settings panel width**: wrap-content (min ~140, capped to the player). Labels longer than **10 characters** are truncated with an ellipsis (including audio-track names).
 - **Chrome locale**: `KineticUiConfig.locale` plus common `setLocale` / `KineticChromeStrings` (`zh` / `en` / `vi` / `ms` / `id` / `fil`) applied on Android, shared Darwin, and Web Artplayer `lang`.
 - **KineticUiConfig**: renamed from `GsyUiConfig` (plugin-wide, not Android-only). Language is serialized under `creationParams['ui']`. Hot-swap still uses `setLocale`.
 - **Toolbar icons**: first-row play / volume / settings / fullscreen glyphs enlarged (20pt in a 36dp hit target).
 - **material_ui**: depends on `material_ui ^1.1.0`; minimum SDK **Dart 3.12 / Flutter 3.44**. Example no longer uses `cupertino_icons`.
 
+### Fixes
+
+- **List auto-play**: `GsyAutoPlayVideoList` rebuilds when `GsyAutoPlayCoordinator` changes so the active cell actually mounts a player. The play window is computed against the **ListView** bounds, not full-screen `MediaQuery` (avoids AppBar offset).
+
 ### Docs
 
 - USAGE / README / Darwin / Web / Example: locale API, SDK floor, version `2.0.3`.
+- USAGE / GSY_FEATURES: settings screenshot / GIF, popup fade, wrap-content labels, list auto-play rebuild.
 
 ## 2.0.2
 

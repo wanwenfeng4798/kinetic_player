@@ -98,8 +98,16 @@ void main() {
     expect(KineticChromeStrings.normalize('fil'), 'fil');
     expect(KineticChromeStrings.normalize('unknown'), 'zh');
     expect(
-      KineticChromeStrings.forLocale('en')['kinetic_settings_title'],
-      'Settings',
+      KineticChromeStrings.forLocale('en')['kinetic_settings_screenshot'],
+      'Screenshot',
+    );
+    expect(
+      KineticChromeStrings.forLocale('en')['kinetic_settings_gif'],
+      'Record GIF',
+    );
+    expect(
+      KineticChromeStrings.forLocale('zh')['kinetic_screenshot_saved'],
+      '截图已保存',
     );
     expect(
       KineticChromeStrings.forLocale('xx')['kinetic_settings_title'],

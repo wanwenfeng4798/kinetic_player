@@ -71,13 +71,13 @@ class _GsyAutoPlayVideoCellState extends State<GsyAutoPlayVideoCell> {
   }
 
   void _onCoordinatorChanged() {
+    if (!mounted) return;
     final active = widget.coordinator.activeIndex == widget.index;
-    final controller = _controller;
     if (!active) {
-      controller?.pause();
-      return;
+      _controller?.pause();
+      _controller = null;
     }
-    controller?.play();
+    setState(() {});
   }
 
   bool get _active => widget.coordinator.activeIndex == widget.index;
@@ -130,7 +130,7 @@ class GsyAutoPlayVideoList extends StatefulWidget {
   final Widget Function(BuildContext context, int index)? coverBuilder;
   final double aspectRatio;
 
-  /// Fraction of viewport height that must overlap a cell for it to be eligible.
+  /// Fraction of the list viewport height used as the auto-play window.
   final double playWindowFraction;
 
   @override
@@ -141,14 +141,18 @@ class _GsyAutoPlayVideoListState extends State<GsyAutoPlayVideoList> {
   late final GsyAutoPlayCoordinator _coordinator =
       widget.coordinator ?? GsyAutoPlayCoordinator();
   final Map<int, GlobalKey> _keys = {};
+  final GlobalKey _listKey = GlobalKey();
 
   GlobalKey _keyFor(int index) => _keys.putIfAbsent(index, GlobalKey.new);
 
   void _recomputeActive() {
     if (!mounted) return;
-    final screenHeight = MediaQuery.sizeOf(context).height;
-    final windowH = screenHeight * widget.playWindowFraction.clamp(0.2, 1.0);
-    final playTop = (screenHeight - windowH) / 2;
+    final listBox = _listKey.currentContext?.findRenderObject() as RenderBox?;
+    if (listBox == null || !listBox.hasSize) return;
+    final listOrigin = listBox.localToGlobal(Offset.zero);
+    final listHeight = listBox.size.height;
+    final windowH = listHeight * widget.playWindowFraction.clamp(0.2, 1.0);
+    final playTop = listOrigin.dy + (listHeight - windowH) / 2;
     final playBottom = playTop + windowH;
 
     int? bestIndex;
@@ -190,6 +194,7 @@ class _GsyAutoPlayVideoListState extends State<GsyAutoPlayVideoList> {
         return false;
       },
       child: ListView.builder(
+        key: _listKey,
         itemCount: widget.urls.length,
         itemBuilder: (context, index) {
           return KeyedSubtree(

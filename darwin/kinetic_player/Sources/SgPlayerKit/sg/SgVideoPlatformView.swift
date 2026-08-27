@@ -263,6 +263,10 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
         _ = enabled
     }
 
+    func chromeDidRequestScreenshot() -> String? {
+        player.captureFrame()
+    }
+
     private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "play":
