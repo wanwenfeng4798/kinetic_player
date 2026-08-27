@@ -15,6 +15,7 @@
 ### 修复
 
 - **列表滑动自动播放**：`GsyAutoPlayCoordinator` 变更时 cell 会 rebuild，活跃项才会挂载播放器。播放窗口相对 **ListView** 计算，不再用全屏 `MediaQuery`（避免被 AppBar 算偏）。
+- **macOS 工具栏弹窗**：打开音量 / 设置 / 倍速不再触发 Swift 独占访问冲突（`layout()` 里 `repositionToolbarPanels` 的 `swift_beginAccess`）。
 
 ### 文档
 

@@ -615,8 +615,8 @@ final class SgSettingsPanelView: NSView {
         invalidateIntrinsicContentSize()
         needsLayout = true
         layoutSubtreeIfNeeded()
+        // chrome.layout() positions this panel; forcing parent layout here re-enters it.
         superview?.needsLayout = true
-        superview?.layoutSubtreeIfNeeded()
     }
 
     private func setup() {

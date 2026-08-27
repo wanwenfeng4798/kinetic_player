@@ -1342,7 +1342,7 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
             )
         }
         if settingsPanelVisible, !settingsPanel.isHidden {
-            settingsPanel.refreshPanelHeightIfNeeded()
+            settingsPanel.invalidateIntrinsicContentSize()
             layoutToolbarPanel(
                 settingsPanel,
                 above: settingsButton,
@@ -2033,7 +2033,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     private func setPopupVisible(
         _ panel: NSView,
         visible: Bool,
-        flag: inout Bool,
         animated: Bool = true,
         afterShow: (() -> Void)? = nil,
     ) {
@@ -2041,7 +2040,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         let generation = popupAnimationGeneration
         panel.layer?.removeAllAnimations()
         if visible {
-            flag = true
             panel.isHidden = false
             bringToFront(panel)
             afterShow?()
@@ -2056,7 +2054,6 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
                 panel.alphaValue = 1
             }
         } else {
-            flag = false
             let finish = {
                 panel.isHidden = true
                 panel.alphaValue = 1
@@ -2078,15 +2075,16 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
     }
 
     private func showAudioPanel() {
-        setPopupVisible(audioPanel, visible: true, flag: &audioPanelVisible) {
+        audioPanelVisible = true
+        setPopupVisible(audioPanel, visible: true) {
             self.needsLayout = true
             self.layoutSubtreeIfNeeded()
-            self.repositionToolbarPanels()
         }
     }
 
     private func hideAudioPanel(animated: Bool = true) {
-        setPopupVisible(audioPanel, visible: false, flag: &audioPanelVisible, animated: animated)
+        audioPanelVisible = false
+        setPopupVisible(audioPanel, visible: false, animated: animated)
     }
 
     private func showSettingsPanel() {
@@ -2101,15 +2099,16 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
         )
         settingsPanel.showLevel1()
         reloadSettingsTracks()
-        setPopupVisible(settingsPanel, visible: true, flag: &settingsPanelVisible) {
+        settingsPanelVisible = true
+        setPopupVisible(settingsPanel, visible: true) {
             self.needsLayout = true
             self.layoutSubtreeIfNeeded()
-            self.repositionToolbarPanels()
         }
     }
 
     private func hideSettingsPanel(animated: Bool = true) {
-        setPopupVisible(settingsPanel, visible: false, flag: &settingsPanelVisible, animated: animated)
+        settingsPanelVisible = false
+        setPopupVisible(settingsPanel, visible: false, animated: animated)
     }
 
     private func captureScreenshotFromSettings() {
@@ -2119,15 +2118,16 @@ final class SgPlayerChromeView: NSView, NSGestureRecognizerDelegate {
 
     private func showRatePanel() {
         reloadRatePanel()
-        setPopupVisible(ratePanel, visible: true, flag: &ratePanelVisible) {
+        ratePanelVisible = true
+        setPopupVisible(ratePanel, visible: true) {
             self.needsLayout = true
             self.layoutSubtreeIfNeeded()
-            self.repositionToolbarPanels()
         }
     }
 
     private func hideRatePanel(animated: Bool = true) {
-        setPopupVisible(ratePanel, visible: false, flag: &ratePanelVisible, animated: animated)
+        ratePanelVisible = false
+        setPopupVisible(ratePanel, visible: false, animated: animated)
     }
 
     private func reloadSettingsTracks() {

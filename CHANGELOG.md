@@ -15,6 +15,7 @@
 ### Fixes
 
 - **List auto-play**: `GsyAutoPlayVideoList` rebuilds when `GsyAutoPlayCoordinator` changes so the active cell actually mounts a player. The play window is computed against the **ListView** bounds, not full-screen `MediaQuery` (avoids AppBar offset).
+- **macOS toolbar popups**: opening volume / settings / rate no longer trips Swift exclusivity (`swift_beginAccess` in `repositionToolbarPanels` during `layout()`).
 
 ### Docs
 
