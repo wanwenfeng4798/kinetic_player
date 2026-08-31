@@ -35,3 +35,6 @@ migrate_working_dir/
 # Web / Artplayer npm
 web/node_modules/
 web/dist/
+
+# libmpv Windows vendor (downloaded at configure time)
+windows/mpv/vendor/

@@ -8,4 +8,7 @@ abstract final class PlayerViewTypes {
 
   /// Flutter Web Artplayer surface ([HtmlElementView]).
   static const String art = 'com.example.player/art_view_ui';
+
+  /// Windows / Linux libmpv texture surface.
+  static const String mpv = 'com.example.player/mpv_view_ui';
 }

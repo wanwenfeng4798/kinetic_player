@@ -14,6 +14,8 @@ flutter pub get
 flutter run          # Android / iOS 真机
 flutter run -d macos
 flutter run -d chrome
+flutter run -d windows
+flutter run -d linux
 ```
 
 macOS 需 `MACOSX_DEPLOYMENT_TARGET = 11.0`（Example 已配置）。若在 Xcode 直编遇 SPM 版本冲突，见 [DARWIN_SGPLAYER.md — SPM 包装包最低版本](DARWIN_SGPLAYER.md#spm-包装包最低版本)（可手动改 `FlutterGeneratedPluginSwiftPackage/Package.swift`，或先 `flutter run -d macos`）。
@@ -25,18 +27,19 @@ macOS 需 `MACOSX_DEPLOYMENT_TARGET = 11.0`（Example 已配置）。若在 Xcod
 3. **Android GSY** — 内核切换、GL 滤镜、字幕、弹幕、水印、片头/中插广告、GIF、保存截图、手动 PiP、播放列表、网速、Exo 视频轨、显示比例、纯播放、全屏；AppBar 进入**列表滑动自动播放**
 4. **iOS / macOS SG** — 旋转/镜像、封面/末帧、音高、VR/VRBox/视口、后台策略（iOS）、Demuxer、视频轨、多段资源、seekable、全屏
 5. **Web Artplayer** — 创建启用 danmuku / Document PiP / HLS·DASH 控制等；面板含 Video PiP、Document PiP、发送弹幕、可用插件列表
+6. **Windows / Linux libmpv** — 按钮式控制栏（音量 / 字幕 / 清晰度 / 设置 / 倍速 / 全屏）；支持旋转、镜像、封面、字幕、播放列表、水印、纯播；无滑动手势、无 PiP / 弹幕 / 广告 / GIF
 
 ## 平台能力速查（Example 内）
 
-| 能力 | Android | iOS/macOS | Web |
-|------|---------|-----------|-----|
-| 原生底栏 / 音轨 | ✅ | ✅ | Artplayer 控件 |
-| 滑动手势 | ✅ | iOS ✅ / macOS ❌ | Artplayer |
-| PiP | ✅ 自动+手动 | ❌ | Video / Document |
-| 弹幕 | ✅ 含全屏 | ❌ | ✅ 插件 |
-| 字幕 | ✅ | ❌ | 插件已启用 |
-| 水印 / 滤镜 / GIF / 广告 | ✅ | ❌ | — |
-| 列表自动播 | ✅ 独立页 | ❌ | — |
+| 能力 | Android | iOS/macOS | Web | Win/Linux |
+|------|---------|-----------|-----|-----------|
+| 原生底栏 / 音轨 | ✅ | ✅ | Artplayer 控件 | ✅ Dart 底栏 |
+| 滑动手势 | ✅ | iOS ✅ / macOS ❌ | Artplayer | ❌ |
+| PiP | ✅ 自动+手动 | ❌ | Video / Document | ❌ |
+| 弹幕 | ✅ 含全屏 | ❌ | ✅ 插件 | ❌ |
+| 字幕 | ✅ | ❌ | 插件已启用 | ✅ 外挂 |
+| 水印 / 滤镜 / GIF / 广告 | ✅ | ❌ | — | 水印 ✅；滤镜/GIF/广告 ❌ |
+| 列表自动播 | ✅ 独立页 | ❌ | — | 连播 playlist ✅；滑动列表 ❌ |
 | VR / 音高 / 多段 | — | ✅ | — |
 
-详情见 [GSY_FEATURES.md](GSY_FEATURES.md) / [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md) / [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。
+详情见 [GSY_FEATURES.md](GSY_FEATURES.md) / [DARWIN_SGPLAYER.md](DARWIN_SGPLAYER.md) / [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md) / [DESKTOP_MPV.md](DESKTOP_MPV.md)。

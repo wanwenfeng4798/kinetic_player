@@ -10,47 +10,41 @@ English version: [USAGE_EN.md](USAGE_EN.md)
 Dart 层
   CommonVideoController          ← 纯公共 API
   CommonVideoPlayerView          ← 平台原生视图
-  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer / Linux·Windows→GstPlayer
+  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer / Windows·Linux→libmpv
        │
        ├── GSYVideoControllerImpl        (Android 独有 API)
        ├── SGVideoControllerImpl         (iOS / macOS 独有 API)
        ├── ArtplayerVideoControllerImpl  (Web 独有 API)
-       └── [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)（Linux / Windows；[pub.dev](https://pub.dev/packages/gstplayer)）
+       └── MpvVideoControllerImpl        (Windows / Linux 独有 API)
 ```
 
-## 内核选型：什么时候用 GstPlayer
+## 内核选型
 
-默认按平台自动选型即可。**只有在你需要支持 Linux 或 Windows 时，才应使用 [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)**（[pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)）。
+默认按平台自动选型即可。**Windows / Linux 走内建 libmpv**，详见 [DESKTOP_MPV.md](DESKTOP_MPV.md)。
 
 | 目标平台 | 选用内核 | 何时选用 |
 |----------|----------|----------|
 | Android | GSYVideoPlayer | 默认 |
 | iOS / macOS | SGPlayer | 默认 |
 | Web | Artplayer.js | 默认 |
-| **Linux / Windows** | **[GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)** | **需要 Linux / Windows 桌面支持时** |
+| **Windows / Linux** | **libmpv** | 默认 |
 
-- 产品仅覆盖 Android / iOS / macOS / Web → 用默认内核，不必引入 GstPlayer。
-- 产品需要 Linux 或 Windows → 使用 GstPlayer（GStreamer），不要用 GSY / SGPlayer 硬撑这两端。
-
-```yaml
-dependencies:
-  gstplayer: ^0.0.1   # https://pub.dev/packages/gstplayer
-```
-
-仓库：[github.com/wanwenfeng4798/GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) · 包：[pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)
+若需要 GStreamer 管线，仍可使用独立包 [GstPlayer](https://pub.dev/packages/gstplayer)。
 
 Channel 命名：
 
 - Android GSY：`com.example.player/gsy_<viewId>`
 - iOS / macOS SG：`com.example.player/sg_<viewId>`
 - Web Artplayer：进程内 Dart 注册表（`ArtplayerViewRegistry`，无跨端 MethodChannel）
+- Windows / Linux libmpv：`com.example.player/mpv`（create/destroy）+ `com.example.player/mpv_<viewId>`
 
-PlatformView 类型：
+PlatformView / Texture 类型：
 
 - Android：`com.example.player/gsy_view_ui`（`AndroidView`）
 - iOS：`com.example.player/sg_view_ui`（`UiKitView`）
 - macOS：`com.example.player/sg_view_ui`（`AppKitView`）
 - Web：`com.example.player/art_view_ui`（`HtmlElementView` + Artplayer.js）
+- Windows / Linux：`com.example.player/mpv_view_ui`（Flutter `Texture` + Dart 控制栏）
 
 ## 集成
 
@@ -157,8 +151,6 @@ Web 独有能力（`artPlugins`、HLS/DASH、Document PiP、弹幕 API、TS 打�
 - 中文：[WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)
 - English：[WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md)
 
-最小示例：
-
 ```dart
 CommonVideoPlayerViewBuilder(
   url: videoUrl,
@@ -175,6 +167,18 @@ CommonVideoPlayerViewBuilder(
   builder: (controller) { /* … */ },
 );
 ```
+
+### Windows / Linux（libmpv）
+
+公共 API 不变。Windows 构建时下载最新 LGPL `libmpv-2.dll`（mpv 0.41 API）；Linux 需系统 `libmpv-dev` / `mpv-libs-devel`。详见 [DESKTOP_MPV.md](DESKTOP_MPV.md)。
+
+```bash
+flutter pub get
+flutter run -d windows
+flutter run -d linux
+```
+
+宿主继续使用 `CommonVideoPlayerViewBuilder` + `KineticUiConfig`，与其它平台相同。
 
 ## 公共 API
 
@@ -253,16 +257,16 @@ Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制�
 
 控制栏文案语言由公共配置 `KineticUiConfig.locale` 决定（`zh` / `en` / `vi` / `ms` / `id` / `fil`，默认 `zh`；未知码回退中文）。`toCreationParams()` 把 `locale` 与 `KineticChromeStrings` 文案表放进 `creationParams['ui']`。Darwin 走共享源 `SgUiConfig.strings`，不使用独立 `.lproj`。运行时调用 `controller.setLocale(...)` 热切换（不要用 `gsySetUiConfig` 改语言）。
 
-| 能力 | Android | iOS | macOS | 配置 |
-|------|---------|-----|-------|------|
-| 中央播放/暂停 | ✅ | ✅ | ✅ | `enableNativeControls` |
-| 进度条 + 时间 | ✅ | ✅ | ✅ | 原生默认 |
-| 单击显隐控制栏 | ✅ | ✅ | ✅ | 点击画面空白；播放中约 2.5s 自动隐藏 |
-| **音量** | ✅ | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条；拖动时在滑轨**左侧**显示百分比（如 `50%`），松手后隐藏 |
-| **手势** | ✅ | ✅ | ❌ | Android / iOS：`enableNativeControls` 横向调进度、左半屏亮度、右半屏音量。macOS 在 Flutter `AppKitView` 内滑动不可靠且无系统亮度 API，改为与音轨相同的按钮弹窗：进度条 seek、喇叭调音量、齿轮选音轨 |
-| **音轨** | ✅ | ✅ | ✅ | 点击**齿轮（设置）**弹出面板选择；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
-| 全屏 | ✅ | ✅ | ✅ | 全屏按钮（与设置/音量图标同尺寸 36dp）/ `gsyStartFullscreen()` / `sgStartFullscreen()` |
-| 画中画 PiP | ✅ 默认开启 | ❌ | ❌ | `pictureInPictureEnabled`（Android）/ Web 见下 |
+| 能力 | Android | iOS | macOS | Win/Linux | 配置 |
+|------|---------|-----|-------|-----------|------|
+| 中央播放/暂停 | ✅ | ✅ | ✅ | ✅ | `enableNativeControls` |
+| 进度条 + 时间 | ✅ | ✅ | ✅ | ✅ | 原生默认 / Dart 底栏 |
+| 单击显隐控制栏 | ✅ | ✅ | ✅ | ✅ | 点击画面空白；播放中约 2.5s 自动隐藏 |
+| **音量** | ✅ | ✅ | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条 |
+| **手势** | ✅ | ✅ | ❌ | ❌ | Android / iOS：滑动调进度/亮度/音量。桌面用按钮弹窗 |
+| **音轨** | ✅ | ✅ | ✅ | ✅ | 齿轮设置面板；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
+| 全屏 | ✅ | ✅ | ✅ | ✅ 宿主窗口 | `gsyStartFullscreen` / `sgStartFullscreen` / `mpvStartFullscreen` |
+| 画中画 PiP | ✅ 默认开启 | ❌ | ❌ | ❌ | `pictureInPictureEnabled`（Android）/ Web 见下 |
 
 > **音量（Android）**：开启 `showVolumeToolbar` 后，画面右侧滑动调节的是**播放器音量**（与喇叭弹窗同源），不再用系统音量条。音量弹窗打开或正在拖动滑轨时，右侧滑动调音量会被暂时禁用，避免与竖向滑轨冲突。
 
@@ -373,6 +377,31 @@ if (controller is SGVideoControllerImpl) {
 | `sgSetBackgroundPlaybackPolicy` | 后台 / 中断策略 |
 
 `creationParams` / `ui` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（Apple 端读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`、`locale`。
+
+### Windows / Linux — MpvVideoControllerImpl
+
+```dart
+if (controller is MpvVideoControllerImpl) {
+  await controller.mpvStartFullscreen();
+  await controller.mpvSetHwdec('auto-safe');
+  await controller.mpvSetPlaylist(urls, startIndex: 0);
+  await controller.mpvSetShowType(GsyShowType.ratio16x9);
+  await controller.mpvCommand(['show-text', 'hello']);
+}
+```
+
+| API | 说明 |
+|-----|------|
+| `mpvStartFullscreen` / `mpvExitFullscreen` | 宿主窗口全屏 |
+| `mpvSetHwdec` / `mpvCommand` | 硬解 / 原始 mpv 命令 |
+| `mpvSetRenderRotation` / `mpvSetMirrorHorizontal` | 旋转 / 水平镜像 |
+| `mpvSetShowType` | 对齐 Android `GsyShowType` |
+| `mpvSetPlaylist` / `mpvPlayNextInPlaylist` | 播放列表 / 下一集 |
+| `mpvSetSubtitleUrl` / `mpvSetSubtitleEnabled` | 外挂字幕 |
+| `mpvListVideoTracks` / `mpvGetNetSpeed` | 视频轨 / 网速 |
+| `mpvSetCoverUrl` / `mpvSetWatermarkUrl` / `mpvSetPurePlayMode` | 封面 / 水印 / 纯播 |
+
+详见 [DESKTOP_MPV.md](DESKTOP_MPV.md)。
 
 ### Web — ArtplayerVideoControllerImpl
 

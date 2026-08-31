@@ -1,3 +1,14 @@
+## 2.1.0
+
+### Features
+
+- **Windows / Linux libmpv**: Built-in desktop backend with the same `CommonVideoController` API. Flutter `Texture` + Dart chrome (macOS-style, no pan gestures). Windows bundles the latest zhongfly LGPL `libmpv-2.dll` (mpv **0.41.0** API); Linux uses system libmpv. See [doc/DESKTOP_MPV_EN.md](doc/DESKTOP_MPV_EN.md).
+- **Desktop vs Android**: rotation, mirror, cover, title, subtitles, playlist / play-next, video tracks, net speed, show type, pure play, and watermark overlay. Skipped: GL filters, GIF, danmaku, ads, system PiP, list auto-play.
+
+### Docs
+
+- README / USAGE / Example: desktop libmpv replaces GstPlayer as the default Windows/Linux path. GstPlayer remains an optional GStreamer alternative.
+
 ## 2.0.4
 
 ### Features

@@ -1,13 +1,15 @@
 import 'package:flutter/foundation.dart';
 
 import '../gsy/gsy_video_controller_impl.dart';
+import '../mpv/mpv_video_controller_impl.dart';
 import '../sg/sg_video_controller_impl.dart';
 import '../web/artplayer_video_controller.dart';
 import 'common_video_controller.dart';
 import 'platform_guard.dart';
 import 'player_view_types.dart';
 
-/// Platform-safe factory: Android → GSY, iOS/macOS → SGPlayer, Web → Artplayer.
+/// Platform-safe factory: Android → GSY, iOS/macOS → SGPlayer, Web → Artplayer,
+/// Windows/Linux → libmpv.
 abstract final class CommonVideoPlayerFactory {
   /// Creates the platform-correct controller for [viewId] from
   /// [CommonVideoPlayerView.onPlatformViewCreated].
@@ -22,8 +24,13 @@ abstract final class CommonVideoPlayerFactory {
         defaultTargetPlatform == TargetPlatform.macOS) {
       return SGVideoControllerImpl(viewId);
     }
+    if (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux) {
+      return MpvVideoControllerImpl(viewId);
+    }
     throw UnsupportedError(
-      'This video player plugin supports Android (GSY), iOS/macOS (SGPlayer), and Web (Artplayer).',
+      'This video player plugin supports Android (GSY), iOS/macOS (SGPlayer), '
+      'Web (Artplayer), and Windows/Linux (libmpv).',
     );
   }
 
@@ -31,8 +38,13 @@ abstract final class CommonVideoPlayerFactory {
   static String viewTypeForCurrentPlatform() {
     assertSupportedPlayerPlatform();
     if (kIsWeb) return PlayerViewTypes.art;
-    return defaultTargetPlatform == TargetPlatform.android
-        ? PlayerViewTypes.gsy
-        : PlayerViewTypes.sg;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return PlayerViewTypes.gsy;
+    }
+    if (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux) {
+      return PlayerViewTypes.mpv;
+    }
+    return PlayerViewTypes.sg;
   }
 }

@@ -41,10 +41,22 @@ void main() {
       expect(controller, isA<SGVideoControllerImpl>());
     });
 
-    test('createAuto throws on unsupported platform', () {
+    test('createAuto returns Mpv on Linux', () {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      final controller = CommonVideoPlayerFactory.createAuto(1);
+      expect(controller, isA<MpvVideoControllerImpl>());
+    });
+
+    test('createAuto returns Mpv on Windows', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      final controller = CommonVideoPlayerFactory.createAuto(2);
+      expect(controller, isA<MpvVideoControllerImpl>());
+    });
+
+    test('MpvVideoControllerImpl throws on Android', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
       expect(
-        () => CommonVideoPlayerFactory.createAuto(1),
+        () => MpvVideoControllerImpl(3),
         throwsUnsupportedError,
       );
     });
@@ -91,6 +103,18 @@ void main() {
         CommonVideoPlayerFactory.viewTypeForCurrentPlatform(),
         PlayerViewTypes.sg,
       );
+
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      expect(
+        CommonVideoPlayerFactory.viewTypeForCurrentPlatform(),
+        PlayerViewTypes.mpv,
+      );
+
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      expect(
+        CommonVideoPlayerFactory.viewTypeForCurrentPlatform(),
+        PlayerViewTypes.mpv,
+      );
     });
   });
 
@@ -136,5 +160,28 @@ void main() {
       screenshotBytesFromNative('data:image/png;base64,${base64Encode(png)}'),
       png,
     );
+  });
+
+  test('NativeSdkVersions pins latest desktop libmpv API', () {
+    expect(NativeSdkVersions.libmpvWindows, '0.41.0');
+    expect(NativeSdkVersions.libmpvLinux, '0.35.0');
+  });
+
+  test('MpvVideoTrack.fromMap parses GSY-shaped track maps', () {
+    final track = MpvVideoTrack.fromMap({
+      'index': 1,
+      'label': '1080p',
+      'language': 'und',
+      'selected': true,
+      'width': 1920,
+      'height': 1080,
+      'bitrate': 4000000,
+    });
+    expect(track.index, 1);
+    expect(track.label, '1080p');
+    expect(track.selected, isTrue);
+    expect(track.width, 1920);
+    expect(track.height, 1080);
+    expect(track.bitrate, 4000000);
   });
 }

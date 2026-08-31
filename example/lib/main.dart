@@ -313,14 +313,14 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
 
   Future<void> _ensureContinuousPlaylist(CommonVideoController controller) async {
     if (_playlistReady) return;
-    if (controller is! GSYVideoControllerImpl) {
-      // Darwin / Web: still pass playlist via creationParams when supported.
-      _playlistReady = true;
-      return;
-    }
     final urls = _DemoMedia.continuousPlaylistUrls;
     final idx = urls.indexOf(_selectedSource.url);
-    await controller.gsySetPlaylist(urls, startIndex: idx < 0 ? 0 : idx);
+    final start = idx < 0 ? 0 : idx;
+    if (controller is GSYVideoControllerImpl) {
+      await controller.gsySetPlaylist(urls, startIndex: start);
+    } else if (controller is MpvVideoControllerImpl) {
+      await controller.mpvSetPlaylist(urls, startIndex: start);
+    }
     _playlistReady = true;
   }
 
@@ -339,13 +339,19 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
     if (controller == null) return;
     await controller.switchVideoSource(source.url, autoPlay: wasPlaying);
     // Keep native playlist index aligned; outside the continuous list → single-item playlist.
+    final urls = _DemoMedia.continuousPlaylistUrls;
+    final idx = urls.indexOf(source.url);
     if (controller is GSYVideoControllerImpl) {
-      final urls = _DemoMedia.continuousPlaylistUrls;
-      final idx = urls.indexOf(source.url);
       if (idx >= 0) {
         await controller.gsySetPlaylist(urls, startIndex: idx);
       } else {
         await controller.gsySetPlaylist([source.url], startIndex: 0);
+      }
+    } else if (controller is MpvVideoControllerImpl) {
+      if (idx >= 0) {
+        await controller.mpvSetPlaylist(urls, startIndex: idx);
+      } else {
+        await controller.mpvSetPlaylist([source.url], startIndex: 0);
       }
     }
   }
@@ -741,6 +747,8 @@ class _ControlPanelState extends State<_ControlPanel> {
       await controller.gsySetRenderRotation(normalized);
     } else if (controller is SGVideoControllerImpl) {
       await controller.sgSetRenderRotation(normalized);
+    } else if (controller is MpvVideoControllerImpl) {
+      await controller.mpvSetRenderRotation(normalized);
     } else {
       return;
     }
@@ -754,6 +762,8 @@ class _ControlPanelState extends State<_ControlPanel> {
       await controller.gsySetKeepLastFrameWhenComplete(enabled: next);
     } else if (controller is SGVideoControllerImpl) {
       await controller.sgSetKeepLastFrameWhenComplete(enabled: next);
+    } else if (controller is MpvVideoControllerImpl) {
+      await controller.mpvSetKeepLastFrameWhenComplete(enabled: next);
     } else {
       return;
     }
@@ -768,10 +778,32 @@ class _ControlPanelState extends State<_ControlPanel> {
       await controller.gsySetCoverUrl(url);
     } else if (controller is SGVideoControllerImpl) {
       await controller.sgSetCoverUrl(url);
+    } else if (controller is MpvVideoControllerImpl) {
+      await controller.mpvSetCoverUrl(url);
     } else {
       return;
     }
     if (mounted) setState(() => _coverEnabled = next);
+  }
+
+  Future<void> _toggleDesktopWatermark(MpvVideoControllerImpl mpv) async {
+    final next = !_watermarkEnabled;
+    await mpv.mpvSetWatermarkUrl(next ? _DemoMedia.coverUrl : null);
+    if (mounted) setState(() => _watermarkEnabled = next);
+  }
+
+  Future<void> _toggleDesktopPurePlay(MpvVideoControllerImpl mpv) async {
+    final next = !_purePlay;
+    await mpv.mpvSetPurePlayMode(enabled: next);
+    if (mounted) setState(() => _purePlay = next);
+  }
+
+  Future<void> _refreshMpvNetSpeed(MpvVideoControllerImpl mpv) async {
+    final speed = await mpv.mpvGetNetSpeed();
+    if (!mounted) return;
+    setState(
+      () => _netSpeedText = '${speed.text} (${speed.bytesPerSecond} B/s)',
+    );
   }
 
   @override
@@ -780,8 +812,9 @@ class _ControlPanelState extends State<_ControlPanel> {
     final isAndroidGsy = active is GSYVideoControllerImpl;
     final isAppleSg = active is SGVideoControllerImpl;
     final isWebArt = active is ArtplayerVideoControllerImpl;
-    final supportsTransform = isAndroidGsy || isAppleSg;
-    final supportsCover = isAndroidGsy || isAppleSg;
+    final isDesktopMpv = active is MpvVideoControllerImpl;
+    final supportsTransform = isAndroidGsy || isAppleSg || isDesktopMpv;
+    final supportsCover = isAndroidGsy || isAppleSg || isDesktopMpv;
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -1102,6 +1135,66 @@ class _ControlPanelState extends State<_ControlPanel> {
             const Text(
               '启动已注入短片 playlist；设置→更多→「播完切下一集」可验证连播。'
               '比例 / 镜像 / 循环请用原生设置。右上角可打开列表自动播 Demo。',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+          if (isDesktopMpv) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Windows / Linux · libmpv',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: () => _toggleDesktopWatermark(active),
+                  child: Text(_watermarkEnabled ? '水印: 开' : '水印: 关'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _toggleDesktopPurePlay(active),
+                  child: Text(_purePlay ? '纯播放: 开' : '纯播放: 关'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    await active.mpvSetSubtitleEnabled(
+                      enabled: !active.subtitleEnabled.value,
+                    );
+                    if (mounted) setState(() {});
+                  },
+                  child: Text(
+                    active.subtitleEnabled.value ? '字幕: 开' : '字幕: 关',
+                  ),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    final ok = await active.mpvPlayNextInPlaylist();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(ok ? '已切下一首' : '已是最后一首')),
+                    );
+                  },
+                  child: const Text('播放下一首'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _refreshMpvNetSpeed(active),
+                  child: const Text('网速'),
+                ),
+              ],
+            ),
+            if (_netSpeedText != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                '网速: $_netSpeedText',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+            const SizedBox(height: 4),
+            const Text(
+              'creationParams 已注入短片 playlist；设置→更多→「播完切下一集」可验证连播。'
+              '弹幕 / 广告 / GIF / PiP / GL 滤镜桌面端不实现。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],

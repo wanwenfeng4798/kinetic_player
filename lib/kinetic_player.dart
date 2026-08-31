@@ -18,4 +18,6 @@ export 'src/sg/sg_video_features.dart';
 export 'src/web/artplayer_constants.dart';
 export 'src/web/artplayer_features.dart';
 export 'src/web/artplayer_ui_config.dart';
+export 'src/mpv/mpv_video_controller_impl.dart';
+export 'src/mpv/mpv_video_features.dart';
 export 'src/web/artplayer_video_controller.dart';

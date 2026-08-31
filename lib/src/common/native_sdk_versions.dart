@@ -15,4 +15,11 @@ abstract final class NativeSdkVersions {
 
   /// macOS prebuilt binary manifest version.
   static const String sgPlayerBinaryMacOS = '1.0.0';
+
+  /// Windows prebuilt libmpv (zhongfly LGPL; see windows/mpv/manifest.json).
+  /// Client headers are mpv v0.41.0; the bundled DLL tracks the latest winbuild.
+  static const String libmpvWindows = '0.41.0';
+
+  /// Linux system libmpv (pkg-config). Documented minimum; 0.41+ recommended.
+  static const String libmpvLinux = '0.35.0';
 }

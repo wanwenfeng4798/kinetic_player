@@ -37,14 +37,27 @@ void assertWebPlatform(String feature) {
   }
 }
 
+/// Throws when the current platform is not Windows / Linux libmpv.
+void assertDesktopMpvPlatform(String feature) {
+  if (defaultTargetPlatform != TargetPlatform.windows &&
+      defaultTargetPlatform != TargetPlatform.linux) {
+    throw UnsupportedError(
+      '$feature is only supported on Windows/Linux (libmpv).',
+    );
+  }
+}
+
 /// Throws when the current platform is not a supported player platform.
 void assertSupportedPlayerPlatform() {
   if (kIsWeb) return;
   if (defaultTargetPlatform != TargetPlatform.android &&
       defaultTargetPlatform != TargetPlatform.iOS &&
-      defaultTargetPlatform != TargetPlatform.macOS) {
+      defaultTargetPlatform != TargetPlatform.macOS &&
+      defaultTargetPlatform != TargetPlatform.windows &&
+      defaultTargetPlatform != TargetPlatform.linux) {
     throw UnsupportedError(
-      'This video player plugin supports Android (GSY), iOS/macOS (SGPlayer), and Web (Artplayer).',
+      'This video player plugin supports Android (GSY), iOS/macOS (SGPlayer), '
+      'Web (Artplayer), and Windows/Linux (libmpv).',
     );
   }
 }

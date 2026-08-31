@@ -10,40 +10,33 @@ Minimum SDK: **Dart 3.12 / Flutter 3.44**. Host apps should depend on `material_
 Dart layer
   CommonVideoController          ← Public API
   CommonVideoPlayerView          ← Platform view
-  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer / Linux·Windows→GstPlayer
+  CommonVideoPlayerFactory       ← Android→GSY / iOS·macOS→SG / Web→Artplayer / Windows·Linux→libmpv
        │
        ├── GSYVideoControllerImpl        (Android-only)
        ├── SGVideoControllerImpl         (iOS / macOS-only)
        ├── ArtplayerVideoControllerImpl  (Web-only)
-       └── [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) (Linux / Windows; [pub.dev](https://pub.dev/packages/gstplayer))
+       └── MpvVideoControllerImpl        (Windows / Linux-only)
 ```
 
-## Backend selection: when to use GstPlayer
+## Backend selection
 
-Keep the default auto-selection for most apps. **Use [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) only when you need Linux or Windows support** ([pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)).
+Keep the default auto-selection. **Windows / Linux use built-in libmpv**; see [DESKTOP_MPV_EN.md](DESKTOP_MPV_EN.md).
 
 | Target platforms | Backend | When to choose |
 |---|---|---|
 | Android | GSYVideoPlayer | Default |
 | iOS / macOS | SGPlayer | Default |
 | Web | Artplayer.js | Default |
-| **Linux / Windows** | **[GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)** | **When Linux / Windows desktop support is required** |
+| **Windows / Linux** | **libmpv** | Default |
 
-- Android / iOS / macOS / Web only → stay on the defaults; no need for GstPlayer.
-- Need Linux or Windows → use GstPlayer (GStreamer); do not stretch GSY / SGPlayer onto those platforms.
-
-```yaml
-dependencies:
-  gstplayer: ^0.0.1   # https://pub.dev/packages/gstplayer
-```
-
-Repo: [github.com/wanwenfeng4798/GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) · Package: [pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)
+If you need a GStreamer pipeline, the separate [GstPlayer](https://pub.dev/packages/gstplayer) package is still available.
 
 Channel / view names:
 
 - Android GSY: `com.example.player/gsy_<viewId>` / `gsy_view_ui` (`AndroidView`)
 - iOS / macOS SG: `com.example.player/sg_<viewId>` / `sg_view_ui` (`UiKitView` / `AppKitView`)
 - Web Artplayer: in-process `ArtplayerViewRegistry` / `art_view_ui` (`HtmlElementView`)
+- Windows / Linux libmpv: `com.example.player/mpv` + `mpv_<viewId>` / `mpv_view_ui` (`Texture`)
 
 ## Integration
 
@@ -166,6 +159,18 @@ CommonVideoPlayerViewBuilder(
   builder: (controller) { /* … */ },
 );
 ```
+
+### Windows / Linux (libmpv)
+
+Public API is unchanged. Windows downloads the latest LGPL `libmpv-2.dll` at configure time (mpv 0.41 API); Linux needs system `libmpv-dev` / `mpv-libs-devel`. See [DESKTOP_MPV_EN.md](DESKTOP_MPV_EN.md).
+
+```bash
+flutter pub get
+flutter run -d windows
+flutter run -d linux
+```
+
+Hosts keep using `CommonVideoPlayerViewBuilder` + `KineticUiConfig`, same as other platforms.
 
 ## Public API
 
@@ -364,6 +369,31 @@ if (controller is SGVideoControllerImpl) {
 | `sgSetBackgroundPlaybackPolicy` | Background / interruption policy |
 
 `creationParams` / `ui` fields: `enableNativeControls`, `showVolumeToolbar`, `showSettingsButton`, `showFullscreenButton`, `dismissControlTime`, `pictureInPictureEnabled` (read on Apple side but not effective), `coverUrl`, `keepLastFrameWhenComplete`, `locale`.
+
+### Windows / Linux — MpvVideoControllerImpl
+
+```dart
+if (controller is MpvVideoControllerImpl) {
+  await controller.mpvStartFullscreen();
+  await controller.mpvSetHwdec('auto-safe');
+  await controller.mpvSetPlaylist(urls, startIndex: 0);
+  await controller.mpvSetShowType(GsyShowType.ratio16x9);
+  await controller.mpvCommand(['show-text', 'hello']);
+}
+```
+
+| API | Description |
+|-----|-------------|
+| `mpvStartFullscreen` / `mpvExitFullscreen` | Host-window fullscreen |
+| `mpvSetHwdec` / `mpvCommand` | hwdec / raw mpv command |
+| `mpvSetRenderRotation` / `mpvSetMirrorHorizontal` | Rotate / horizontal mirror |
+| `mpvSetShowType` | Matches Android `GsyShowType` |
+| `mpvSetPlaylist` / `mpvPlayNextInPlaylist` | Playlist / next item |
+| `mpvSetSubtitleUrl` / `mpvSetSubtitleEnabled` | External subtitles |
+| `mpvListVideoTracks` / `mpvGetNetSpeed` | Video tracks / net speed |
+| `mpvSetCoverUrl` / `mpvSetWatermarkUrl` / `mpvSetPurePlayMode` | Cover / watermark / chrome-off |
+
+See [DESKTOP_MPV_EN.md](DESKTOP_MPV_EN.md).
 
 ### Web — ArtplayerVideoControllerImpl
 

@@ -6,7 +6,7 @@
 
 English version: [README_EN.md](README_EN.md)
 
-最强大的跨平台 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master），**Web** 使用 [Artplayer.js 5.4.0](https://artplayer.org)；需要 **Linux / Windows** 时使用 [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)（[pub.dev](https://pub.dev/packages/gstplayer)，GStreamer）。
+最强大的跨平台 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 13.1.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master），**Web** 使用 [Artplayer.js 5.4.0](https://artplayer.org)，**Windows / Linux** 使用 [libmpv](https://mpv.io)。
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
@@ -25,9 +25,9 @@ English version: [README_EN.md](README_EN.md)
 ## 特性
 
 - 统一的 `CommonVideoController` API（播放 / 暂停 / 跳转 / 缩放 / 倍速 / 音量 / 音轨 / 循环 / 截图等）
-- 平台自动选型：Android → GSY，iOS / macOS → SGPlayer，Web → Artplayer；**Linux / Windows → GstPlayer**
+- 平台自动选型：Android → GSY，iOS / macOS → SGPlayer，Web → Artplayer，**Windows / Linux → libmpv**
 - B 站风格原生控制栏：竖向音量弹窗（拖动显示百分比）、设置面板（音轨 / 截图；Android 含 GIF）、弹窗淡入淡出、统一进度条与底栏图标尺寸
-- **Android / iOS** 支持滑动手势调进度 / 音量 / 亮度（`enableNativeControls`）；**macOS** 无滑动手势，用进度条 + 喇叭/齿轮按钮
+- **Android / iOS** 支持滑动手势调进度 / 音量 / 亮度（`enableNativeControls`）；**macOS / Windows / Linux** 无滑动手势，用进度条 + 喇叭/齿轮按钮
 - Android 画中画（PiP）**默认开启**（API 26+；播放中切后台自动进入，含 GSY 自动播放场景）
 - Web：Video / Document PiP、HLS/DASH、官方 Artplayer 插件（弹幕 / 字幕 / Chromecast 等）
 - Android GSY：弹幕/水印/广告/滤镜等高级能力见 [doc/GSY_FEATURES.md](doc/GSY_FEATURES.md)（内嵌与窗口全屏一致）
@@ -43,6 +43,7 @@ English version: [README_EN.md](README_EN.md)
 | [doc/GSY_FEATURES.md](doc/GSY_FEATURES.md) | Android GSY 高级能力对照表 |
 | [doc/DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md) | iOS / macOS SGPlayer：二进制、脚本、SPM、Release |
 | [doc/WEB_ARTPLAYER.md](doc/WEB_ARTPLAYER.md) | Web Artplayer：插件、HLS/DASH、Web 独有 API、打包 |
+| [doc/DESKTOP_MPV.md](doc/DESKTOP_MPV.md) | Windows / Linux libmpv：依赖、DLL、Wayland、hwdec |
 | [doc/EXAMPLE.md](doc/EXAMPLE.md) | Example 应用说明 |
 
 ## 快速开始
@@ -107,21 +108,16 @@ CommonVideoPlayerViewBuilder(
 
 ## 内核选型
 
-按目标平台选内核即可；**需要支持 Linux 或 Windows 时，使用 [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)**（[pub.dev/packages/gstplayer](https://pub.dev/packages/gstplayer)）。
+按目标平台选内核即可；**Windows / Linux 已内建 libmpv**，不必再引入 GstPlayer。
 
 | 目标平台 | 选用内核 | 说明 |
 |----------|----------|------|
 | Android | GSYVideoPlayer | 默认自动选型 |
 | iOS / macOS | SGPlayer | 默认自动选型 |
 | Web | Artplayer.js | 默认自动选型 |
-| **Linux / Windows** | **[GstPlayer](https://github.com/wanwenfeng4798/GstPlayer)** | 仅在需要 Linux 或 Windows 时选用（GStreamer；[pub.dev](https://pub.dev/packages/gstplayer)） |
+| **Windows / Linux** | **libmpv** | 默认自动选型；详见 [doc/DESKTOP_MPV.md](doc/DESKTOP_MPV.md) |
 
-仅做移动端 + Web 时用默认内核；一旦产品要覆盖 Linux / Windows 桌面，应走 GstPlayer，而不是 GSY / SGPlayer。
-
-```yaml
-dependencies:
-  gstplayer: ^0.0.1   # https://pub.dev/packages/gstplayer
-```
+若你更需要 GStreamer 管线，仍可选用独立包 [GstPlayer](https://pub.dev/packages/gstplayer)。
 
 ## 平台支持
 
@@ -131,13 +127,16 @@ dependencies:
 | iOS | SGPlayer master | ✅ | ❌（FFmpeg 预编译仅 arm64 真机） | ❌ |
 | macOS | SGPlayer master | ✅ | ✅（`macosx` xcframework） | ❌ |
 | Web | Artplayer.js 5.4.0 | — | ✅ Chrome / Safari / 移动 Web | ✅ Video PiP；Document PiP 可选 |
-| Linux / Windows | [GstPlayer](https://github.com/wanwenfeng4798/GstPlayer) | ✅（需系统 GStreamer） | — | 视实现而定 |
+| Windows | libmpv（打包 DLL） | ✅ x64 | — | ❌ |
+| Linux | libmpv（系统库） | ✅ | — | ❌ |
 
 ## 许可证
 
 本插件代码采用 [MIT License](LICENSE)。
 
 SGPlayer 为独立第三方项目，其许可证以 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) 仓库为准（fork 自 libobjc/SGPlayer）。
+
+Windows 预编译 **libmpv** 为 LGPLv2.1+ 动态链接（见 [doc/DESKTOP_MPV.md](doc/DESKTOP_MPV.md)）。
 
 ## 支持
 
