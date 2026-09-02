@@ -4,6 +4,7 @@ import 'common_audio_track.dart';
 import 'common_player_state.dart';
 import 'common_scale_mode.dart';
 import 'common_video_size.dart';
+import 'kinetic_http_request_options.dart';
 
 /// Pure unified controller contract. Player-specific APIs live on concrete
 /// implementations and must be accessed via explicit downcasting.
@@ -33,6 +34,14 @@ abstract class CommonVideoController {
   /// Unknown codes fall back to `zh`. Pass `KineticUiConfig.locale` at create;
   /// call this to hot-swap native / Artplayer chrome without `gsySetUiConfig`.
   Future<void> setLocale(String locale);
+
+  /// Persist custom HTTP [User-Agent] / headers for subsequent media loads.
+  ///
+  /// Pass `null` or an empty [KineticHttpRequestOptions] to clear. Also
+  /// accept `creationParams['userAgent']` / `creationParams['headers']` at
+  /// view create. Does not change [switchVideoSource] signature — call this
+  /// before switching sources when needed.
+  Future<void> setHttpRequestOptions(KineticHttpRequestOptions? options);
 
   /// [includeOverlay] includes native chrome on Android (GSY); ignored on iOS.
   /// Returns PNG bytes, or null on failure. The plugin does not write files.

@@ -52,6 +52,7 @@ class GsyVideoPlatformView(
         channel.setMethodCallHandler(this)
         player.applyUiConfig(uiConfig)
         player.applyChromeLocale(uiConfig.strings)
+        applyHttpFromCreationParams(creationParams)
         @Suppress("UNCHECKED_CAST")
         val playlist = creationParams?.get("playlist") as? List<*>
         val playlistUrls =
@@ -66,6 +67,24 @@ class GsyVideoPlatformView(
             if (!url.isNullOrEmpty()) {
                 player.switchVideoSource(url, autoPlay = false)
             }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun applyHttpFromCreationParams(creationParams: Map<String, Any?>?) {
+        if (creationParams == null) return
+        val userAgent = creationParams["userAgent"] as? String
+        val rawHeaders = creationParams["headers"] as? Map<*, *>
+        val headers =
+            rawHeaders
+                ?.mapNotNull { (k, v) ->
+                    val key = k as? String ?: return@mapNotNull null
+                    val value = v?.toString() ?: return@mapNotNull null
+                    key to value
+                }
+                ?.toMap()
+        if (!userAgent.isNullOrEmpty() || !headers.isNullOrEmpty()) {
+            player.setHttpRequestOptions(userAgent, headers)
         }
     }
 
@@ -124,6 +143,19 @@ class GsyVideoPlatformView(
             }
             "setLocale" -> {
                 player.applyChromeLocale(GsyUiConfig.parseChromeStrings(call.argument("strings")))
+                result.success(null)
+            }
+            "setHttpRequestOptions" -> {
+                val userAgent = call.argument<String>("userAgent")
+                @Suppress("UNCHECKED_CAST")
+                val headers =
+                    call.argument<Map<String, Any?>>("headers")
+                        ?.mapNotNull { (k, v) ->
+                            val value = v?.toString() ?: return@mapNotNull null
+                            k to value
+                        }
+                        ?.toMap()
+                player.setHttpRequestOptions(userAgent, headers)
                 result.success(null)
             }
             "captureFrame" -> {

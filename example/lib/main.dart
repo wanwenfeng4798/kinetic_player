@@ -1200,6 +1200,53 @@ class _ControlPanelState extends State<_ControlPanel> {
           ],
           const SizedBox(height: 12),
           const Text(
+            '公共 · HTTP 标头 / User-Agent',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonal(
+                onPressed: active == null
+                    ? null
+                    : () async {
+                        await active.setHttpRequestOptions(
+                          const KineticHttpRequestOptions(
+                            userAgent: 'KineticPlayer-Example/2.1',
+                            headers: {
+                              'Referer': 'https://example.com/',
+                            },
+                          ),
+                        );
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              '已设置 UA + Referer（下次换源生效；Web 仅 HLS/DASH）',
+                            ),
+                          ),
+                        );
+                      },
+                child: const Text('设置 UA / headers'),
+              ),
+              FilledButton.tonal(
+                onPressed: active == null
+                    ? null
+                    : () async {
+                        await active.setHttpRequestOptions(null);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('已清除 HTTP 选项')),
+                        );
+                      },
+                child: const Text('清除 HTTP 选项'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
             '公共 · 截图',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
@@ -1454,6 +1501,9 @@ class _ControlPanelState extends State<_ControlPanel> {
                       timeout: Duration(seconds: 20),
                       reconnect: true,
                       userAgent: 'KineticPlayer-Example',
+                      headers: {
+                        'Referer': 'https://example.com/',
+                      },
                     ),
                   ),
                   child: const Text('Demuxer 选项'),

@@ -607,7 +607,31 @@
 }
 
 - (void)setDemuxerOptions:(NSDictionary *)options {
-  self.pendingDemuxerOptions = [options copy];
+  NSMutableDictionary *merged =
+      [NSMutableDictionary dictionaryWithDictionary:self.pendingDemuxerOptions ?: @{}];
+  if ([options isKindOfClass:[NSDictionary class]]) {
+    [merged addEntriesFromDictionary:options];
+  }
+  self.pendingDemuxerOptions = [merged copy];
+  [self applyPendingDemuxerOptions];
+}
+
+- (void)setHttpRequestOptions:(NSDictionary *)options {
+  NSMutableDictionary *merged =
+      [NSMutableDictionary dictionaryWithDictionary:self.pendingDemuxerOptions ?: @{}];
+  NSString *userAgent = options[@"userAgent"];
+  if ([userAgent isKindOfClass:[NSString class]] && userAgent.length > 0) {
+    merged[@"userAgent"] = userAgent;
+  } else {
+    [merged removeObjectForKey:@"userAgent"];
+  }
+  NSDictionary *headers = options[@"headers"];
+  if ([headers isKindOfClass:[NSDictionary class]] && headers.count > 0) {
+    merged[@"headers"] = headers;
+  } else {
+    [merged removeObjectForKey:@"headers"];
+  }
+  self.pendingDemuxerOptions = [merged copy];
   [self applyPendingDemuxerOptions];
 }
 

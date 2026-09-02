@@ -125,6 +125,10 @@ final class SgNativePlayer: NSObject {
         bridge.setDemuxerOptions(options)
     }
 
+    func setHttpRequestOptions(_ options: [String: Any]) {
+        bridge.setHttpRequestOptions(options)
+    }
+
     func setBackgroundPlaybackPolicy(_ policy: [String: Any]) {
         bridge.setBackgroundPlaybackPolicy(policy)
     }

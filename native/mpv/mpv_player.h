@@ -97,6 +97,8 @@ class MpvPlayer {
   MpvVideoSize GetVideoSize() const;
   std::vector<uint8_t> CapturePng();
   void SetHwdec(const std::string& hwdec);
+  void SetHttpRequestOptions(const std::string& user_agent,
+                             const std::vector<std::pair<std::string, std::string>>& headers);
   void Command(const std::vector<std::string>& args);
   void SetKeepLastFrame(bool enabled);
   void SetSeekOnStartMs(int64_t ms);

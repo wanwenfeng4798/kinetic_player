@@ -6,6 +6,7 @@ export 'src/common/common_video_controller.dart';
 export 'src/common/common_video_size.dart';
 export 'src/common/common_video_player_factory.dart';
 export 'src/common/common_video_player_view.dart';
+export 'src/common/kinetic_http_request_options.dart';
 export 'src/common/kinetic_ui_config.dart';
 export 'src/common/player_view_types.dart';
 export 'src/common/platform_guard.dart';

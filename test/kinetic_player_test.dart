@@ -184,4 +184,33 @@ void main() {
     expect(track.height, 1080);
     expect(track.bitrate, 4000000);
   });
+
+  test('KineticHttpRequestOptions serializes channel args', () {
+    const options = KineticHttpRequestOptions(
+      userAgent: 'MyApp/1.0',
+      headers: {'Authorization': 'Bearer x', 'Referer': 'https://a.test/'},
+    );
+    expect(options.isEmpty, isFalse);
+    final args = options.toMethodChannelArgs();
+    expect(args['userAgent'], 'MyApp/1.0');
+    expect(args['headers'], isA<Map<String, String>>());
+    expect((args['headers'] as Map)['Authorization'], 'Bearer x');
+
+    final parsed = KineticHttpRequestOptions.fromMap({
+      'userAgent': 'UA',
+      'headers': {'A': '1'},
+    });
+    expect(parsed.userAgent, 'UA');
+    expect(parsed.headers?['A'], '1');
+
+    final fromCreate = KineticHttpRequestOptions.fromCreationParams({
+      'userAgent': 'CreateUA',
+      'headers': {'B': '2'},
+      'url': 'https://ignored',
+    });
+    expect(fromCreate.userAgent, 'CreateUA');
+    expect(fromCreate.headers?['B'], '2');
+
+    expect(const KineticHttpRequestOptions().isEmpty, isTrue);
+  });
 }

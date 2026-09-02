@@ -89,6 +89,7 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
 
         let playlistArgs = (params?["playlist"] as? [String]) ?? []
         let startIndex = params?["playlistStartIndex"] as? Int ?? 0
+        applyHttpFromCreationParams(params)
         if !playlistArgs.isEmpty {
             setPlaylist(playlistArgs, startIndex: startIndex, autoPlay: false)
         } else if let url = params?["url"] as? String, !url.isEmpty {
@@ -151,6 +152,19 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
         guard !playlist.isEmpty else { return }
         playlistIndex = min(max(0, startIndex), playlist.count - 1)
         player.switchVideoSource(playlist[playlistIndex], autoPlay: autoPlay)
+    }
+
+    private func applyHttpFromCreationParams(_ params: [String: Any]?) {
+        guard let params else { return }
+        var options: [String: Any] = [:]
+        if let userAgent = params["userAgent"] as? String, !userAgent.isEmpty {
+            options["userAgent"] = userAgent
+        }
+        if let headers = params["headers"] as? [String: Any], !headers.isEmpty {
+            options["headers"] = headers
+        }
+        guard !options.isEmpty else { return }
+        player.setHttpRequestOptions(options)
     }
 
     @discardableResult
@@ -464,6 +478,10 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             let locale = args?["locale"] as? String ?? "zh"
             let strings = SgUiConfig.parseStrings(args?["strings"])
             chrome.applyChromeLocale(locale: locale, strings: strings)
+            result(nil)
+        case "setHttpRequestOptions":
+            let args = call.arguments as? [String: Any] ?? [:]
+            player.setHttpRequestOptions(args)
             result(nil)
         case "dispose":
             if fullscreenPresenter.isFullscreen {

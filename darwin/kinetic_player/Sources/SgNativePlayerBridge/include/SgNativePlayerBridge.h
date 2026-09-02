@@ -55,6 +55,8 @@ typedef void (^SgErrorChangedBlock)(NSString *_Nullable message, NSInteger code)
 - (NSDictionary *)vrViewport;
 /// FFmpeg avformat options applied on next replace. Keys: timeoutMicros, reconnect, userAgent, headers(map), options(map).
 - (void)setDemuxerOptions:(NSDictionary *)options;
+/// Merge/clear User-Agent and HTTP headers (same pending demuxer bag). Empty clears UA/headers keys.
+- (void)setHttpRequestOptions:(NSDictionary *)options;
 /// Background / interrupt policy (iOS/tvOS; no-op on macOS).
 - (void)setBackgroundPlaybackPolicy:(NSDictionary *)policy;
 - (NSDictionary *)backgroundPlaybackPolicy;

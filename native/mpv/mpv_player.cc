@@ -560,6 +560,31 @@ void MpvPlayer::SetHwdec(const std::string& hwdec) {
   SetProperty("hwdec", hwdec.c_str());
 }
 
+void MpvPlayer::SetHttpRequestOptions(
+    const std::string& user_agent,
+    const std::vector<std::pair<std::string, std::string>>& headers) {
+  std::lock_guard<std::mutex> lock(api_mu_);
+  if (!mpv_) return;
+  if (user_agent.empty()) {
+    SetProperty("user-agent", "");
+  } else {
+    SetProperty("user-agent", user_agent.c_str());
+  }
+  if (headers.empty()) {
+    SetProperty("http-header-fields", "");
+    return;
+  }
+  std::string fields;
+  for (const auto& kv : headers) {
+    if (kv.first.empty()) continue;
+    if (!fields.empty()) fields += "\n";
+    fields += kv.first;
+    fields += ": ";
+    fields += kv.second;
+  }
+  SetProperty("http-header-fields", fields.c_str());
+}
+
 void MpvPlayer::Command(const std::vector<std::string>& args) {
   std::lock_guard<std::mutex> lock(api_mu_);
   if (!mpv_ || args.empty()) return;

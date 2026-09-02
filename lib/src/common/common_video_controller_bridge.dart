@@ -7,6 +7,7 @@ import '../gsy/gsy_chrome_strings.dart';
 import 'common_audio_track.dart';
 import 'common_video_controller.dart';
 import 'common_video_size.dart';
+import 'kinetic_http_request_options.dart';
 
 /// PNG bytes from a MethodChannel / JS result (raw bytes, or a data URL).
 Uint8List? screenshotBytesFromNative(Object? value) {
@@ -108,6 +109,13 @@ mixin CommonVideoControllerBridge implements CommonVideoController {
   @override
   Future<void> setLocale(String locale) =>
       _invoke('setLocale', KineticChromeStrings.toCreationParams(locale));
+
+  @override
+  Future<void> setHttpRequestOptions(KineticHttpRequestOptions? options) =>
+      _invoke(
+        'setHttpRequestOptions',
+        options?.toMethodChannelArgs() ?? const <String, dynamic>{},
+      );
 
   @override
   Future<Uint8List?> captureFrame({

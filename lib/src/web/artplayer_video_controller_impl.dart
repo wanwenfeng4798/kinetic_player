@@ -6,6 +6,7 @@ import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
 import '../common/common_video_controller_bridge.dart';
 import '../common/common_video_size.dart';
+import '../common/kinetic_http_request_options.dart';
 import '../common/platform_guard.dart';
 import '../gsy/gsy_chrome_strings.dart';
 import 'artplayer_ui_config.dart';
@@ -144,6 +145,13 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
   @override
   Future<void> setLocale(String locale) =>
       _invoke('setLocale', KineticChromeStrings.toCreationParams(locale));
+
+  @override
+  Future<void> setHttpRequestOptions(KineticHttpRequestOptions? options) =>
+      _invoke(
+        'setHttpRequestOptions',
+        options?.toMethodChannelArgs() ?? const <String, dynamic>{},
+      );
 
   @override
   void Function(Uint8List? bytes)? onScreenshotCaptured;

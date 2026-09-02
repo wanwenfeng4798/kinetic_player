@@ -4,6 +4,7 @@ import {
   buildStreamCustomType,
   inferStreamType,
   type CustomTypeMap,
+  type StreamHttpOptions,
 } from './stream_types';
 import type {
   ArtPluginsConfig,
@@ -81,12 +82,17 @@ export class KineticArtplayerAdapter {
   private looping = false;
   private pipActive = false;
   private scaleMode: ScaleMode = ScaleModeEnum.fit;
+  private httpOptions: StreamHttpOptions = {};
 
   private constructor(
     config: KineticArtplayerConfig,
     resolvedPlugins: PluginFactory[],
   ) {
     this.config = config;
+    this.httpOptions = {
+      userAgent: config.userAgent,
+      headers: config.headers,
+    };
     const ui = config.ui ?? {};
     const enableControls = ui.enableNativeControls !== false;
     const pipEnabled = ui.pictureInPictureEnabled !== false;
@@ -171,7 +177,12 @@ export class KineticArtplayerAdapter {
       ...(custom as Partial<ArtplayerOption>),
       ...(streamType ? { type: streamType } : {}),
       ...(needsStreamCustomType
-        ? { customType: buildStreamCustomType(existingCustomType) }
+        ? {
+            customType: buildStreamCustomType(
+              existingCustomType,
+              this.httpOptions,
+            ),
+          }
         : existingCustomType
           ? { customType: existingCustomType }
           : {}),
@@ -408,7 +419,10 @@ export class KineticArtplayerAdapter {
     this.emitState(PlayerState.buffering);
     const streamType = inferStreamType(url);
     if (streamType) {
-      (this.art as unknown as { option: { type?: string } }).option.type = streamType;
+      (this.art as unknown as { option: { type?: string; customType?: CustomTypeMap } })
+        .option.type = streamType;
+      (this.art as unknown as { option: { customType?: CustomTypeMap } }).option.customType =
+        buildStreamCustomType(undefined, this.httpOptions);
     }
     await this.art.switchUrl(url);
     if (autoPlay) {
@@ -416,6 +430,25 @@ export class KineticArtplayerAdapter {
     } else {
       this.emitState(PlayerState.ready);
     }
+  }
+
+  setHttpRequestOptions(options?: {
+    userAgent?: string;
+    headers?: Record<string, string>;
+  }): void {
+    const userAgent =
+      typeof options?.userAgent === 'string' && options.userAgent.length > 0
+        ? options.userAgent
+        : undefined;
+    const headers =
+      options?.headers && Object.keys(options.headers).length > 0
+        ? { ...options.headers }
+        : undefined;
+    this.httpOptions = { userAgent, headers };
+    const option = (
+      this.art as unknown as { option: { customType?: CustomTypeMap } }
+    ).option;
+    option.customType = buildStreamCustomType(undefined, this.httpOptions);
   }
 
   getAudioTracks(): AudioTrackInfo[] {

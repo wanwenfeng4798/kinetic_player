@@ -13,6 +13,7 @@ English: [DESKTOP_MPV_EN.md](DESKTOP_MPV_EN.md)
 
 - 画面：Flutter `Texture`（libmpv 软件渲染到像素缓冲；Linux 经 `FlPixelBufferTexture` 上传，Windows 为 `PixelBufferTexture`），不是 `--wid` 子窗口。
 - 控制栏：Dart 层复刻 B 站风格底栏，交互对齐 **macOS**（无滑动手势；喇叭 / 字幕 / 清晰度 / 齿轮 / 进度条 / 全屏）。
+- HTTP：`setHttpRequestOptions` / `creationParams` 的 `userAgent`、`headers` → libmpv `user-agent`、`http-header-fields`。
 - `captureFrame(includeOverlay:)` 忽略 overlay（与 iOS 一致）。
 - 全屏：切换宿主 Flutter 窗口（`MpvVideoControllerImpl.mpvStartFullscreen`）。
 

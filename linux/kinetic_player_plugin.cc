@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "mpv_player.h"
@@ -140,6 +141,30 @@ std::vector<std::string> FlMapStringList(FlValue* map, const char* key) {
   return out;
 }
 
+std::vector<std::pair<std::string, std::string>> FlMapHeaderPairs(FlValue* map,
+                                                                 const char* key) {
+  std::vector<std::pair<std::string, std::string>> out;
+  if (!map) return out;
+  FlValue* headers = fl_value_lookup_string(map, key);
+  if (!headers || fl_value_get_type(headers) != FL_VALUE_TYPE_MAP) return out;
+  const size_t n = fl_value_get_length(headers);
+  for (size_t i = 0; i < n; i++) {
+    FlValue* k = fl_value_get_map_key(headers, i);
+    FlValue* v = fl_value_get_map_value(headers, i);
+    if (!k || fl_value_get_type(k) != FL_VALUE_TYPE_STRING) continue;
+    if (!v || fl_value_get_type(v) != FL_VALUE_TYPE_STRING) continue;
+    const char* ks = fl_value_get_string(k);
+    const char* vs = fl_value_get_string(v);
+    if (ks && ks[0] && vs) out.emplace_back(ks, vs);
+  }
+  return out;
+}
+
+void ApplyHttpRequestOptions(kinetic::MpvPlayer* player, FlValue* args) {
+  player->SetHttpRequestOptions(FlMapString(args, "userAgent"),
+                                FlMapHeaderPairs(args, "headers"));
+}
+
 FlValue* FlUi(FlValue* args) {
   if (!args) return nullptr;
   FlValue* ui = fl_value_lookup_string(args, "ui");
@@ -154,6 +179,7 @@ void ApplyCreateOptions(kinetic::MpvPlayer* player, FlValue* args) {
   player->SetKeepLastFrame(FlMapBool(src, "keepLastFrameWhenComplete", false));
   player->SetSeekOnStartMs(FlMapInt(src, "seekOnStartMs", -1));
   player->SetAutoPlayNext(FlMapBool(src, "autoPlayNext", true));
+  ApplyHttpRequestOptions(player, args);
   const bool auto_play = FlMapBool(src, "startAfterPrepared", true);
   auto playlist = FlMapStringList(args, "playlist");
   if (!playlist.empty()) {
@@ -370,6 +396,9 @@ class PlayerSlot {
       player_->SetLooping(FlMapBool(args, "looping", false));
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
     } else if (g_strcmp0(method, "setLocale") == 0) {
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+    } else if (g_strcmp0(method, "setHttpRequestOptions") == 0) {
+      ApplyHttpRequestOptions(player_.get(), args);
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
     } else if (g_strcmp0(method, "captureFrame") == 0) {
       auto png = player_->CapturePng();

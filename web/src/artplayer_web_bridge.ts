@@ -16,6 +16,8 @@ export class ArtplayerWebBridge {
     container: HTMLDivElement;
     url?: string;
     ui?: ArtplayerUiConfig;
+    userAgent?: string;
+    headers?: Record<string, string>;
     artplayerOptions?: Record<string, unknown>;
     webCustomExtensions?: Record<string, unknown>;
     artPlugins?: ArtPluginsConfig;
@@ -28,6 +30,8 @@ export class ArtplayerWebBridge {
       container: config.container,
       url: config.url,
       ui: config.ui,
+      userAgent: config.userAgent,
+      headers: config.headers,
       artplayerOptions: config.artplayerOptions,
       webCustomExtensions: config.webCustomExtensions,
       artPlugins: config.artPlugins,
@@ -113,6 +117,28 @@ export class ArtplayerWebBridge {
           (args['strings'] as Record<string, string> | undefined) ?? undefined,
         );
         return null;
+      case 'setHttpRequestOptions': {
+        const rawHeaders = args['headers'];
+        let headers: Record<string, string> | undefined;
+        if (rawHeaders && typeof rawHeaders === 'object') {
+          headers = {};
+          for (const [key, value] of Object.entries(
+            rawHeaders as Record<string, unknown>,
+          )) {
+            if (typeof value === 'string') headers[key] = value;
+            else if (value != null) headers[key] = String(value);
+          }
+          if (Object.keys(headers).length === 0) headers = undefined;
+        }
+        adapter.setHttpRequestOptions({
+          userAgent:
+            typeof args['userAgent'] === 'string'
+              ? (args['userAgent'] as string)
+              : undefined,
+          headers,
+        });
+        return null;
+      }
       case 'captureFrame':
         return adapter.captureFrame();
       case 'togglePip':

@@ -77,6 +77,10 @@ export interface KineticArtplayerConfig {
   url?: string;
   /** Mapped from KineticUiConfig / creationParams.ui */
   ui?: ArtplayerUiConfig;
+  /** Custom User-Agent (best-effort; browsers often forbid overriding). */
+  userAgent?: string;
+  /** Extra HTTP headers for HLS/DASH xhr (not progressive MP4). */
+  headers?: Record<string, string>;
   /**
    * Advanced Artplayer-only options (layers, etc.).
    * Must not pollute the universal kinetic_player API.

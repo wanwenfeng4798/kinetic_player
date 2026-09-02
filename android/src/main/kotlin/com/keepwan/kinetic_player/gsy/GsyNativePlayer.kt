@@ -76,6 +76,8 @@ class GsyNativePlayer(
     private var muted = false
     /** When true and playlist has next item, auto-advance on complete. */
     private var autoPlayNext = true
+    private var httpUserAgent: String? = null
+    private var httpHeaders: Map<String, String> = emptyMap()
 
     private data class MidRollAd(
         val atMs: Long,
@@ -358,7 +360,21 @@ class GsyNativePlayer(
         if (uiConfig.seekOnStartMs >= 0) {
             builder.setSeekOnStart(uiConfig.seekOnStartMs)
         }
+        val headData = linkedMapOf<String, String>()
+        headData.putAll(httpHeaders)
+        val ua = httpUserAgent
+        if (!ua.isNullOrEmpty()) {
+            headData["User-Agent"] = ua
+        }
+        if (headData.isNotEmpty()) {
+            builder.setMapHeadData(headData)
+        }
         return builder
+    }
+
+    fun setHttpRequestOptions(userAgent: String?, headers: Map<String, String>?) {
+        httpUserAgent = userAgent?.takeIf { it.isNotEmpty() }
+        httpHeaders = headers?.filterKeys { it.isNotEmpty() } ?: emptyMap()
     }
 
     fun startPlayLogic() {

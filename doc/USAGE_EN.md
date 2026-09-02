@@ -191,6 +191,7 @@ Hosts keep using `CommonVideoPlayerViewBuilder` + `KineticUiConfig`, same as oth
 | `getVideoSize()` | Video size (width/height) |
 | `setLooping(bool)` | Looping (Android GSY native; iOS seeks(0)+play after completion) |
 | `setLocale(String)` | Chrome language (`zh` / `en` / `vi` / `ms` / `id` / `fil`; set `KineticUiConfig.locale` at create) |
+| `setHttpRequestOptions(KineticHttpRequestOptions?)` | Custom User-Agent / HTTP headers (applied on next source load; also `creationParams['userAgent']` / `headers`) |
 | `captureFrame({highQuality, includeOverlay})` | Screenshot PNG bytes (`Uint8List?`; Android can include UI overlay) |
 | `onScreenshotCaptured` | Settings screenshot finished (PNG bytes; host saves them — plugin does not write files or Photos) |
 | `dispose()` | Release |
@@ -202,6 +203,29 @@ Hosts keep using `CommonVideoPlayerViewBuilder` + `KineticUiConfig`, same as oth
 `CommonPlayerState`: `idle` / `buffering` / `ready` / `playing` / `paused` / `completed` / `error`
 
 `CommonAudioTrack` fields: `index`、`label`、`language`、`selected`
+
+### HTTP headers / User-Agent (all platforms)
+
+```dart
+await controller.setHttpRequestOptions(
+  const KineticHttpRequestOptions(
+    userAgent: 'MyApp/1.0',
+    headers: {'Authorization': 'Bearer …', 'Referer': 'https://example.com/'},
+  ),
+);
+await controller.switchVideoSource(url);
+
+// Or at create:
+creationParams: {
+  'userAgent': 'MyApp/1.0',
+  'headers': {'Referer': 'https://example.com/'},
+  ...ui.toCreationParams(),
+}
+```
+
+- Android / iOS / macOS / Windows / Linux: applied to media requests.
+- Web: progressive MP4 cannot carry custom headers; HLS/DASH inject via xhr. Browsers typically forbid overriding `User-Agent`.
+- Darwin can still use `sgSetDemuxerOptions` for timeout / reconnect; UA/headers share the same pending bag as the common API.
 
 ## View components
 

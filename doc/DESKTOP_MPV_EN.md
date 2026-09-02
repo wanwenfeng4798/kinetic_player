@@ -13,6 +13,7 @@ On **Windows** and **Linux**, `kinetic_player` uses [libmpv](https://mpv.io) as 
 
 - Video: Flutter `Texture` (libmpv software render into a pixel buffer; Linux `FlPixelBufferTexture`, Windows `PixelBufferTexture`), not a `--wid` child window.
 - Chrome: Dart overlay in Bilibili style, interaction aligned with **macOS** (no pan gestures; speaker / subtitles / quality / gear / seek bar / fullscreen).
+- HTTP: `setHttpRequestOptions` / `creationParams` `userAgent` & `headers` → libmpv `user-agent` / `http-header-fields`.
 - `captureFrame(includeOverlay:)` ignores overlay (same as iOS).
 - Fullscreen toggles the host Flutter window (`MpvVideoControllerImpl.mpvStartFullscreen`).
 

@@ -13,6 +13,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "mpv_player.h"
@@ -84,6 +85,28 @@ std::vector<std::string> GetStringList(const EncodableMap& map, const char* key)
   return out;
 }
 
+std::vector<std::pair<std::string, std::string>> GetHeaderPairs(
+    const EncodableMap& map, const char* key) {
+  std::vector<std::pair<std::string, std::string>> out;
+  const auto* v = MapAt(map, key);
+  const auto* headers = v ? std::get_if<EncodableMap>(v) : nullptr;
+  if (!headers) return out;
+  for (const auto& entry : *headers) {
+    const auto* k = std::get_if<std::string>(&entry.first);
+    if (!k || k->empty()) continue;
+    if (const auto* s = std::get_if<std::string>(&entry.second)) {
+      out.emplace_back(*k, *s);
+    }
+  }
+  return out;
+}
+
+void ApplyHttpRequestOptions(kinetic::MpvPlayer* player,
+                             const EncodableMap& map) {
+  player->SetHttpRequestOptions(GetString(map, "userAgent"),
+                                GetHeaderPairs(map, "headers"));
+}
+
 const EncodableMap* UiMap(const EncodableMap& args) {
   const auto* ui = MapAt(args, "ui");
   return AsMap(ui);
@@ -97,6 +120,7 @@ void ApplyCreateOptions(kinetic::MpvPlayer* player, const EncodableMap& args) {
   player->SetKeepLastFrame(GetBool(src, "keepLastFrameWhenComplete", false));
   player->SetSeekOnStartMs(GetInt(src, "seekOnStartMs", -1));
   player->SetAutoPlayNext(GetBool(src, "autoPlayNext", true));
+  ApplyHttpRequestOptions(player, args);
   const bool auto_play = GetBool(src, "startAfterPrepared", true);
   auto playlist = GetStringList(args, "playlist");
   if (!playlist.empty()) {
@@ -307,6 +331,9 @@ class PlayerSlot {
       player_->SetLooping(GetBool(map, "looping", false));
       result->Success();
     } else if (method == "setLocale") {
+      result->Success();
+    } else if (method == "setHttpRequestOptions") {
+      ApplyHttpRequestOptions(player_.get(), map);
       result->Success();
     } else if (method == "captureFrame") {
       auto png = player_->CapturePng();

@@ -23,8 +23,35 @@ type CustomTypeHandler = (
 
 export type CustomTypeMap = Partial<Record<CustomType, CustomTypeHandler>>;
 
+export interface StreamHttpOptions {
+  userAgent?: string;
+  headers?: Record<string, string>;
+}
+
 function asStreamArt(art: Artplayer): ArtplayerWithStream {
   return art as ArtplayerWithStream;
+}
+
+function mergedHeaders(http?: StreamHttpOptions): Record<string, string> {
+  const headers: Record<string, string> = { ...(http?.headers ?? {}) };
+  if (http?.userAgent && http.userAgent.length > 0) {
+    // Browsers typically forbid overriding User-Agent on XHR; set when allowed.
+    headers['User-Agent'] = http.userAgent;
+  }
+  return headers;
+}
+
+function applyHeadersToXhr(
+  xhr: XMLHttpRequest,
+  headers: Record<string, string>,
+): void {
+  for (const [key, value] of Object.entries(headers)) {
+    try {
+      xhr.setRequestHeader(key, value);
+    } catch {
+      // Forbidden header names are ignored by the browser.
+    }
+  }
 }
 
 /**
@@ -33,15 +60,21 @@ function asStreamArt(art: Artplayer): ArtplayerWithStream {
  */
 export function buildStreamCustomType(
   existing?: CustomTypeMap,
+  http?: StreamHttpOptions,
 ): CustomTypeMap {
   const customType: CustomTypeMap = { ...(existing ?? {}) };
+  const headers = mergedHeaders(http);
 
   if (!customType.m3u8 && !customType.hls) {
     const hlsHandler: CustomTypeHandler = function (video, url, art) {
       const streamArt = asStreamArt(art);
       if (Hls.isSupported()) {
         streamArt.hls?.destroy();
-        const hls = new Hls();
+        const hls = new Hls({
+          xhrSetup: (xhr) => {
+            applyHeadersToXhr(xhr, headers);
+          },
+        });
         hls.loadSource(url);
         hls.attachMedia(video);
         streamArt.hls = hls;
@@ -61,6 +94,16 @@ export function buildStreamCustomType(
       const streamArt = asStreamArt(art);
       streamArt.dash?.reset();
       const player = dashjs.MediaPlayer().create();
+      if (Object.keys(headers).length > 0) {
+        player.extendRequestModifier({
+          modifyRequestHeader: (request) => {
+            for (const [key, value] of Object.entries(headers)) {
+              request.setRequestHeader(key, value);
+            }
+            return request;
+          },
+        });
+      }
       player.initialize(video, url, false);
       streamArt.dash = player;
       art.on('destroy', () => player.reset());

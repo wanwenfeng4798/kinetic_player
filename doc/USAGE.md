@@ -199,6 +199,7 @@ flutter run -d linux
 | `getVideoSize()` | 视频宽高 |
 | `setLooping(bool)` | 循环（Android GSY 原生；iOS 播放结束时 seek(0)+play） |
 | `setLocale(String)` | 控制栏语言（`zh` / `en` / `vi` / `ms` / `id` / `fil`；创建时用 `KineticUiConfig.locale`） |
+| `setHttpRequestOptions(KineticHttpRequestOptions?)` | 自定义 User-Agent / HTTP 标头（下次换源生效；也可 `creationParams['userAgent']` / `headers`） |
 | `captureFrame({highQuality, includeOverlay})` | 截当前帧，返回 PNG 字节 `Uint8List?`（Android 可含 UI overlay） |
 | `onScreenshotCaptured` | 设置面板截图完成回调（PNG 字节；宿主自行保存，插件不写文件/相册） |
 | `dispose()` | 释放 |
@@ -210,6 +211,29 @@ flutter run -d linux
 `CommonPlayerState`：`idle` / `buffering` / `ready` / `playing` / `paused` / `completed` / `error`
 
 `CommonAudioTrack` 字段：`index`、`label`、`language`、`selected`
+
+### HTTP 标头 / User-Agent（全平台）
+
+```dart
+await controller.setHttpRequestOptions(
+  const KineticHttpRequestOptions(
+    userAgent: 'MyApp/1.0',
+    headers: {'Authorization': 'Bearer …', 'Referer': 'https://example.com/'},
+  ),
+);
+await controller.switchVideoSource(url); // 换源时带上
+
+// 或创建时：
+creationParams: {
+  'userAgent': 'MyApp/1.0',
+  'headers': {'Referer': 'https://example.com/'},
+  ...ui.toCreationParams(),
+}
+```
+
+- Android / iOS / macOS / Windows / Linux：对媒体请求生效。
+- Web：渐进式 MP4 **无法**自定义请求头；HLS/DASH 经 xhr 注入。浏览器通常禁止覆盖 `User-Agent`。
+- Darwin 仍可用 `sgSetDemuxerOptions` 设 timeout / reconnect；UA/headers 与公共 API 写入同一 pending 袋。
 
 ## 视图组件
 

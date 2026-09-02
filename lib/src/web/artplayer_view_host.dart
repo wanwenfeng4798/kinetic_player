@@ -49,6 +49,17 @@ class ArtplayerViewHost {
       if (url is String && url.isNotEmpty) {
         config.setProperty('url'.toJS, url.toJS);
       }
+      final userAgent = params['userAgent'];
+      if (userAgent is String && userAgent.isNotEmpty) {
+        config.setProperty('userAgent'.toJS, userAgent.toJS);
+      }
+      final headers = params['headers'];
+      if (headers is Map && headers.isNotEmpty) {
+        config.setProperty(
+          'headers'.toJS,
+          _mapToJs(headers.map((k, v) => MapEntry(k.toString(), v))),
+        );
+      }
       final ui = params['ui'];
       if (ui is Map && ui.isNotEmpty) {
         config.setProperty(

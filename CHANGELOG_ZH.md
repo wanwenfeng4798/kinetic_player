@@ -4,10 +4,12 @@
 
 - **Windows / Linux libmpv**：内建桌面内核，公共 `CommonVideoController` API 不变。Flutter `Texture` + Dart 控制栏（对齐 macOS，无滑动手势）。Windows 打包最新 zhongfly LGPL `libmpv-2.dll`（mpv **0.41.0** API）；Linux 使用系统 libmpv。见 [doc/DESKTOP_MPV.md](doc/DESKTOP_MPV.md)。
 - **桌面对照 Android**：旋转、镜像、封面、标题、字幕、播放列表/连播、视频轨、网速、画幅、纯播放、水印叠图。不实现：GL 滤镜、GIF、弹幕、广告、系统 PiP、列表自动播。
+- **HTTP 标头 / User-Agent（全平台）**：`CommonVideoController.setHttpRequestOptions` 与 `creationParams['userAgent']` / `headers`。Web：仅 HLS/DASH xhr（渐进式 MP4 无效；浏览器通常禁止改 UA）。
 
 ### 文档
 
 - README / USAGE / Example：桌面默认内核改为 libmpv，不再要求 GstPlayer。GstPlayer 仍可作为 GStreamer 可选方案。
+- USAGE：补充跨平台 HTTP 请求选项说明。
 
 ## 2.0.4
 

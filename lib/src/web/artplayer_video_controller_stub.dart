@@ -5,6 +5,7 @@ import '../common/common_player_state.dart';
 import '../common/common_scale_mode.dart';
 import '../common/common_video_controller.dart';
 import '../common/common_video_size.dart';
+import '../common/kinetic_http_request_options.dart';
 import 'artplayer_ui_config.dart';
 
 /// Stub for non-web platforms. Real implementation is conditionally imported.
@@ -60,6 +61,9 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
   Future<void> setLooping(bool looping) => throw UnimplementedError();
   @override
   Future<void> setLocale(String locale) => throw UnimplementedError();
+  @override
+  Future<void> setHttpRequestOptions(KineticHttpRequestOptions? options) =>
+      throw UnimplementedError();
   @override
   void Function(Uint8List? bytes)? onScreenshotCaptured;
   @override
