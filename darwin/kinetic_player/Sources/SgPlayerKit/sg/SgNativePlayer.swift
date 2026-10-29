@@ -8,6 +8,7 @@ import SgNativePlayerBridge
 protocol SgPlayerCallbacks: AnyObject {
     func onPlayerStateChanged(_ state: CommonPlayerState)
     func onPositionChanged(positionMs: Int64, durationMs: Int64, bufferedMs: Int64)
+    func onNativeFeatureEvent(_ event: [AnyHashable: Any])
     func onPlayerError(message: String?, code: Int)
 }
 
@@ -41,7 +42,20 @@ final class SgNativePlayer: NSObject {
             },
         )
         super.init()
+        bridge.setFeatureEventHandler { [weak callbacks] event in
+            callbacks?.onNativeFeatureEvent(event)
+        }
 
+#if SWIFT_PACKAGE
+        let resourceBundle = Bundle.module
+#else
+        let hostBundle = Bundle(for: SgNativePlayer.self)
+        let resourceBundle = hostBundle.url(forResource: "kinetic_player_sgplayer", withExtension: "bundle")
+            .flatMap(Bundle.init(url:)) ?? hostBundle
+#endif
+        if let font = resourceBundle.url(forResource: "NotoSansCJKsc-Regular", withExtension: "otf", subdirectory: "SGPlayer/Fonts") {
+            bridge.performOperation("effects.configure", arguments: ["subtitleFallbackFontURL": font.absoluteString]) { _, _ in }
+        }
         let renderView = bridge.view
         renderView.translatesAutoresizingMaskIntoConstraints = false
         transformHost.contentView.addSubview(renderView)
@@ -58,6 +72,30 @@ final class SgNativePlayer: NSObject {
 #elseif os(macOS)
     var view: NSView { transformHost }
 #endif
+
+    func configureControls(enabled: Bool, autoHide: Double, fullscreen: @escaping () -> Void) {
+        bridge.configureControls(enabled, autoHide: autoHide, fullscreen: fullscreen)
+    }
+
+    func setPlaylist(_ urls: [String], startIndex: Int, autoPlay: Bool) -> Bool {
+        bridge.setPlaylist(urls, start: startIndex, autoPlay: autoPlay)
+    }
+    func playNext() -> Bool { bridge.playNext() }
+    func setAutomaticAdvance(_ enabled: Bool) { bridge.setAutomaticAdvance(enabled) }
+    func diagnostics() -> [AnyHashable: Any] { bridge.diagnostics() }
+    func startPictureInPicture() -> Bool { bridge.startPictureInPicture() }
+    func stopPictureInPicture() { bridge.stopPictureInPicture() }
+    func isPictureInPictureActive() -> Bool { bridge.isPictureInPictureActive() }
+
+    func setDismissFullscreenHandler(_ handler: @escaping () -> Void) { bridge.setDismissFullscreenHandler(handler) }
+
+    func setCoverUrl(_ url: String?) {
+        bridge.performOperation("controls.cover", arguments: url.map { ["url": $0] } ?? [:]) { _, _ in }
+    }
+
+    func performOperation(_ operation: String, arguments: [String: Any], completion: @escaping (Any?, Error?) -> Void) {
+        bridge.performOperation(operation, arguments: arguments, completion: completion)
+    }
 
     func play() { bridge.play() }
     func pause() { bridge.pause() }

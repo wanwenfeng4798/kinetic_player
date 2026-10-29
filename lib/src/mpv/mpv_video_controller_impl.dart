@@ -10,6 +10,7 @@ import '../common/platform_guard.dart';
 import '../gsy/gsy_chrome_strings.dart';
 import '../gsy/gsy_video_features.dart';
 import 'mpv_video_features.dart';
+import 'mpv_chrome_config.dart';
 
 class MpvVideoControllerImpl
     with CommonVideoControllerBridge
@@ -38,6 +39,40 @@ class MpvVideoControllerImpl
   late MethodChannel _channel;
   bool _isDisposed = false;
   int _retainCount;
+  final ValueNotifier<MpvChromeConfig?> chromeConfig = ValueNotifier(null);
+  final ValueNotifier<double> playbackRate = ValueNotifier(1);
+  final ValueNotifier<double> volume = ValueNotifier(1);
+  final ValueNotifier<bool> muted = ValueNotifier(false);
+  final ValueNotifier<bool> looping = ValueNotifier(false);
+  final ValueNotifier<bool> mirrorHorizontal = ValueNotifier(false);
+  final ValueNotifier<bool> autoPlayNext = ValueNotifier(true);
+
+  @override
+  Future<void> setRate(double rate) async {
+    await super.setRate(rate);
+    if (!_isDisposed) playbackRate.value = rate;
+  }
+
+  @override
+  Future<void> setVolume(double volume) async {
+    await super.setVolume(volume);
+    if (!_isDisposed) {
+      this.volume.value = volume.clamp(0, 1);
+      if (volume > 0) muted.value = false;
+    }
+  }
+
+  @override
+  Future<void> setMute(bool muted) async {
+    await super.setMute(muted);
+    if (!_isDisposed) this.muted.value = muted;
+  }
+
+  @override
+  Future<void> setLooping(bool looping) async {
+    await super.setLooping(looping);
+    if (!_isDisposed) this.looping.value = looping;
+  }
 
   @override
   MethodChannel get bridgeChannel => _channel;
@@ -46,8 +81,9 @@ class MpvVideoControllerImpl
   bool get bridgeDisposed => _isDisposed;
 
   @override
-  final ValueNotifier<CommonPlayerState> playerState =
-      ValueNotifier(CommonPlayerState.idle);
+  final ValueNotifier<CommonPlayerState> playerState = ValueNotifier(
+    CommonPlayerState.idle,
+  );
   @override
   final ValueNotifier<Duration> position = ValueNotifier(Duration.zero);
   @override
@@ -94,8 +130,7 @@ class MpvVideoControllerImpl
         final args = call.arguments as Map;
         position.value = Duration(milliseconds: args['position'] as int);
         duration.value = Duration(milliseconds: args['duration'] as int);
-        buffered.value =
-            Duration(milliseconds: args['buffered'] as int? ?? 0);
+        buffered.value = Duration(milliseconds: args['buffered'] as int? ?? 0);
       case 'onPlayerError':
         final args = call.arguments as Map;
         playerError.value = args['message'] as String?;
@@ -163,6 +198,9 @@ class MpvVideoControllerImpl
   }
 
   Future<void> mpvSetUiConfig(KineticUiConfig config) async {
+    chromeConfig.value = MpvChromeConfig.fromCreationParams(
+      config.toCreationParams(),
+    );
     chromeLocale.value = KineticChromeStrings.normalize(config.locale);
     videoTitle.value = config.videoTitle;
     coverUrl.value = config.coverUrl;
@@ -177,8 +215,10 @@ class MpvVideoControllerImpl
   Future<void> mpvSetRenderRotation(int degrees) =>
       _invoke('mpvSetRenderRotation', {'degrees': degrees});
 
-  Future<void> mpvSetMirrorHorizontal({required bool enabled}) =>
-      _invoke('mpvSetMirrorHorizontal', {'enabled': enabled});
+  Future<void> mpvSetMirrorHorizontal({required bool enabled}) async {
+    await _invoke('mpvSetMirrorHorizontal', {'enabled': enabled});
+    if (!_isDisposed) mirrorHorizontal.value = enabled;
+  }
 
   Future<void> mpvSetMirrorVertical({required bool enabled}) =>
       _invoke('mpvSetMirrorVertical', {'enabled': enabled});
@@ -187,31 +227,21 @@ class MpvVideoControllerImpl
   Future<void> mpvSetShowType(GsyShowType type) =>
       _invoke('mpvSetShowType', {'mode': type.gsyIndex});
 
-  Future<void> mpvSetPlaylist(
-    List<String> urls, {
-    int startIndex = 0,
-  }) =>
-      _invoke('mpvSetPlaylist', {
-        'urls': urls,
-        'startIndex': startIndex,
-      });
+  Future<void> mpvSetPlaylist(List<String> urls, {int startIndex = 0}) =>
+      _invoke('mpvSetPlaylist', {'urls': urls, 'startIndex': startIndex});
 
   Future<bool> mpvPlayNextInPlaylist() async {
     final result = await _channel.invokeMethod<bool>('mpvPlayNextInPlaylist');
     return result ?? false;
   }
 
-  Future<void> mpvSetAutoPlayNext({required bool enabled}) =>
-      _invoke('mpvSetAutoPlayNext', {'enabled': enabled});
+  Future<void> mpvSetAutoPlayNext({required bool enabled}) async {
+    await _invoke('mpvSetAutoPlayNext', {'enabled': enabled});
+    if (!_isDisposed) autoPlayNext.value = enabled;
+  }
 
-  Future<void> mpvSetSubtitleUrl(
-    String url, {
-    String? mimeType,
-  }) =>
-      _invoke('mpvSetSubtitleUrl', {
-        'url': url,
-        'mimeType': mimeType,
-      });
+  Future<void> mpvSetSubtitleUrl(String url, {String? mimeType}) =>
+      _invoke('mpvSetSubtitleUrl', {'url': url, 'mimeType': mimeType});
 
   Future<void> mpvSetSubtitleEnabled({required bool enabled}) async {
     subtitleEnabled.value = enabled;
@@ -219,8 +249,9 @@ class MpvVideoControllerImpl
   }
 
   Future<List<MpvVideoTrack>> mpvListVideoTracks() async {
-    final result =
-        await _channel.invokeMethod<List<Object?>>('mpvListVideoTracks');
+    final result = await _channel.invokeMethod<List<Object?>>(
+      'mpvListVideoTracks',
+    );
     return result
             ?.whereType<Map<Object?, Object?>>()
             .map(MpvVideoTrack.fromMap)
@@ -230,16 +261,18 @@ class MpvVideoControllerImpl
 
   /// Select a video track by [index]. Pass `-1` to restore auto.
   Future<bool> mpvSelectVideoTrack(int index) async {
-    final result = await _channel
-        .invokeMethod<bool>('mpvSelectVideoTrack', {'index': index});
+    final result = await _channel.invokeMethod<bool>('mpvSelectVideoTrack', {
+      'index': index,
+    });
     return result ?? false;
   }
 
   Future<bool> mpvSetVideoTrackAuto() => mpvSelectVideoTrack(-1);
 
   Future<MpvNetSpeed> mpvGetNetSpeed() async {
-    final result =
-        await _channel.invokeMethod<Map<Object?, Object?>>('mpvGetNetSpeed');
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      'mpvGetNetSpeed',
+    );
     return MpvNetSpeed(
       bytesPerSecond: result?['bytesPerSecond'] as int? ?? 0,
       text: result?['text'] as String? ?? '',
@@ -257,6 +290,13 @@ class MpvVideoControllerImpl
     try {
       await _channel.invokeMethod('dispose');
     } catch (_) {}
+    chromeConfig.dispose();
+    playbackRate.dispose();
+    volume.dispose();
+    muted.dispose();
+    looping.dispose();
+    mirrorHorizontal.dispose();
+    autoPlayNext.dispose();
     playerState.dispose();
     position.dispose();
     duration.dispose();

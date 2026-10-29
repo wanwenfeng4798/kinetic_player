@@ -6,13 +6,15 @@
 
 English version: [README_EN.md](README_EN.md)
 
-最强大的跨平台 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 14.0.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（master），**Web** 使用 [Artplayer.js 5.4.0](https://artplayer.org)，**Windows / Linux** 使用 [libmpv](https://mpv.io)。
+最强大的跨平台 Flutter 视频播放器插件：**Android** 使用 [GSYVideoPlayer 14.0.0](https://github.com/CarGuo/GSYVideoPlayer)，**iOS / macOS** 使用 [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer)（v2.0.0），**Web** 使用 [Artplayer.js 5.4.0](https://artplayer.org)，**Windows / Linux** 使用 [libmpv](https://mpv.io)。
 
 仓库：[github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
-需要 **Dart 3.13 / Flutter 3.47+**，并依赖 `material_ui: ^1.7.0`。
+需要 **Dart 3.13 / Flutter 3.47+**，并依赖 `material_ui: ^1.8.0`。
 
 ## 平台预览
+
+以下截图为迁移前版本；3.0 的 iOS/macOS 使用 SGPlayer 2 原生控制栏。
 
 | Android | iOS |
 |:-------:|:---:|
@@ -26,7 +28,7 @@ English version: [README_EN.md](README_EN.md)
 
 - 统一的 `CommonVideoController` API（播放 / 暂停 / 跳转 / 缩放 / 倍速 / 音量 / 音轨 / 循环 / 截图等）
 - 平台自动选型：Android → GSY，iOS / macOS → SGPlayer，Web → Artplayer，**Windows / Linux → libmpv**
-- B 站风格原生控制栏：竖向音量弹窗（拖动显示百分比）、设置面板（音轨 / 截图；Android 含 GIF）、弹窗淡入淡出、统一进度条与底栏图标尺寸
+- Android 使用 GSY 原生控制栏；iOS/macOS 使用 SGPlayer 2 原生控制栏；桌面与 Web 保留独立 UI
 - **Android / iOS** 支持滑动手势调进度 / 音量 / 亮度（`enableNativeControls`）；**macOS / Windows / Linux** 无滑动手势，用进度条 + 喇叭/齿轮按钮
 - Android 画中画（PiP）**默认开启**（API 26+；播放中切后台自动进入，含 GSY 自动播放场景）
 - Web：Video / Document PiP、HLS/DASH、官方 Artplayer 插件（弹幕 / 字幕 / Chromecast 等）
@@ -70,11 +72,7 @@ flutter:
 
 详见 [doc/DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md)。
 
-**SPM（推荐）：** 插件已随包发布 `Package.swift` + 源码；Xcode 解析时按远程 `binaryTarget` 自动下载 `SGPlayer.xcframework`。macOS 请将 `MACOSX_DEPLOYMENT_TARGET` 设为 **11.0+**。若 Xcode 直编报包装包版本冲突，见 [DARWIN_SGPLAYER.md](doc/DARWIN_SGPLAYER.md#spm-包装包最低版本) 手动修改 `FlutterGeneratedPluginSwiftPackage`。
-
-**CocoaPods：** `pod install` 经 `prepare_command` 调用 `ensure_sgplayer.sh`（下载预编译；失败再本地编译）。
-
-维护者更新 Release / manifest 后重生成 `Package.swift`，或强制本地编译，见 Darwin 文档。
+**SPM：** 首次解析前执行 `bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios`，准备官方 v2.0.0 的 iOS/macOS 本地二进制目标。最低 iOS 15 / macOS 12。CocoaPods 会自动下载。原生控制栏和配置限制见 Darwin 文档。
 
 ### 4. 最小示例
 
@@ -124,8 +122,8 @@ CommonVideoPlayerViewBuilder(
 | 平台 | 内核 | 真机 / 桌面 | 模拟器 / 浏览器 | 画中画 |
 |------|------|-------------|-----------------|--------|
 | Android | GSYVideoPlayer 14.0.0 | ✅ | ✅ | ✅ 默认开启 |
-| iOS | SGPlayer master | ✅ | ❌（FFmpeg 预编译仅 arm64 真机） | ❌ |
-| macOS | SGPlayer master | ✅ | ✅（`macosx` xcframework） | ❌ |
+| iOS | SGPlayer 2.0.0 | ✅ | ❌（FFmpeg 预编译仅 arm64 真机） | ✅ SGPlayer 2 |
+| macOS | SGPlayer 2.0.0 | ✅ | ✅（`macosx` xcframework） | ✅ SGPlayer 2 |
 | Web | Artplayer.js 5.4.0 | — | ✅ Chrome / Safari / 移动 Web | ✅ Video PiP；Document PiP 可选 |
 | Windows | libmpv（打包 DLL） | ✅ x64 | — | ❌ |
 | Linux | libmpv（系统库） | ✅ | — | ❌ |

@@ -4,17 +4,17 @@ abstract final class NativeSdkVersions {
   static const String gsyVideoPlayer = '14.0.0';
 
   /// iOS SGPlayer git branch (source builds).
-  static const String sgPlayerBranch = 'master';
+  static const String sgPlayerBranch = 'v2.0.0';
 
   /// SGPlayer source repository (see darwin/sgplayer/manifest.*.json).
   static const String sgPlayerRepository =
       'https://github.com/wanwenfeng4798/SGPlayer';
 
   /// iOS / macOS prebuilt binary manifest version (see darwin/sgplayer/manifest.*.json).
-  static const String sgPlayerBinary = '1.0.0';
+  static const String sgPlayerBinary = '2.0.0';
 
   /// macOS prebuilt binary manifest version.
-  static const String sgPlayerBinaryMacOS = '1.0.0';
+  static const String sgPlayerBinaryMacOS = '2.0.0';
 
   /// Windows prebuilt libmpv (zhongfly LGPL; see windows/mpv/manifest.json).
   /// Client headers are mpv v0.41.0; the bundled DLL tracks the latest winbuild.

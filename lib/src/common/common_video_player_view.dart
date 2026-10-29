@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../mpv/mpv_player_surface.dart';
 import 'common_video_controller.dart';
+import 'kinetic_player_config.dart';
 import 'common_video_player_factory.dart';
 import 'platform_guard.dart';
 import 'player_view_types.dart';
@@ -16,12 +17,14 @@ class CommonVideoPlayerView extends StatefulWidget {
     super.key,
     this.url,
     this.creationParams,
+    this.config,
     this.gestureRecognizers = const <Factory<OneSequenceGestureRecognizer>>{},
     this.onPlatformViewCreated,
   });
 
   final String? url;
   final Map<String, dynamic>? creationParams;
+  final KineticPlayerConfig? config;
   final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers;
   final ValueChanged<int>? onPlatformViewCreated;
 
@@ -30,10 +33,11 @@ class CommonVideoPlayerView extends StatefulWidget {
 }
 
 class _CommonVideoPlayerViewState extends State<CommonVideoPlayerView> {
-  Map<String, dynamic> get _creationParams => <String, dynamic>{
-        if (widget.url != null) 'url': widget.url,
-        ...?widget.creationParams,
-      };
+  Map<String, dynamic> get _creationParams => kineticCreationParams(
+    url: widget.url,
+    legacy: widget.creationParams,
+    config: widget.config,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +85,7 @@ class _CommonVideoPlayerViewState extends State<CommonVideoPlayerView> {
         defaultTargetPlatform == TargetPlatform.linux) {
       return MpvPlayerSurface(
         url: widget.url,
-        creationParams: widget.creationParams,
+        creationParams: creationParams,
         onPlatformViewCreated: widget.onPlatformViewCreated,
       );
     }
@@ -109,12 +113,14 @@ class CommonVideoPlayerViewBuilder extends StatefulWidget {
     required this.builder,
     this.url,
     this.creationParams,
+    this.config,
     this.gestureRecognizers = const <Factory<OneSequenceGestureRecognizer>>{},
   });
 
   final CommonVideoPlayerViewCreatedCallback builder;
   final String? url;
   final Map<String, dynamic>? creationParams;
+  final KineticPlayerConfig? config;
   final Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers;
 
   @override
@@ -137,6 +143,7 @@ class _CommonVideoPlayerViewBuilderState
     return CommonVideoPlayerView(
       url: widget.url,
       creationParams: widget.creationParams,
+      config: widget.config,
       gestureRecognizers: widget.gestureRecognizers,
       onPlatformViewCreated: _handleCreated,
     );
@@ -146,7 +153,10 @@ class _CommonVideoPlayerViewBuilderState
     if (_controller != null) return;
     final controller = CommonVideoPlayerFactory.createAuto(viewId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted) {
+        controller.dispose();
+        return;
+      }
       setState(() => _controller = controller);
       widget.builder(controller);
     });

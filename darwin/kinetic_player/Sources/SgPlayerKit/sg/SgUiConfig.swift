@@ -1,4 +1,5 @@
 import Foundation
+import AVKit
 
 struct SgUiConfig {
     /// Native chrome + pan gestures (seek / volume / brightness).
@@ -25,8 +26,8 @@ struct SgUiConfig {
     /// Resolved chrome copy from Dart `KineticChromeStrings` (`ui.strings`).
     var strings: [String: String]
 
-    /// SGPlayer uses a custom video renderer; system PiP (AVPictureInPictureController) is unavailable.
-    static var isPictureInPictureSupported: Bool { false }
+    /// SGPlayer 2 provides native/sample-buffer PiP; availability depends on the host.
+    static var isPictureInPictureSupported: Bool { AVPictureInPictureController.isPictureInPictureSupported() }
 
     static let defaultAccentColor: Int = 0xFFFB7299
 

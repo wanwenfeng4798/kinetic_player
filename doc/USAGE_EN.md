@@ -2,7 +2,9 @@
 
 Chinese version: [USAGE.md](USAGE.md)
 
-Minimum SDK: **Dart 3.13 / Flutter 3.47**. Host apps should depend on `material_ui: ^1.7.0` and `import 'package:material_ui/material_ui.dart'` (do not `import package:flutter/material.dart`).
+Minimum SDK: **Dart 3.13 / Flutter 3.47**. Host apps should depend on `material_ui: ^1.8.0` and `import 'package:material_ui/material_ui.dart'` (do not `import package:flutter/material.dart`).
+
+> 3.0: Darwin uses SGPlayer 2 native controls (iOS 15 / macOS 12). Runtime localization and per-button styling are not exposed by the SDK. See [Darwin integration](DARWIN_SGPLAYER_EN.md) for setup and migration.
 
 ## Architecture Overview
 
@@ -114,7 +116,7 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-2. **Binaries:** Under SPM, Xcode downloads via the remote `binaryTarget` in `Package.swift`. Under CocoaPods, `prepare_command` runs `ensure_sgplayer.sh`. End users do not need extra scripts.
+2. **Binaries:** Run `bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios` before first SPM resolution. CocoaPods prepares official release downloads automatically.
 
 3. **Run**:
 
@@ -125,7 +127,7 @@ flutter run -d macos
 ```
 
 > iOS Simulator is not supported (prebuilt FFmpeg is arm64 device-only).
-> macOS deployment target must be **11.0+** (matches plugin `Package.swift`).
+> macOS deployment target must be **12.0+** (matches plugin `Package.swift`).
 > macOS Example needs App Sandbox outbound network entitlement `com.apple.security.network.client`.
 > There is no system PiP on iOS / macOS; they share the native bottom bar and SG APIs.
 
@@ -267,40 +269,11 @@ CommonVideoPlayerView(
 )
 ```
 
-## Native control bar UI (aligned across platforms)
+## Control UI and platform boundaries
 
-Android (GSY) and iOS / macOS (SGPlayer) both use a Bilibili-style native bottom control bar. Default accent is Bilibili pink `#FB7299` (override via `KineticUiConfig.accentColor`). The toolbar includes a playback-rate popup; on Android Exo with multiple video tracks, a quality picker (including Auto) is shown. Volume / settings / rate / quality popups fade in and out over 200ms (instant when the control bar hides). Settings (level 1 / 2) scroll when they exceed available height; width wraps content (min ~140, capped to the player) and labels longer than 10 characters (including track names) are ellipsized. Level-2 Other includes **Screenshot** on all platforms (current frame, no chrome; PNG bytes via `onScreenshotCaptured` so the host saves them); Android also has **Record GIF** (tap to start, tap again to stop). On Android the danmaku input stays visible; tapping the danmaku icon enables or disables it (and the overlay).
+3.0 uses GSY native controls on Android and SGPlaybackControls on iOS/macOS. Windows/Linux share an independent Flutter desktop overlay; Web uses Artplayer DOM controls. Shared config and operations use KineticPlayerConfig and KineticPlayerActions. UI is not pixel-identical across these SDKs.
 
-Chrome copy follows `KineticUiConfig.locale` (`zh` / `en` / `vi` / `ms` / `id` / `fil`, default `zh`). `toCreationParams()` puts `locale` and the `KineticChromeStrings` table under `creationParams['ui']`. Darwin uses shared `SgUiConfig.strings` (no `.lproj`). Hot-swap with `controller.setLocale(...)` (do not use `gsySetUiConfig` to change language).
-
-| Capability | Android | iOS | macOS | Configuration |
-|---|---|---|---|---|
-| Center play/pause | ✅ | ✅ | ✅ | `enableNativeControls` |
-| Progress bar + time | ✅ | ✅ | ✅ | Native default |
-| Tap to show/hide controls | ✅ | ✅ | ✅ | Tap blank area; auto-hide after ~2.5s while playing |
-| **Volume** | ✅ | ✅ | ✅ | Tap **speaker** to pop up vertical volume bar; while dragging show percentage on the **left** of the slider (e.g. `50%`); hide when release |
-| **Gestures** | ✅ | ✅ | ❌ | Android / iOS: `enableNativeControls` — horizontal seek; left half brightness; right half volume. macOS pans are unreliable inside Flutter `AppKitView` and there is no public brightness API — use the same button/popup pattern as audio tracks: progress slider seek, speaker volume, gear tracks |
-| **Audio tracks** | ✅ | ✅ | ✅ | Tap **gear (settings)** to open the panel; or use Dart `getAudioTracks` / `selectAudioTrack` |
-| Fullscreen | ✅ | ✅ | ✅ | Fullscreen button (same size as settings/volume icons, 36dp) / `gsyStartFullscreen()` / `sgStartFullscreen()` |
-| Picture-in-Picture PiP | ✅ default | ❌ | ❌ | `pictureInPictureEnabled` (Android only) |
-
-> **Volume (Android)**: when `showVolumeToolbar` is enabled, the right-side slider adjusts **player volume** (same source as the speaker popup), instead of the system volume slider. While the volume popup is open or dragging the slider, the right-side volume slider is temporarily disabled to avoid conflicts.
-
-> **Volume (iOS)**: the right-side slider also adjusts player volume (similar sensitivity to Android GSY, about 3×). While the volume popup is open or dragging, the right-side volume slider is disabled as well.
-
-> **Volume (macOS)**: no pan gestures; tap the speaker for a vertical volume slider (same interaction pattern as gear / audio tracks).
-
-> **Volume persistence**: volume set via slider or `setVolume()` is restored on pause/resume, replay after completion, and switching sources.
-
-> **Audio tracks**: select tracks in the settings panel (gear) or via Flutter `selectAudioTrack` (not in the volume popup).
-
-> **Screenshots**: settings capture and `captureFrame()` return PNG bytes (`Uint8List?`). The plugin does **not** write temp files or Photos. Settings finish with `CommonVideoController.onScreenshotCaptured`; `captureFrame()` returns the bytes to the caller. The host writes them wherever it wants.
-
-> **PiP**: SGPlayer uses custom rendering, so it cannot integrate with system `AVPictureInPictureController`. iOS / macOS PiP is currently not supported.
-
-### Touch area notes
-
-After the control bar is hidden, the bottom transparent area will not intercept taps, so you can tap the bottom-right corner and other areas to show/hide the controls and center play button.
+Darwin native controls expose control visibility, auto-hide, lock, gestures/keyboard, cover and native settings. The SDK does not expose runtime localization, theme/per-button visibility or completion-cover policy; unsupported runtime calls return UNSUPPORTED. PiP depends on each platform and host. See the Chinese USAGE audit matrix and DARWIN_SGPLAYER feature inventory for exact limits.
 
 ## Platform-only APIs (downcasting)
 
@@ -458,7 +431,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 | Cover | `gsySetCoverUrl` | `sgSetCoverUrl` | `poster` / `coverUrl` |
 | Keep last frame | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` | browser default |
 | Buffered / error details | — | `buffered` / `playerError` | `error` state |
-| Deployment notes | Default IJK is arm64; host ProGuard / `handleBackPressed` | iOS device; macOS 11+; sandbox `network.client` | Chrome / Safari / mobile Web; autoplay policy |
+| Deployment notes | Default IJK is arm64; host ProGuard / `handleBackPressed` | iOS device; macOS 12+; sandbox `network.client` | Chrome / Safari / mobile Web; autoplay policy |
 
 `KineticUiConfig` fields actually applied on Darwin (SG): `enableNativeControls`, `showVolumeToolbar`, `showSettingsButton`, `showFullscreenButton`, `showLockButton`, `dismissControlTime`, `coverUrl`, `keepLastFrameWhenComplete`, `speed`, `looping`, `accentColor`, `locale`. Create-time language uses `ui.locale` / `ui.strings`; hot-swap with `setLocale`, not `gsySetUiConfig`. `pictureInPictureEnabled` is **ignored** on Apple. `previewVttUrl` / `cacheWithPlay` / rotate / `thumbPlay` are **Android-only**.
 
@@ -478,7 +451,7 @@ controller.position.addListener(() {
 
 1. Each `CommonVideoPlayerViewBuilder` automatically releases the controller on dispose. If you manually hold a controller, dispose it when your page is disposed.
 2. Android Activity should forward `onConfigurationChanged`, `onBackPressed`, `onUserLeaveHint` (see the Android integration section).
-3. iOS needs device testing for SGPlayer features; macOS requires 11.0+ and outbound network entitlement.
+3. iOS needs device testing for SGPlayer features; macOS requires 12.0+ and outbound network entitlement.
 4. Disable PiP: `KineticUiConfig(pictureInPictureEnabled: false)`.
 5. Web uses Artplayer.js; platform-only details live in [WEB_ARTPLAYER_EN.md](WEB_ARTPLAYER_EN.md). Rebuild with `npm run build` after editing `web/src`.
 

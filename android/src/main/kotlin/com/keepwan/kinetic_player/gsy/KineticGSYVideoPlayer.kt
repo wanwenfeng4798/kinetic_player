@@ -27,7 +27,9 @@ import android.widget.Toast
 import com.keepwan.kinetic_player.R
 import com.shuyu.gsyvideoplayer.utils.CommonUtil
 import com.shuyu.gsyvideoplayer.utils.Debuger
-import com.shuyu.gsyvideoplayer.video.StandardGSYVideoPlayer
+import com.shuyu.gsyvideoplayer.video.ListGSYVideoPlayer
+import com.shuyu.gsyvideoplayer.model.GSYVideoModel
+import com.shuyu.gsyvideoplayer.GSYVideoManager
 import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer
 import moe.codeest.enviews.ENDownloadView
 import java.net.HttpURLConnection
@@ -35,15 +37,33 @@ import java.net.URL
 import java.util.concurrent.Executors
 
 /**
- * [StandardGSYVideoPlayer] for Flutter PlatformView with native-default behavior.
+ * [ListGSYVideoPlayer] for Flutter PlatformView with native-default behavior.
  */
-open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
+open class KineticGSYVideoPlayer : ListGSYVideoPlayer {
 
     constructor(context: Context) : super(context)
 
     constructor(context: Context, fullFlag: Boolean) : super(context, fullFlag)
 
     constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
+
+    var nativeAutomaticAdvance = true
+    var onNativeStateChanged: ((Int) -> Unit)? = null
+
+    override fun setStateAndUi(state: Int) {
+        super.setStateAndUi(state)
+        onNativeStateChanged?.invoke(state)
+    }
+
+
+    fun configureNativePlaylist(urls: List<String>, startIndex: Int, headers: Map<String, String>) {
+        if (urls.isEmpty()) return
+        setUp(urls.map { GSYVideoModel(it, uiConfig.videoTitle) }, uiConfig.cacheWithPlay,
+            startIndex.coerceIn(0, urls.lastIndex), null, headers)
+    }
+
+    override fun playNext(): Boolean = nativeAutomaticAdvance && !isLooping && super.playNext()
+    fun playNextManually(): Boolean = super.playNext()
 
     protected var storedUiConfig: GsyUiConfig? = null
     private var chromeStrings: Map<String, String> = emptyMap()
@@ -1426,6 +1446,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     }
 
     override fun onAutoCompletion() {
+        // The SDK owns playlist transitions, including fullscreen clones.
+        if (nativeAutomaticAdvance && !isLooping && playNext()) return
         if (!keepLastFrameWhenComplete) {
             lastAutoCompleteRetainedSurface = false
             super.onAutoCompletion()
@@ -1574,7 +1596,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
     fun toggleWindowFullscreen() {
         val activity = CommonUtil.scanForActivity(context) as? Activity ?: return
         if (isIfCurrentIsFullscreen) {
-            clearFullscreenLayout()
+            GSYVideoManager.backFromWindowFull(context)
         } else {
             startWindowFullscreen(
                 activity,
@@ -1595,6 +1617,7 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
             uiConfig.fullHideActionBar,
             uiConfig.fullHideStatusBar,
         )
+        postDelayed({ fitFullscreenToHost() }, 500)
     }
 
     fun setOverlayDanmakuUrl(url: String?) {
@@ -1630,11 +1653,22 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         image.visibility = View.VISIBLE
         coverExecutor.execute {
             try {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.connectTimeout = 15_000
-                connection.readTimeout = 15_000
-                connection.connect()
-                val bitmap = BitmapFactory.decodeStream(connection.inputStream)
+                val uri = android.net.Uri.parse(url)
+                val bitmap = when (uri.scheme) {
+                    "file", "content", "android.resource" ->
+                        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+                    null, "" -> BitmapFactory.decodeFile(url)
+                    else -> {
+                        val connection = URL(url).openConnection() as HttpURLConnection
+                        try {
+                            connection.connectTimeout = 15_000
+                            connection.readTimeout = 15_000
+                            connection.inputStream.use { BitmapFactory.decodeStream(it) }
+                        } finally {
+                            connection.disconnect()
+                        }
+                    }
+                }
                 coverMainHandler.post {
                     if (overlayWatermarkUrl != url) return@post
                     overlayWatermarkBitmap = bitmap
@@ -1762,6 +1796,8 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         toPlayer.keepLastFrameWhenComplete = fromPlayer.keepLastFrameWhenComplete
         toPlayer.lastAutoCompleteRetainedSurface = fromPlayer.lastAutoCompleteRetainedSurface
         toPlayer.uiConfig = fromPlayer.uiConfig
+        toPlayer.nativeAutomaticAdvance = fromPlayer.nativeAutomaticAdvance
+        toPlayer.onNativeStateChanged = fromPlayer.onNativeStateChanged
         toPlayer.onVolumeChanged = fromPlayer.onVolumeChanged
         toPlayer.onMuteToggle = fromPlayer.onMuteToggle
         toPlayer.onRequestAudioTracks = fromPlayer.onRequestAudioTracks
@@ -1852,9 +1888,43 @@ open class KineticGSYVideoPlayer : StandardGSYVideoPlayer {
         actionBar: Boolean,
         statusBar: Boolean,
     ): GSYBaseVideoPlayer? {
+        if (mUriList.isEmpty()) return null
         val player = super.startWindowFullscreen(context, actionBar, statusBar) ?: return null
         (player as? KineticGSYVideoPlayer)?.applyUiConfig()
+        // Flutter can reorder hybrid-composition views after an orientation change.
+        // Elevate the SDK fullscreen host so it draws and receives touches above them.
+        (player.parent as? View)?.apply {
+            elevation = 64f * resources.displayMetrics.density
+            bringToFront()
+        }
+        postDelayed({ fitFullscreenToHost() }, 500)
         return player
+    }
+
+    private fun fitFullscreenToHost() {
+        val full = fullWindowPlayer as? KineticGSYVideoPlayer ?: return
+        if (!full.isIfCurrentIsFullscreen) return
+        // GSY screen metrics can include navigation/cutout space outside Flutter's
+        // Activity content. Fit the entire control layout to its actual window host.
+        (full.parent as? View)?.let { host ->
+            val visible = android.graphics.Rect()
+            if ((host.parent as? View)?.getGlobalVisibleRect(visible) == true && !visible.isEmpty) {
+                host.layoutParams = host.layoutParams.apply {
+                    val insets = if (android.os.Build.VERSION.SDK_INT >= 30) {
+                        host.rootWindowInsets?.getInsetsIgnoringVisibility(
+                            android.view.WindowInsets.Type.navigationBars() or
+                                android.view.WindowInsets.Type.displayCutout(),
+                        )
+                    } else null
+                    width = (visible.width() - (insets?.left ?: 0) - (insets?.right ?: 0)).coerceAtLeast(1)
+                    height = (visible.height() - (insets?.top ?: 0) - (insets?.bottom ?: 0)).coerceAtLeast(1)
+                }
+            }
+        }
+        full.layoutParams = full.layoutParams.apply {
+            width = ViewGroup.LayoutParams.MATCH_PARENT
+            height = ViewGroup.LayoutParams.MATCH_PARENT
+        }
     }
 
     override fun clearFullscreenLayout() {

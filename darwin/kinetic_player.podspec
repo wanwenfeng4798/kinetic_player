@@ -3,11 +3,11 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'kinetic_player'
-  s.version          = '2.1.2'
+  s.version          = '3.0.0'
   s.summary          = 'Dual-core video player: SGPlayer on iOS and macOS.'
   s.description      = <<-DESC
-Flutter video player plugin. iOS / macOS use wanwenfeng4798/SGPlayer master; Android uses GSYVideoPlayer 14.0.0.
-SGPlayer.xcframework via SPM remote binaryTarget (Package.swift) and/or
+Flutter video player plugin. iOS / macOS use wanwenfeng4798/SGPlayer v2.0.0; Android uses GSYVideoPlayer 14.0.0.
+SGPlayer.xcframework via SPM local binaryTarget (Package.swift) and/or
 CocoaPods prepare_command → ensure_sgplayer.sh (30-60 min only if local build).
                        DESC
   s.homepage         = 'https://github.com/wanwenfeng4798/kinetic_player'
@@ -18,8 +18,8 @@ CocoaPods prepare_command → ensure_sgplayer.sh (30-60 min only if local build)
 
   s.ios.dependency 'Flutter'
   s.osx.dependency 'FlutterMacOS'
-  s.ios.deployment_target = '13.0'
-  s.osx.deployment_target = '11.0'
+  s.ios.deployment_target = '15.0'
+  s.osx.deployment_target = '12.0'
 
   # CocoaPods prepare: SGPlayer ensure + align FlutterGeneratedPluginSwiftPackage OS mins.
   # SPM: remote binaryTarget in Package.swift; wrapper OS sync on `flutter run` / `flutter build`
@@ -38,13 +38,14 @@ CocoaPods prepare_command → ensure_sgplayer.sh (30-60 min only if local build)
 
   s.source_files = 'kinetic_player/Sources/**/*.{swift,h,m}'
   s.public_header_files = 'kinetic_player/Sources/SgNativePlayerBridge/include/*.h'
-  s.frameworks = 'AVFoundation', 'AudioToolbox', 'VideoToolbox', 'CoreMedia', 'Metal', 'MetalKit'
-  s.libraries = 'iconv', 'bz2', 'z'
+  s.frameworks = 'GLKit', 'ImageIO', 'QuartzCore', 'AVKit', 'CoreImage', 'CoreText', 'CoreVideo', 'Security', 'UniformTypeIdentifiers', 'AVFoundation', 'AudioToolbox', 'VideoToolbox', 'CoreMedia', 'Metal', 'MetalKit'
+  s.libraries = 'c++', 'iconv', 'bz2', 'z'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
   }
   s.resource_bundles = {
+    'kinetic_player_sgplayer' => ['kinetic_player/Sources/kinetic_player/Resources/SGPlayer'],
     'kinetic_player_privacy' => ['kinetic_player/Sources/kinetic_player/PrivacyInfo.xcprivacy']
   }
 end

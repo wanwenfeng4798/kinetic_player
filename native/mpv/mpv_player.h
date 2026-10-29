@@ -124,7 +124,7 @@ class MpvPlayer {
   void Cmd(const std::initializer_list<const char*>& args);
   void RecomputeState();
   void LoadCurrentUnlocked(bool auto_play);
-  bool TryPlayNextUnlocked();
+  bool TryPlayNextUnlocked(bool automatic = true);
   void ApplyVfUnlocked();
   void ApplySubtitleUnlocked();
   void ApplyShowTypeUnlocked();

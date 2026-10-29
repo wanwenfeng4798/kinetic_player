@@ -76,12 +76,17 @@ export class KineticArtplayerAdapter {
   private art: Artplayer;
   private readonly config: KineticArtplayerConfig;
   private disposed = false;
+  private chromeStyle: HTMLStyleElement | null = null;
+  private customTypeOverrides: CustomTypeMap | undefined;
   private lastPositionEmit = 0;
   private state: PlayerState = PlayerState.idle;
   private volumeBeforeMute = 1;
   private muted = false;
   private looping = false;
   private pipActive = false;
+  private playlist: string[] = [];
+  private playlistIndex = 0;
+  private autoPlayNext = true;
   private scaleMode: ScaleMode = ScaleModeEnum.fit;
   private httpOptions: StreamHttpOptions = {};
 
@@ -125,7 +130,10 @@ export class KineticArtplayerAdapter {
       ...((Array.isArray(existingPlugins) ? existingPlugins : []) as PluginFactory[]),
     ];
 
-    const url = config.url ?? '';
+    this.playlist = [...(config.playlist ?? [])];
+    this.playlistIndex = Math.min(Math.max(0, config.playlistStartIndex ?? 0), Math.max(0, this.playlist.length - 1));
+    this.autoPlayNext = config.autoPlayNext !== false;
+    const url = this.playlist[this.playlistIndex] ?? config.url ?? '';
     const streamType =
       (typeof explicitType === 'string' && explicitType) || inferStreamType(url);
     const needsStreamCustomType =
@@ -136,6 +144,7 @@ export class KineticArtplayerAdapter {
       streamType === 'hls' ||
       streamType === 'dash';
 
+    this.customTypeOverrides = existingCustomType;
     this.looping = ui.looping === true;
 
     const accentArgb =
@@ -148,7 +157,7 @@ export class KineticArtplayerAdapter {
       url,
       poster: ui.coverUrl,
       volume: 1,
-      autoplay: false,
+      autoplay: config.autoPlay === true,
       muted: false,
       autoSize: false,
       loop: this.looping,
@@ -218,6 +227,7 @@ export class KineticArtplayerAdapter {
   }
 
   private hideNativeChrome(): void {
+    if (this.chromeStyle) { this.config.container.classList.add('kinetic-art-nocontrols'); return; }
     const style = document.createElement('style');
     style.textContent = `
       .kinetic-art-nocontrols .art-bottom,
@@ -227,6 +237,7 @@ export class KineticArtplayerAdapter {
         display: none !important;
       }
     `;
+    this.chromeStyle = style;
     document.head.appendChild(style);
     this.config.container.classList.add('kinetic-art-nocontrols');
   }
@@ -271,7 +282,10 @@ export class KineticArtplayerAdapter {
     });
     this.art.on('video:ended', () => {
       if (this.looping) {
-        void this.seek(0).then(() => this.play());
+        return;
+      }
+      if (this.autoPlayNext && this.playlistIndex < this.playlist.length - 1) {
+        void this.playNext().catch((error) => this.config.onError?.(String(error)));
         return;
       }
       this.emitState(PlayerState.completed);
@@ -384,9 +398,34 @@ export class KineticArtplayerAdapter {
     this.art.playbackRate = rate;
   }
 
+  setCoverUrl(url: string): void { this.art.poster = url; }
+  async setSubtitleSource(url: string, mimeType?: string): Promise<void> {
+    const type = mimeType?.includes('subrip') ? 'srt' : mimeType?.includes('ass') ? 'ass' : mimeType?.includes('vtt') ? 'vtt' : undefined;
+    await this.art.subtitle.switch(url, type ? { type } : undefined);
+  }
+  setSubtitlesEnabled(enabled: boolean): void { this.art.subtitle.show = enabled; }
+
+  async setPlaylist(urls: string[], index = 0, autoPlay = false): Promise<void> {
+    if (!Array.isArray(urls) || urls.length === 0 || !urls.every((url) => typeof url === 'string' && url.length > 0) ||
+        !Number.isInteger(index) || index < 0 || index >= urls.length) throw new Error('Invalid playlist or startIndex');
+    this.playlist = [...urls];
+    this.playlistIndex = index;
+    await this.switchVideoSource(this.playlist[index], autoPlay);
+  }
+  async playNext(): Promise<boolean> {
+    if (this.playlistIndex >= this.playlist.length - 1) return false;
+    this.playlistIndex++;
+    await this.switchVideoSource(this.playlist[this.playlistIndex], true);
+    return true;
+  }
+  setAutoPlayNext(enabled: boolean): void { this.autoPlayNext = enabled; }
+  setFullscreen(enabled: boolean): void { this.art.fullscreen = enabled; }
+  isFullscreen(): boolean { return this.art.fullscreen; }
+
   setLooping(looping: boolean): void {
     this.looping = looping;
-    // Artplayer 5.4 exposes loop via option; keep local flag for ended handler.
+    this.art.video.loop = looping;
+    // The browser owns looping; the ended callback only advances non-looping playlists.
     (
       this.art as Artplayer & {
         option: { loop?: boolean };
@@ -422,14 +461,10 @@ export class KineticArtplayerAdapter {
     // Artplayer 5.4: reset clears the previous video request before switchUrl.
     this.art.reset();
     const streamType = inferStreamType(url);
-    if (streamType) {
-      this.art.option.type = streamType;
-      this.art.option.customType = buildStreamCustomType(
-        undefined,
-        this.httpOptions,
-      );
-    }
+    this.art.option.type = streamType || '';
+    this.art.option.customType = buildStreamCustomType(this.customTypeOverrides, this.httpOptions);
     await this.art.switchUrl(url);
+    if (this.disposed) return;
     if (autoPlay) {
       await this.play();
     } else {
@@ -578,6 +613,7 @@ export class KineticArtplayerAdapter {
 
   applyUiConfig(ui: KineticArtplayerConfig['ui']): void {
     if (!ui) return;
+    this.applyLocale(ui.locale, ui.strings);
     if (typeof ui.looping === 'boolean') this.setLooping(ui.looping);
     if (typeof ui.speed === 'number' && ui.speed > 0) {
       this.setPlaybackRate(ui.speed);
@@ -587,6 +623,8 @@ export class KineticArtplayerAdapter {
     }
     if (ui.enableNativeControls === false) {
       this.hideNativeChrome();
+    } else if (ui.enableNativeControls === true) {
+      this.config.container.classList.remove('kinetic-art-nocontrols');
     }
   }
 
@@ -652,6 +690,9 @@ export class KineticArtplayerAdapter {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.chromeStyle?.remove();
+    this.chromeStyle = null;
+    this.config.container.classList.remove('kinetic-art-nocontrols');
     try {
       this.art.destroy(false);
     } catch {

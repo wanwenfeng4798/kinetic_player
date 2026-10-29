@@ -21,8 +21,9 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
   final ValueNotifier<bool> pipActive = ValueNotifier(false);
 
   @override
-  final ValueNotifier<CommonPlayerState> playerState =
-      ValueNotifier(CommonPlayerState.idle);
+  final ValueNotifier<CommonPlayerState> playerState = ValueNotifier(
+    CommonPlayerState.idle,
+  );
   @override
   final ValueNotifier<Duration> position = ValueNotifier(Duration.zero);
   @override
@@ -70,10 +71,12 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
   Future<Uint8List?> captureFrame({
     bool highQuality = true,
     bool includeOverlay = false,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
   @override
   Future<void> dispose() async {}
+
+  Future<Object?> invokeCommand(String method, Map<String, dynamic> args) =>
+      throw UnimplementedError();
 
   Future<bool> togglePip() => throw UnimplementedError();
   Future<bool> artIsPipSupported() => throw UnimplementedError();
@@ -84,8 +87,7 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
     String name,
     String method, {
     List<Object?> args = const [],
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
   Future<void> artEmitDanmuku(Map<String, dynamic> danmu) =>
       throw UnimplementedError();
   Future<bool> artToggleDocumentPip() => throw UnimplementedError();

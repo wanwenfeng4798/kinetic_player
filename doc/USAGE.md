@@ -2,7 +2,57 @@
 
 English version: [USAGE_EN.md](USAGE_EN.md)
 
-最低 SDK：**Dart 3.13 / Flutter 3.47**。宿主应用请依赖 `material_ui: ^1.7.0`，并 `import 'package:material_ui/material_ui.dart'`（不要再 `import package:flutter/material.dart`）。
+最低 SDK：**Dart 3.13 / Flutter 3.47**。宿主应用请依赖 `material_ui: ^1.8.0`，并 `import 'package:material_ui/material_ui.dart'`（不要再 `import package:flutter/material.dart`）。
+
+> 3.0: Darwin uses SGPlayer 2 native controls (iOS 15 / macOS 12). Runtime localization and per-button styling are not exposed by the SDK. See [Darwin integration](DARWIN_SGPLAYER_EN.md) for setup and migration.
+
+## 3.0 统一 Flutter 入口
+
+```dart
+CommonVideoPlayerViewBuilder(
+  config: KineticPlayerConfig(
+    url: mediaUrl,
+    playlist: mediaUrls,
+    startIndex: 0,
+    autoPlay: false,
+    autoPlayNext: true,
+    http: const KineticHttpRequestOptions(headers: {'Referer': 'https://example.com'}),
+    ui: const KineticUiConfig(speed: 1.25, looping: false),
+  ),
+  builder: (controller) async {
+    await controller.setPlaylist(mediaUrls, startIndex: 0, autoPlay: true);
+    await controller.setAutoPlayNext(false);
+    await controller.playNext(); // 手动下一集不受自动连播关闭影响
+    await controller.enterFullscreen(); // 幂等；重复调用不会反向退出
+    await controller.exitFullscreen();
+  },
+);
+```
+
+Android/iOS/macOS/Windows/Linux/Web 使用同一配置和操作参数；平台专有配置放在 platformOptions。旧 creationParams 保留兼容，合并优先级为 legacy < typed config < 显式 widget.url。config 是创建参数，运行时更新使用 setUiConfig / load / setPlaylist 等控制器方法。`load(url, http: ...)` 先更新请求选项再加载；原 switchVideoSource 保留已设置的请求选项。
+
+公共扩展还统一了 setCoverUrl、setRenderRotation、setMirrorHorizontal/Vertical、setSubtitleSource 和 setSubtitlesEnabled；调用变换前可查询 supportsRenderTransform，Web 不伪造原生复合变换支持。
+
+公共参数统一校验：倍速必须为正有限数，音量须为有限数并截断到 0–1，播放列表不能为空且起始索引必须有效。Web 自动播放仍受浏览器手势策略约束，无法通过 Flutter 参数绕过。
+
+### 跨端核查结果
+
+| 能力/UI | Android | iOS/macOS | Windows/Linux | Web |
+| --- | --- | --- | --- | --- |
+| 播放、暂停、跳转、倍速、音量、音轨、循环、PNG | GSY 原生 | SGPlayer 原生 | libmpv | Artplayer；音轨/截图受流格式/CORS 限制 |
+| playlist/startIndex/autoPlay/autoPlayNext | 统一入口，GSY 原生列表 | 统一入口，SG 原生 session | 统一入口，mpv 适配 | 统一入口，新增列表适配 |
+| 全屏进入/退出/状态 | 原生 | 原生宿主窗口适配 | 原生宿主窗口适配 | 浏览器全屏；需用户手势 |
+| 快捷键与锁定 | 触控为主 | iOS 手势/macOS 原生键盘 | 新增键盘、锁定、窄窗口滚动工具栏 | Artplayer 自带交互 |
+| 运行时公共 UI 配置 | GSY 可更新，无换源重置 | SDK 暴露的配置可更新 | 已修复动态 UI/控制器状态同步 | SDK 暴露的配置可更新 |
+| 本地化、颜色、逐按钮配置 | 支持公共配置 | SDK 未暴露部分字段，不能完全对齐 | 公共本地化/颜色/按钮；桌面专用布局 | Artplayer 自身支持范围 |
+| 系统 PiP | Android 系统 | SG 原生；受宿主/系统限制 | 无系统 PiP 适配，不能声明一致 | 浏览器 Video/Document PiP |
+| SG 高级字幕/滤镜/离线缓存/媒体导出 | 使用 GSY 自己的专有能力 | 通过 native 扩展完整接入高层 API | 无 SG 等价入口，保持独立能力 | 使用 Artplayer 插件 |
+
+因此共同播放逻辑与参数已经统一，但全端的原生功能和 UI **并非完全一致**。桌面保留独立 UI；平台不支持的能力不会用空实现伪装成功。Darwin 运行时 setLocale 和旧的完成封面策略会明确返回 UNSUPPORTED。
+
+2026-10-29：Android 真机已通过 SGPlayer 公网视频和本地视频的播放/暂停/跳转/倍速/音量/循环/视频尺寸/PNG 截图测试，本地播放列表切换及重复进入/退出全屏也通过。iOS 本地视频及原项目 W3Schools 公网视频均已通过同组基本播放测试；公网媒体确认输出视频帧。此前的 DNS 失败发生于 App 无线数据权限未开启的阶段。Android 另外通过不同本地视频互相切换，以及暂停画面添加本地水印后的截图差异检查。Windows/Linux 仍未在目标系统编译原生插件。
+
+示例同时保留四个 SGPlayer 本地视频与经可访问性核查的 18 个网络源。启动默认使用本地视频和本地封面；仅在用户选择网络媒体后加载对应远程内容。本地素材随 App 打包并写入临时目录，以文件 URL 交给原生播放器。播放公网视频不需要 iOS“本地网络”权限，访问局域网媒体时才需要；App 自身的无线数据访问权限需允许联网。
 
 ## 架构概览
 
@@ -122,7 +172,7 @@ flutter:
     enable-swift-package-manager: true
 ```
 
-2. **二进制**：SPM 下由 `Package.swift` 远程 `binaryTarget` 自动下载；CocoaPods 下 `prepare_command` 调用 `ensure_sgplayer.sh`。终端用户无需再跑脚本。
+2. **二进制**：SPM 首次解析前执行 `bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios`。CocoaPods 的 prepare_command 自动下载官方发布包。
 
 3. **运行**：
 
@@ -132,9 +182,9 @@ flutter run          # iOS 真机
 flutter run -d macos
 ```
 
-> iOS 模拟器暂不支持（FFmpeg 预编译仅真机 arm64）。  
-> macOS 部署版本需 **11.0+**（与插件 `Package.swift` 对齐）。  
-> macOS Example 需 `com.apple.security.network.client` 出站网络权限。  
+> iOS 模拟器暂不支持（FFmpeg 预编译仅真机 arm64）。
+> macOS 部署版本需 **12.0+**（与插件 `Package.swift` 对齐）。
+> macOS Example 需 `com.apple.security.network.client` 出站网络权限。
 > iOS / macOS 均无系统 PiP；原生底栏与 SG API 共用。
 
 ### Web（Artplayer.js）
@@ -275,40 +325,13 @@ CommonVideoPlayerView(
 )
 ```
 
-## 原生控制栏 UI（双端对齐）
+## 原生控制栏与平台差异
 
-Android（GSY）与 iOS / macOS（SGPlayer）均采用 B 站风格底部控制栏；默认强调色为 B 站粉 `#FB7299`（可通过 `KineticUiConfig.accentColor` 覆盖）。底栏含倍速弹窗；Android Exo 多档源时另显示清晰度（含「自动」）。音量 / 设置 / 倍速 / 画质弹窗 200ms 淡入淡出（随控制栏收起时无动画）。设置面板（一级 / 二级）超出可用高度时可滚动；宽度随内容自适应（最小约 140，不超过播放器），超过 10 个字符的文案（含音轨名）截为省略号。二级「其它设置」含**截图**（全平台，当前帧不含控制栏；PNG 字节经 `onScreenshotCaptured` 回调，由宿主保存）；Android 另有**录制 GIF**（点开始、再点停止）。Android 第二行弹幕输入框始终显示，点击弹幕图标启用或禁用输入（同时开关弹幕画布）。
+3.0 的 Android 使用 GSY 原生视图，iOS/macOS 使用 SGPlaybackControls；Windows/Linux 使用共用的独立 Flutter 桌面 UI，Web 使用 Artplayer DOM UI。共同播放行为与参数见上方核查表，UI 不承诺逐像素一致。
 
-控制栏文案语言由公共配置 `KineticUiConfig.locale` 决定（`zh` / `en` / `vi` / `ms` / `id` / `fil`，默认 `zh`；未知码回退中文）。`toCreationParams()` 把 `locale` 与 `KineticChromeStrings` 文案表放进 `creationParams['ui']`。Darwin 走共享源 `SgUiConfig.strings`，不使用独立 `.lproj`。运行时调用 `controller.setLocale(...)` 热切换（不要用 `gsySetUiConfig` 改语言）。
+Darwin 支持 native controls 开关、自动隐藏、锁定、原生键盘/手势、原生封面和 SDK 自带设置。上游未暴露的运行时本地化、颜色、逐按钮显隐以及完成封面策略不再由插件重复自绘。需要本地化自定义 UI 的宿主可关闭原生控制栏，通过公共控制器操作；原生高级 API 仍可用。
 
-| 能力 | Android | iOS | macOS | Win/Linux | 配置 |
-|------|---------|-----|-------|-----------|------|
-| 中央播放/暂停 | ✅ | ✅ | ✅ | ✅ | `enableNativeControls` |
-| 进度条 + 时间 | ✅ | ✅ | ✅ | ✅ | 原生默认 / Dart 底栏 |
-| 单击显隐控制栏 | ✅ | ✅ | ✅ | ✅ | 点击画面空白；播放中约 2.5s 自动隐藏 |
-| **音量** | ✅ | ✅ | ✅ | ✅ | 点击**喇叭**弹出**竖向**音量条 |
-| **手势** | ✅ | ✅ | ❌ | ❌ | Android / iOS：滑动调进度/亮度/音量。桌面用按钮弹窗 |
-| **音轨** | ✅ | ✅ | ✅ | ✅ | 齿轮设置面板；亦可用 Dart `getAudioTracks` / `selectAudioTrack` |
-| 全屏 | ✅ | ✅ | ✅ | ✅ 宿主窗口 | `gsyStartFullscreen` / `sgStartFullscreen` / `mpvStartFullscreen` |
-| 画中画 PiP | ✅ 默认开启 | ❌ | ❌ | ❌ | `pictureInPictureEnabled`（Android）/ Web 见下 |
-
-> **音量（Android）**：开启 `showVolumeToolbar` 后，画面右侧滑动调节的是**播放器音量**（与喇叭弹窗同源），不再用系统音量条。音量弹窗打开或正在拖动滑轨时，右侧滑动调音量会被暂时禁用，避免与竖向滑轨冲突。
-
-> **音量（iOS）**：右侧滑动同样调节播放器音量（灵敏度与 Android GSY 一致，约 3×）；音量弹窗打开或拖动滑轨时，右侧滑动调音量同样被禁用。
-
-> **音量（macOS）**：无滑动手势；点击喇叭弹出竖向音量条（与齿轮选音轨同一交互模式）。
-
-> **音量持久化**：通过滑轨或 `setVolume()` 设置的音量在暂停/恢复、播放完成重播、换源后会自动恢复，不会回到默认值。
-
-> **音轨**：不在音量弹窗内选择，请在设置面板（齿轮）或 Flutter 层调用 `selectAudioTrack`。
-
-> **截图**：设置面板截图与 `captureFrame()` 返回 PNG 字节（`Uint8List?`）。插件**不**写临时文件、也**不**写入系统相册。设置面板完成后走 `CommonVideoController.onScreenshotCaptured`；`captureFrame()` 把字节返回给调用方。宿主自行写入相册或其它位置。
-
-> **画中画**：SGPlayer 使用自定义渲染，无法接入系统 `AVPictureInPictureController`，iOS / macOS 当前均不支持 PiP。
-
-### 触摸区域说明
-
-控制栏隐藏后，底部透明区域不再拦截点击，右下角与画面其他区域均可单击唤出/隐藏控制栏与中央播放按钮。
+Android 的原生配置、GIF 与覆盖层见 GSY_FEATURES.md；桌面键盘、布局及运行时同步见 DESKTOP_MPV.md；SG 原生扩展方法清单见 DARWIN_SGPLAYER.md。系统 PiP 有实际平台与宿主限制，不再使用“所有平台都一致”的描述。
 
 ## 平台独有 API（向下转型）
 
@@ -466,7 +489,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 | 封面 | `gsySetCoverUrl` | `sgSetCoverUrl` | `poster` / `coverUrl` |
 | 保留最后一帧 | `gsySetKeepLastFrameWhenComplete` | `sgSetKeepLastFrameWhenComplete` | 浏览器默认行为 |
 | 缓冲 / 错误详情 | — | `buffered` / `playerError` | `error` 状态 |
-| 部署注意 | IJK 默认 arm64；混淆需宿主 ProGuard 规则；需转发 `handleBackPressed` | iOS：真机；macOS 11+；沙盒需 `network.client` | Chrome / Safari / 移动 Web；注意自动播放策略 |
+| 部署注意 | IJK 默认 arm64；混淆需宿主 ProGuard 规则；需转发 `handleBackPressed` | iOS：真机；macOS 12+；沙盒需 `network.client` | Chrome / Safari / 移动 Web；注意自动播放策略 |
 
 `KineticUiConfig` 字段中，Darwin（SG）实际生效的主要有：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`showLockButton`、`dismissControlTime`、`coverUrl`、`keepLastFrameWhenComplete`、`speed`、`looping`、`accentColor`、`locale`。创建时语言走 `ui.locale` / `ui.strings`；运行时热切换用 `setLocale`，不是 `gsySetUiConfig`。`pictureInPictureEnabled` 在 Apple 端**无效**（无系统 PiP）。`previewVttUrl` / `cacheWithPlay` / `rotateViewAuto` / `thumbPlay` 等为 **Android 专用**。
 
@@ -487,6 +510,25 @@ controller.position.addListener(() {
 
 1. 每个 `CommonVideoPlayerViewBuilder` 会在 dispose 时自动释放 controller；若手动持有 controller，需在页面 dispose 时调用 `controller.dispose()`。
 2. Android Activity 需转发 `onConfigurationChanged`、`onBackPressed`、`onUserLeaveHint`（见上文 Android 集成节）。
-3. iOS 需在真机测试 SGPlayer；macOS 需 11.0+，并开启出站网络 entitlement。
+3. iOS 需在真机测试 SGPlayer；macOS 需 12.0+，并开启出站网络 entitlement。
 4. 关闭画中画：`KineticUiConfig(pictureInPictureEnabled: false)`。
 5. Web 使用 Artplayer.js；独有能力见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)。修改 `web/src` 后执行 `npm run build`。自动播放受浏览器策略限制。
+
+SGPlayer v2.0.0 没有独立的 iOS 网络权限申请 API。会话加载远程 URL 时，即使 autoPlay=false，也可能准备媒体并请求网络；缓存下载、远程封面和字幕等按调用参数发起网络请求。网络权限提示由系统触发，首次拒绝或尚未授权时请求可能失败，授权后应重新加载媒体。
+
+2026-10-29 网络源复核：移除重复请求返回 HTTP 403 的 W3Schools，以及连续连接超时的 filesamples。保留其余 15 个原项目来源，新增已验证响应的 Ogg、MP3 与 MPEG-TS，合计 18 个网络来源、9 种格式。检查包含实际 Range 响应与媒体签名；HLS/DASH 的清单可访问不保证所有分段和所有平台均能解码。
+
+Android 示例全屏设置 `lockLand: true, autoFullWithSize: false`，让 GSY 原生方向管理旋转整个 Activity、工具栏和锁定按钮；`autoFullWithSize` 会覆盖 `lockLand` 的方向判断，不能同时用它保证横屏。真机回归包含全屏窗口宽大于高断言。
+
+Android 横屏补充验证：修复 Flutter 混合合成视图覆盖全屏宿主的问题，并限制 GSY 全屏宿主到导航栏/刘海安全区域，避免右侧控件裁切。SM-G981B 真机通过横屏宽高、锁定按钮完整边界、锁定隐藏工具栏、解锁后恢复工具栏、退出全屏、换源和本地水印截图回归。
+
+
+### 验收范围（2026-10-29）
+
+Android 目前通过的是 SM-G981B 上的核心播放、暂停、跳转、倍速、音量、循环、尺寸、PNG、不同文件换源、列表下一集、横屏全屏与退出、原生锁定/解锁和本地水印。尚不能据此声明全部 Android 功能或全部屏幕通过：其他机型/平板/折叠屏/分屏，以及 PiP、GIF、广告、弹幕、各类字幕、音轨和全部网络格式仍需逐项运行验收。
+
+Web 已通过 Chrome 的动态参数 JS 转换回归，覆盖 playlist、startIndex、autoPlay、autoPlayNext，避免动态接收者调用 jsify 的 NoSuchMethodError；完整示例 Web 编译、8 项 JS 测试与 TypeScript 检查通过。该结果不等于所有浏览器和所有媒体格式通过。
+
+本地 SGPlayer 的 iPhone 离线整套播放、列表、下一集与全屏回归通过。samplelib 网络回归出现 DNS 解析失败，不能计为通过。
+
+本地 SGPlayer 产物回归更新：iPhone 与 macOS 均通过单次启动的离线基本播放、截图、列表、下一集与全屏用例（各 2 项）。网络用例若预检失败，不再继续创建原生媒体播放器；先显示授权/连接提示，并在有限等待期间重试预检，成功后才加载媒体。调试网络测试入口会自动尝试联网，不能把该入口当作正常示例启动行为；正常示例默认本地视频及本地封面。

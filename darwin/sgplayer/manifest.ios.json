@@ -1,10 +1,10 @@
 {
-  "version": "1.0.0",
-  "github_repository": "https://github.com/wanwenfeng4798/kinetic_player",
-  "sgplayer_branch": "master",
+  "version": "2.0.0",
+  "github_repository": "https://github.com/wanwenfeng4798/SGPlayer",
+  "sgplayer_branch": "v2.0.0",
   "sgplayer_repository": "https://github.com/wanwenfeng4798/SGPlayer.git",
-  "asset_name": "SGPlayer.xcframework.zip",
-  "download_url": "https://github.com/wanwenfeng4798/kinetic_player/releases/download/sgplayer-v1.0.0/SGPlayer.xcframework.zip",
-  "sha256": "200809e52688fde99a64e3f8c5b6bd2602311dc5968f329cb9db606305413f84",
-  "notes": "After publishing Release tag sgplayer-v1.0.0, set download_url to https://github.com/wanwenfeng4798/kinetic_player/releases/download/sgplayer-v1.0.0/SGPlayer.xcframework.zip and sha256 from package_sgplayer_release.sh output."
+  "asset_name": "SGPlayer-iOS-v2.0.0.zip",
+  "download_url": "https://github.com/wanwenfeng4798/SGPlayer/releases/download/v2.0.0/SGPlayer-iOS-v2.0.0.zip",
+  "sha256": "5571d7438e4903247f1401772110213acd6f1218c378280e6c75349cfcecb804",
+  "notes": "Official v2.0.0 integration package; XCFramework is nested under Artifacts. Run ensure_sgplayer.sh before resolving local SPM targets."
 }

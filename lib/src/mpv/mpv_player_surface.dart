@@ -43,9 +43,9 @@ class _MpvPlayerSurfaceState extends State<MpvPlayerSurface> {
   }
 
   Map<String, dynamic> get _createArgs => <String, dynamic>{
-        if (widget.url != null) 'url': widget.url,
-        ...?widget.creationParams,
-      };
+    if (widget.url != null) 'url': widget.url,
+    ...?widget.creationParams,
+  };
 
   Future<void> _create() async {
     try {
@@ -53,19 +53,31 @@ class _MpvPlayerSurfaceState extends State<MpvPlayerSurface> {
         'create',
         _createArgs,
       );
-      if (!mounted || result == null) return;
+      if (result == null) {
+        throw StateError('Native player creation returned no texture');
+      }
+      if (!mounted) {
+        await _plugin.invokeMethod<void>('destroy', {
+          'viewId': result['viewId'],
+        });
+        return;
+      }
       final viewId = result['viewId'] as int;
       final textureId = result['textureId'] as int;
-      widget.onPlatformViewCreated?.call(viewId);
       setState(() {
         _viewId = viewId;
         _textureId = textureId;
         _controller = MpvVideoControllerImpl(viewId);
         final locale = _chromeConfig.locale;
+        _controller!.playbackRate.value = _chromeConfig.speed;
+        _controller!.looping.value = _chromeConfig.looping;
+        _controller!.autoPlayNext.value =
+            widget.creationParams?['autoPlayNext'] as bool? ?? true;
         _controller!.chromeLocale.value = locale;
         _controller!.coverUrl.value = _chromeConfig.coverUrl;
         _controller!.videoTitle.value = _chromeConfig.videoTitle;
       });
+      widget.onPlatformViewCreated?.call(viewId);
     } catch (error) {
       if (!mounted) return;
       setState(() => _error = error);
@@ -106,10 +118,7 @@ class _MpvPlayerSurfaceState extends State<MpvPlayerSurface> {
         const ColoredBox(color: Color(0xFF000000)),
         Texture(textureId: textureId),
         if (_controller != null)
-          MpvChromeOverlay(
-            controller: _controller!,
-            config: _chromeConfig,
-          ),
+          MpvChromeOverlay(controller: _controller!, config: _chromeConfig),
       ],
     );
   }

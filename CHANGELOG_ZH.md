@@ -1,3 +1,14 @@
+## 3.0.0
+
+- 更新 material_ui 至 ^1.8.0、web 至 ^1.1.2、hls.js 至 1.7.4；新增真机播放/全屏测试，修复原生状态转发、全屏退出及 SPM 生命周期导出。
+- 补齐 SGPlayer 2 原生高层功能、任务/HLS/PiP 生命周期与字体资源；统一 Flutter 配置/操作，改用 GSY 原生列表，并修复桌面 UI/快捷键/状态同步。
+- iOS/macOS 固定使用 SGPlayer v2.0.0 官方 tag 产物与校验值，最低系统升级至 iOS 15 / macOS 12。
+- 自动选核、播放列表、循环、跳转、音轨和控制栏复用原生 SDK；移除重复的 Darwin 控制栏、手势及设置面板。
+- 新增原生 PiP 与播放会话诊断入口。
+- 支持嵌套发布包、版本缓存与显式源码回退；SPM 首次解析前需执行准备脚本。
+- Android 保持 GSY 原生能力；Windows/Linux/Web 保留独立 UI，记录跨端配置差异与原生 UI 本地化限制。
+- 未启动真机或模拟器；播放回归由使用者手动验证。
+
 ## 2.1.2
 
 - **依赖核对（2026-10-16，稳定版）**：GSYVideoPlayer **14.0.0**、AGP **9.4.1**、Kotlin **2.4.21**、示例 Gradle **9.8.1**（校验分发包 SHA-256）；Mockito **5.24.0**，补齐 Kotlin/JUnit 5 适配器与 JUnit **6.1.3** 运行引擎。示例启用 AGP 内建 Kotlin；Flutter 3.47 仍需 `android.newDsl=false`。示例子项目统一使用 SDK Build Tools **37.0.0** / NDK **30.0.16248370**。没有签名配置时示例使用 debug 签名。

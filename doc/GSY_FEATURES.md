@@ -160,3 +160,15 @@ if (controller is GSYVideoControllerImpl) {
   ]);
 }
 ```
+
+## 3.0 原生重复实现核查
+
+以 GSYVideoPlayer v14.0.0 的 ListGSYVideoPlayer、StandardGSYVideoPlayer 和 preview 公共类为基准：
+
+- 已删除插件自行维护的播放列表索引和 onAutoComplete 自动换源分支，改由 ListGSYVideoPlayer 的列表、playNext 和全屏 cloneParams 管理。
+- 播放、倍速、循环、跳转、截图、GIF helper、全屏和 PiP 继续调用 GSY/Android 原生 API。Flutter 只发命令和接收事件。
+- 修复运行时 applyUiConfig 重新 setUrl 导致的播放重置，改为更新原生视图及倍速/循环配置。
+- 保留广告恢复编排、每实例覆盖层、样式与公共参数适配。GSY preview 已提供 VTT parser/provider，插件复用这些类；图片读取/缓存/裁剪与预览视图绑定属于宿主适配。StandardGSY 的布局不包含本项目的完成保留帧行为与定制面板，因此相关扩展保留。
+- 旧 gsyStartFullscreen 保持 toggle 兼容；公共 enterFullscreen/exitFullscreen 使用幂等命令，避免跨端同名行为不同。
+
+2026-10-29：已在 SM G981B（Android 13）编译并运行基础播放与列表/全屏集成测试；关闭连播后的手动下一集、重复进入全屏、全屏退出已通过。测试修复了状态事件漏报及从全屏副本退出时的空指针崩溃。自动连播完整周期和广告恢复仍需扩展覆盖。

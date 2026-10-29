@@ -199,7 +199,7 @@ void MpvPlayer::SetPlaylist(const std::vector<std::string>& urls, int start_inde
 
 bool MpvPlayer::PlayNextInPlaylist() {
   std::lock_guard<std::mutex> lock(api_mu_);
-  return TryPlayNextUnlocked();
+  return TryPlayNextUnlocked(false);
 }
 
 void MpvPlayer::SetAutoPlayNext(bool enabled) {
@@ -207,8 +207,8 @@ void MpvPlayer::SetAutoPlayNext(bool enabled) {
   auto_play_next_ = enabled;
 }
 
-bool MpvPlayer::TryPlayNextUnlocked() {
-  if (!mpv_ || looping_ || !auto_play_next_) return false;
+bool MpvPlayer::TryPlayNextUnlocked(bool automatic) {
+  if (!mpv_ || (automatic && (looping_ || !auto_play_next_))) return false;
   if (playlist_index_ >= static_cast<int>(playlist_.size()) - 1) return false;
   playlist_index_++;
   LoadCurrentUnlocked(true);
@@ -246,7 +246,7 @@ void MpvPlayer::Stop() {
 void MpvPlayer::SeekToMs(int64_t position_ms) {
   std::lock_guard<std::mutex> lock(api_mu_);
   if (!mpv_) return;
-  const double sec = static_cast<double>(position_ms) / 1000.0;
+  const double sec = static_cast<double>(std::max<int64_t>(0, position_ms)) / 1000.0;
   char buf[64];
   std::snprintf(buf, sizeof(buf), "%f", sec);
   Cmd({"seek", buf, "absolute"});
@@ -384,6 +384,7 @@ void MpvPlayer::SetVolume(double volume_0_1) {
   if (volume_0_1 < 0) volume_0_1 = 0;
   if (volume_0_1 > 1) volume_0_1 = 1;
   volume_ = volume_0_1;
+  if (volume_0_1 > 0) SetPropertyFlag("mute", false);
   SetPropertyDouble("volume", volume_0_1 * 100.0);
 }
 
@@ -677,8 +678,7 @@ void MpvPlayer::HandleEvent(mpv_event* event) {
     case MPV_EVENT_END_FILE: {
       auto* end = static_cast<mpv_event_end_file*>(event->data);
       if (!end) break;
-      if (end->reason == MPV_END_FILE_REASON_ERROR ||
-          end->reason == MPV_END_FILE_REASON_REDIRECT) {
+      if (end->reason == MPV_END_FILE_REASON_ERROR) {
         const char* msg = mpv_error_string(end->error);
         EmitState(kStateError);
         if (cb_.on_error && cb_.post_to_ui) {

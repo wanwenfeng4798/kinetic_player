@@ -7,7 +7,9 @@ import FlutterMacOS
 import ObjectiveC
 #endif
 
-final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
+import Network
+
+final class SgVideoPlatformView: NSObject {
 #if os(iOS)
     private let container = UIView()
 #elseif os(macOS)
@@ -15,8 +17,6 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
 #endif
     private let player: SgNativePlayer
     private let channel: FlutterMethodChannel
-    private let chrome: SgPlayerChromeView
-    private let coverOverlay = SgCoverOverlayView()
     private let fullscreenPresenter = SgFullscreenPresenter()
     private let channelCallbacks: SgChannelCallbacks
     private var isPlaying = false
@@ -24,7 +24,6 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
     private var latestState: CommonPlayerState = .idle
     private var playlist: [String] = []
     private var playlistIndex = 0
-    private var autoPlayNext = true
 
     init(
         frame: CGRect,
@@ -41,12 +40,16 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             binaryMessenger: messenger,
         )
         channelCallbacks = SgChannelCallbacks(channel: channel)
-        KineticPlayerColors.applyAccent(argb: uiConfig.accentColor)
-        chrome = SgPlayerChromeView(config: uiConfig)
         player = SgNativePlayer(callbacks: channelCallbacks)
         super.init()
 
         channelCallbacks.attach(host: self)
+        player.setDismissFullscreenHandler { [weak self] in
+            guard let self, self.fullscreenPresenter.isFullscreen else { return }
+            self.fullscreenPresenter.exitFullscreen()
+            self.forceContainerLayout()
+            self.player.applyRenderTransform()
+        }
 
         container.frame = frame
 #if os(iOS)
@@ -61,45 +64,39 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
         player.view.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(player.view)
 
-        coverOverlay.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(coverOverlay)
-        coverOverlay.onCoverImageUpdated = { [weak self] in
-            self?.syncCoverVisibility()
-        }
-        coverOverlay.setCoverUrl(uiConfig.coverUrl)
+        player.setCoverUrl(uiConfig.coverUrl)
 
-        chrome.translatesAutoresizingMaskIntoConstraints = false
-        chrome.delegate = self
-        container.addSubview(chrome)
+        player.configureControls(
+            enabled: uiConfig.enableNativeControls,
+            autoHide: Double(uiConfig.dismissControlTimeMs) / 1000
+        ) { [weak self] in
+            guard let self else { return }
+            self.fullscreenPresenter.toggleFullscreen(container: self.container)
+            self.forceContainerLayout()
+            self.player.applyRenderTransform()
+        }
 
         NSLayoutConstraint.activate([
             player.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             player.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             player.view.topAnchor.constraint(equalTo: container.topAnchor),
             player.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            coverOverlay.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            coverOverlay.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            coverOverlay.topAnchor.constraint(equalTo: container.topAnchor),
-            coverOverlay.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            chrome.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            chrome.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            chrome.topAnchor.constraint(equalTo: container.topAnchor),
-            chrome.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
 
         let playlistArgs = (params?["playlist"] as? [String]) ?? []
         let startIndex = params?["playlistStartIndex"] as? Int ?? 0
         applyHttpFromCreationParams(params)
+        let autoPlay = params?["autoPlay"] as? Bool ?? false
+        player.setAutomaticAdvance(params?["autoPlayNext"] as? Bool ?? true)
         if !playlistArgs.isEmpty {
-            setPlaylist(playlistArgs, startIndex: startIndex, autoPlay: false)
+            setPlaylist(playlistArgs, startIndex: startIndex, autoPlay: autoPlay)
         } else if let url = params?["url"] as? String, !url.isEmpty {
-            player.switchVideoSource(url, autoPlay: false)
+            player.switchVideoSource(url, autoPlay: autoPlay)
         }
         player.setLooping(uiConfig.looping)
         if abs(uiConfig.speed - 1) > 0.001 {
             player.setRate(Double(uiConfig.speed))
         }
-        syncCoverVisibility()
 
         channel.setMethodCallHandler { [weak self] call, result in
             self?.handle(call, result: result)
@@ -122,7 +119,6 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
     }
 
     func onProgressChanged(positionMs: Int64, durationMs: Int64, bufferedMs: Int64) {
-        chrome.updateProgress(positionMs: positionMs, durationMs: durationMs)
         _ = bufferedMs
     }
 
@@ -134,24 +130,13 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
     func onPlayerStateChanged(_ state: CommonPlayerState) {
         latestState = state
         isPlaying = state == .playing
-        chrome.updatePlayState(isPlaying: isPlaying)
-        if state == .playing {
-            chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
-        }
-        if state == .paused || state == .completed || state == .idle {
-            chrome.setControlsVisible(true, animated: true)
-        }
-        if state == .completed {
-            maybePlayNextInPlaylist()
-        }
-        syncCoverVisibility()
     }
 
     private func setPlaylist(_ urls: [String], startIndex: Int, autoPlay: Bool) {
         playlist = urls.filter { !$0.isEmpty }
         guard !playlist.isEmpty else { return }
         playlistIndex = min(max(0, startIndex), playlist.count - 1)
-        player.switchVideoSource(playlist[playlistIndex], autoPlay: autoPlay)
+        _ = player.setPlaylist(playlist, startIndex: playlistIndex, autoPlay: autoPlay)
     }
 
     private func applyHttpFromCreationParams(_ params: [String: Any]?) {
@@ -169,121 +154,7 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
 
     @discardableResult
     private func playNextInPlaylist() -> Bool {
-        guard playlist.count > 1, playlistIndex < playlist.count - 1 else { return false }
-        playlistIndex += 1
-        player.switchVideoSource(playlist[playlistIndex], autoPlay: true)
-        return true
-    }
-
-    private func maybePlayNextInPlaylist() {
-        guard autoPlayNext else { return }
-        _ = playNextInPlaylist()
-    }
-
-    private func syncCoverVisibility() {
-        let show: Bool
-        switch latestState {
-        case .playing, .buffering, .paused:
-            show = false
-        case .completed:
-            // Keep last frame: hide cover. Otherwise show cover (or black fallback).
-            show = !keepLastFrameWhenComplete
-        case .idle, .ready, .error:
-            show = coverOverlay.hasCover
-        }
-        coverOverlay.isHidden = !show
-        if show, !coverOverlay.hasCoverImage {
-#if os(iOS)
-            coverOverlay.backgroundColor = .black
-#elseif os(macOS)
-            coverOverlay.layer?.backgroundColor = NSColor.black.cgColor
-#endif
-        }
-    }
-
-    // MARK: - SgPlayerChromeDelegate
-
-    func chromeDidTapPlayPause() {
-        if isPlaying {
-            player.pause()
-        } else {
-            player.play()
-        }
-    }
-
-    func chromeDidSeek(toMs: Int) {
-        player.seek(positionMs: toMs)
-    }
-
-    func chromeDidTapFullscreen() {
-        fullscreenPresenter.toggleFullscreen(container: container)
-        chrome.updateFullscreenIcon(isFullscreen: fullscreenPresenter.isFullscreen)
-        chrome.setFullscreenActive(fullscreenPresenter.isFullscreen)
-        forceContainerLayout()
-        player.applyRenderTransform()
-    }
-
-    func chromeDidChangeVolume(_ volume: Double) {
-        player.setVolume(volume)
-        chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
-    }
-
-    func chromeDidToggleMute(_ muted: Bool) {
-        player.setMute(muted)
-        chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
-    }
-
-    func chromeDidRequestAudioTracks() -> [[String: Any]] {
-        player.getAudioTracks()
-    }
-
-    func chromeDidSelectAudioTrack(index: Int) {
-        _ = player.selectAudioTrack(index)
-        chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
-    }
-
-    func chromeDidChangeRate(_ rate: Double) {
-        player.setRate(rate)
-    }
-
-    func chromeDidChangeMirror(_ enabled: Bool) {
-        player.setMirrorHorizontal(enabled: enabled)
-    }
-
-    func chromeDidChangeLooping(_ looping: Bool) {
-        player.setLooping(looping)
-    }
-
-    func chromeDidChangeAutoPlayNext(_ enabled: Bool) {
-        autoPlayNext = enabled
-    }
-
-    func chromeDidChangeScaleMode(_ mode: Int) {
-        // Chrome modes: 0 auto, 1 16:9, 2 4:3, 3 fill/hide bars.
-        // SG renderer maps to ResizeAspect / ResizeAspectFill / Resize.
-        switch mode {
-        case 3:
-            player.setRenderMode(1) // aspect fill
-        case 1, 2:
-            // Forced 16:9 / 4:3 not available on SG; keep letterbox fit.
-            player.setRenderMode(0)
-        default:
-            player.setRenderMode(0) // auto / aspect fit
-        }
-    }
-
-    func chromeDidChangeBlackout(_ enabled: Bool) {
-        // Blackout overlay is owned by chrome; no player-side work.
-        _ = enabled
-    }
-
-    func chromeDidRequestScreenshot() {
-        let data = player.captureFrame()
-        var args: [String: Any] = [:]
-        if let data = data {
-            args["bytes"] = FlutterStandardTypedData(bytes: data)
-        }
-        channel.invokeMethod("onScreenshotCaptured", arguments: args)
+        player.playNext()
     }
 
     private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -316,13 +187,11 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             let args = call.arguments as? [String: Any]
             let volume = args?["volume"] as? Double ?? 1.0
             player.setVolume(volume)
-            chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
             result(nil)
         case "setMute":
             let args = call.arguments as? [String: Any]
             let muted = args?["muted"] as? Bool ?? false
             player.setMute(muted)
-            chrome.syncVolume(volume: player.currentVolume(), muted: player.isMuted())
             result(nil)
         case "switchVideoSource":
             let args = call.arguments as? [String: Any]
@@ -333,13 +202,12 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             }
             player.switchVideoSource(url, autoPlay: autoPlay)
             latestState = .idle
-            syncCoverVisibility()
-            result(nil)
+                result(nil)
         case "gsySetPlaylist":
             let args = call.arguments as? [String: Any]
             let urls = args?["urls"] as? [String] ?? []
             let startIndex = args?["startIndex"] as? Int ?? 0
-            setPlaylist(urls, startIndex: startIndex, autoPlay: false)
+            setPlaylist(urls, startIndex: startIndex, autoPlay: args?["autoPlay"] as? Bool ?? false)
             result(nil)
         case "gsyPlayNextInPlaylist":
             result(playNextInPlaylist())
@@ -366,11 +234,26 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             } else {
                 result(nil)
             }
-        case "sgStartFullscreen":
+        case "sgSetAutoPlayNext":
+            let args = call.arguments as? [String: Any] ?? [:]
+            player.setAutomaticAdvance(args["enabled"] as? Bool ?? true)
+            result(nil)
+        case "sgSetUiConfig":
+            let config = SgUiConfig.fromCreationParams(call.arguments as? [String: Any])
+            player.configureControls(enabled: config.enableNativeControls, autoHide: Double(config.dismissControlTimeMs) / 1000) { [weak self] in
+                guard let self else { return }
+                self.fullscreenPresenter.toggleFullscreen(container: self.container)
+                self.forceContainerLayout()
+                self.player.applyRenderTransform()
+            }
+            player.setRate(Double(config.speed))
+            player.setLooping(config.looping)
+            player.setCoverUrl(config.coverUrl)
+            keepLastFrameWhenComplete = config.keepLastFrameWhenComplete
+            result(nil)
+        case "sgEnterFullscreen", "sgStartFullscreen":
             if !fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.enterFullscreen(container: container)
-                chrome.updateFullscreenIcon(isFullscreen: true)
-                chrome.setFullscreenActive(true)
                 forceContainerLayout()
                 player.applyRenderTransform()
             }
@@ -378,8 +261,6 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
         case "sgExitFullscreen":
             if fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.exitFullscreen()
-                chrome.updateFullscreenIcon(isFullscreen: false)
-                chrome.setFullscreenActive(false)
                 forceContainerLayout()
                 player.applyRenderTransform()
             }
@@ -431,8 +312,7 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             let autoPlay = args?["autoPlay"] as? Bool ?? true
             let ok = player.replaceWithSegments(segments, autoPlay: autoPlay)
             latestState = .idle
-            syncCoverVisibility()
-            result(ok)
+                result(ok)
         case "sgSetBackgroundPlaybackPolicy":
             let args = call.arguments as? [String: Any] ?? [:]
             player.setBackgroundPlaybackPolicy(args)
@@ -464,30 +344,87 @@ final class SgVideoPlatformView: NSObject, SgPlayerChromeDelegate {
             player.setMirrorVertical(enabled: enabled)
             result(nil)
         case "sgSetKeepLastFrameWhenComplete":
-            let args = call.arguments as? [String: Any]
-            keepLastFrameWhenComplete = args?["enabled"] as? Bool ?? false
-            syncCoverVisibility()
-            result(nil)
+            result(FlutterError(code: "UNSUPPORTED", message: "Completion cover policy belongs to SGPlayer native controls", details: nil))
         case "sgSetCoverUrl":
             let args = call.arguments as? [String: Any]
-            coverOverlay.setCoverUrl(args?["url"] as? String)
-            syncCoverVisibility()
+            player.setCoverUrl(args?["url"] as? String)
             result(nil)
         case "setLocale":
-            let args = call.arguments as? [String: Any]
-            let locale = args?["locale"] as? String ?? "zh"
-            let strings = SgUiConfig.parseStrings(args?["strings"])
-            chrome.applyChromeLocale(locale: locale, strings: strings)
-            result(nil)
+            result(FlutterError(code: "UNSUPPORTED", message: "SGPlayer 2 native controls do not expose runtime localization", details: nil))
         case "setHttpRequestOptions":
             let args = call.arguments as? [String: Any] ?? [:]
             player.setHttpRequestOptions(args)
             result(nil)
+        case "sgFeature":
+            let args = call.arguments as? [String: Any] ?? [:]
+            guard let operation = args["operation"] as? String else {
+                result(FlutterError(code: "ARGUMENT", message: "operation required", details: nil))
+                return
+            }
+            let raw = args["arguments"] as? [String: Any] ?? [:]
+            func decode(_ value: Any) -> Any {
+                if let data = value as? FlutterStandardTypedData { return data.data }
+                if let map = value as? [String: Any] { return map.mapValues(decode) }
+                if let list = value as? [Any] { return list.map(decode) }
+                return value
+            }
+            player.performOperation(operation, arguments: raw.mapValues(decode)) { value, error in
+                DispatchQueue.main.async {
+                    if let error {
+                        result(FlutterError(code: "SG_FEATURE", message: error.localizedDescription, details: ["domain": (error as NSError).domain, "code": (error as NSError).code]))
+                    } else {
+                        func encode(_ value: Any) -> Any {
+                            if let data = value as? Data { return FlutterStandardTypedData(bytes: data) }
+                            if let map = value as? [String: Any] { return map.mapValues(encode) }
+                            if let list = value as? [Any] { return list.map(encode) }
+                            return value
+                        }
+                        result(value.map(encode))
+                    }
+                }
+            }
+        case "sgNetworkDiagnostics":
+            let monitor = NWPathMonitor()
+            var finished = false
+            monitor.pathUpdateHandler = { path in
+                let data: [String: Any] = [
+                    "status": String(describing: path.status),
+                    "reason": String(describing: path.unsatisfiedReason),
+                    "supportsDNS": path.supportsDNS,
+                    "supportsIPv4": path.supportsIPv4,
+                    "supportsIPv6": path.supportsIPv6,
+                    "wifi": path.usesInterfaceType(.wifi),
+                    "cellular": path.usesInterfaceType(.cellular),
+                ]
+                DispatchQueue.main.async {
+                    guard !finished else { return }
+                    finished = true
+                    monitor.pathUpdateHandler = nil
+                    monitor.cancel()
+                    result(data)
+                }
+            }
+            monitor.start(queue: DispatchQueue.global(qos: .utility))
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                guard !finished else { return }
+                finished = true
+                monitor.pathUpdateHandler = nil
+                monitor.cancel()
+                result(FlutterError(code: "NETWORK_DIAGNOSTICS", message: "Network path query timed out", details: nil))
+            }
+        case "sgDiagnostics":
+            result(player.diagnostics())
+        case "sgStartPictureInPicture":
+            result(player.startPictureInPicture())
+        case "sgStopPictureInPicture":
+            player.stopPictureInPicture()
+            result(nil)
+        case "sgIsPictureInPictureActive":
+            result(player.isPictureInPictureActive())
         case "dispose":
             if fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.exitFullscreen()
             }
-            chrome.restoreBrightnessIfNeeded()
             channel.setMethodCallHandler(nil)
             player.release()
             result(nil)
@@ -524,6 +461,10 @@ private final class SgChannelCallbacks: SgPlayerCallbacks {
                 "buffered": bufferedMs,
             ],
         )
+    }
+
+    func onNativeFeatureEvent(_ event: [AnyHashable: Any]) {
+        channel.invokeMethod("onSgFeatureEvent", arguments: event)
     }
 
     func onPlayerError(message: String?, code: Int) {

@@ -9,5 +9,9 @@ class File {
     throw UnsupportedError('Local file write is not used on web demo');
   }
 
+  Future<File> writeAsBytes(List<int> bytes) async {
+    throw UnsupportedError('Local file write is not used on web demo');
+  }
+
   Uri get uri => Uri.parse(path);
 }

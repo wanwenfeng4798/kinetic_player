@@ -38,3 +38,14 @@ web/dist/
 
 # libmpv Windows vendor (downloaded at configure time)
 windows/mpv/vendor/
+
+# Downloaded SGPlayer release binaries and source build inputs
+darwin/Frameworks/
+darwin/kinetic_player/Artifacts/
+darwin/third_party/
+
+# Resources extracted from the pinned SGPlayer integration package
+darwin/kinetic_player/Sources/kinetic_player/Resources/SGPlayer/
+
+# Machine-local SGPlayer development checkout
+/darwin/sgplayer/.local-root

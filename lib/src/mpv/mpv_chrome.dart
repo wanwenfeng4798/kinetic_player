@@ -1,80 +1,20 @@
 import 'dart:async';
 
+import '../common/kinetic_image_provider.dart';
+
 import 'package:material_ui/material_ui.dart';
 
 import '../common/common_audio_track.dart';
 import '../common/common_player_state.dart';
-import '../common/kinetic_ui_config.dart';
 import '../gsy/gsy_chrome_strings.dart';
 import '../gsy/gsy_video_features.dart';
 import 'mpv_video_controller_impl.dart';
 import 'mpv_video_features.dart';
+import 'mpv_chrome_config.dart';
 
-/// Desktop chrome options parsed from [CommonVideoPlayerView.creationParams].
-class MpvChromeConfig {
-  const MpvChromeConfig({
-    this.enableNativeControls = true,
-    this.showVolumeToolbar = true,
-    this.showSettingsButton = true,
-    this.showFullscreenButton = true,
-    this.dismissControlTime = 2500,
-    this.keepLastFrameWhenComplete = false,
-    this.coverUrl,
-    this.speed = 1,
-    this.looping = false,
-    this.accentColor = const Color(kKineticDefaultAccentColor),
-    this.locale = 'zh',
-    this.videoTitle = '',
-    this.thumbPlay = true,
-  });
+import 'package:flutter/services.dart';
 
-  final bool enableNativeControls;
-  final bool showVolumeToolbar;
-  final bool showSettingsButton;
-  final bool showFullscreenButton;
-  final int dismissControlTime;
-  final bool keepLastFrameWhenComplete;
-  final String? coverUrl;
-  final double speed;
-  final bool looping;
-  final Color accentColor;
-  final String locale;
-  final String videoTitle;
-  final bool thumbPlay;
-
-  factory MpvChromeConfig.fromCreationParams(Map<String, dynamic>? params) {
-    final raw = params?['ui'];
-    final ui = raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : const <String, dynamic>{};
-    T? read<T>(String key) {
-      final value = ui[key] ?? params?[key];
-      if (value is T) return value;
-      if (T == double && value is num) return value.toDouble() as T;
-      if (T == int && value is num) return value.toInt() as T;
-      return null;
-    }
-
-    final locale = KineticChromeStrings.normalize(read<String>('locale') ?? 'zh');
-    final accent = read<int>('accentColor') ?? kKineticDefaultAccentColor;
-    return MpvChromeConfig(
-      enableNativeControls: read<bool>('enableNativeControls') ?? true,
-      showVolumeToolbar: read<bool>('showVolumeToolbar') ?? true,
-      showSettingsButton: read<bool>('showSettingsButton') ?? true,
-      showFullscreenButton: read<bool>('showFullscreenButton') ?? true,
-      dismissControlTime: read<int>('dismissControlTime') ?? 2500,
-      keepLastFrameWhenComplete:
-          read<bool>('keepLastFrameWhenComplete') ?? false,
-      coverUrl: read<String>('coverUrl'),
-      speed: read<double>('speed') ?? 1,
-      looping: read<bool>('looping') ?? false,
-      accentColor: Color(accent),
-      locale: locale,
-      videoTitle: read<String>('videoTitle') ?? '',
-      thumbPlay: read<bool>('thumbPlay') ?? true,
-    );
-  }
-}
+export 'mpv_chrome_config.dart';
 
 /// Bilibili-style overlay aligned with macOS (no pan gestures).
 class MpvChromeOverlay extends StatefulWidget {
@@ -95,6 +35,10 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   static const _rates = <double>[0.5, 0.75, 1, 1.25, 1.5, 2];
 
   bool _controlsVisible = true;
+  bool _locked = false;
+  double? _dragPosition;
+  final FocusNode _focus = FocusNode();
+  MpvChromeConfig get _config => _c.chromeConfig.value ?? widget.config;
   bool _volumeOpen = false;
   bool _settingsOpen = false;
   bool _rateOpen = false;
@@ -117,8 +61,19 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   @override
   void initState() {
     super.initState();
-    _looping = widget.config.looping;
-    _rate = widget.config.speed;
+    _looping = _config.looping;
+    _rate = _config.speed;
+    _c.chromeConfig.addListener(_onConfig);
+    for (final state in [
+      _c.playbackRate,
+      _c.volume,
+      _c.muted,
+      _c.looping,
+      _c.mirrorHorizontal,
+      _c.autoPlayNext,
+    ]) {
+      state.addListener(_onPlaybackSettings);
+    }
     _c.playerState.addListener(_onState);
     _c.chromeLocale.addListener(_onLocale);
     _c.coverUrl.addListener(_onChromeData);
@@ -131,7 +86,19 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
 
   @override
   void dispose() {
+    _focus.dispose();
     _hideTimer?.cancel();
+    _c.chromeConfig.removeListener(_onConfig);
+    for (final state in [
+      _c.playbackRate,
+      _c.volume,
+      _c.muted,
+      _c.looping,
+      _c.mirrorHorizontal,
+      _c.autoPlayNext,
+    ]) {
+      state.removeListener(_onPlaybackSettings);
+    }
     _c.playerState.removeListener(_onState);
     _c.chromeLocale.removeListener(_onLocale);
     _c.coverUrl.removeListener(_onChromeData);
@@ -140,6 +107,76 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
     _c.videoTitle.removeListener(_onChromeData);
     _c.subtitleEnabled.removeListener(_onChromeData);
     super.dispose();
+  }
+
+  void _onConfig() {
+    _rate = _config.speed;
+    _looping = _config.looping;
+    _scheduleHide();
+    if (mounted) setState(() {});
+  }
+
+  void _onPlaybackSettings() {
+    if (!mounted) return;
+    setState(() {
+      _rate = _c.playbackRate.value;
+      _volume = _c.volume.value;
+      _muted = _c.muted.value;
+      _looping = _c.looping.value;
+      _mirror = _c.mirrorHorizontal.value;
+      _autoPlayNext = _c.autoPlayNext.value;
+    });
+  }
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (!_config.enableNativeControls ||
+        _c.purePlayMode.value ||
+        event is! KeyDownEvent ||
+        HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed ||
+        HardwareKeyboard.instance.isAltPressed) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.escape) {
+      _c.mpvExitFullscreen().then((_) async {
+        final fullscreen = await _c.mpvIsFullscreen();
+        if (mounted) setState(() => _fullscreen = fullscreen);
+      });
+    } else if (key == LogicalKeyboardKey.keyL && _config.showLockButton) {
+      if (!mounted) return KeyEventResult.ignored;
+      setState(() {
+        _locked = !_locked;
+        _controlsVisible = true;
+      });
+    } else if (_locked) {
+      return KeyEventResult.ignored;
+    } else if (key == LogicalKeyboardKey.space) {
+      _togglePlay();
+    } else if (key == LogicalKeyboardKey.keyF) {
+      _toggleFullscreen();
+    } else if (key == LogicalKeyboardKey.keyM) {
+      _toggleMute();
+    } else if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowRight) {
+      final delta = Duration(
+        seconds: HardwareKeyboard.instance.isShiftPressed ? 30 : 5,
+      );
+      final target =
+          _c.position.value +
+          (key == LogicalKeyboardKey.arrowRight ? delta : -delta);
+      final end = _c.duration.value;
+      if (end > Duration.zero) {
+        _c.seekTo(
+          Duration(
+            milliseconds: target.inMilliseconds.clamp(0, end.inMilliseconds),
+          ),
+        );
+      }
+    } else {
+      return KeyEventResult.ignored;
+    }
+    return KeyEventResult.handled;
   }
 
   void _onLocale() {
@@ -171,6 +208,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
     try {
       final tracks = await _c.mpvListVideoTracks();
       if (!mounted) return;
+      if (!mounted) return;
       setState(() => _videoTracks = tracks);
     } catch (_) {}
   }
@@ -182,17 +220,20 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
 
   void _scheduleHide() {
     _hideTimer?.cancel();
-    if (_c.playerState.value != CommonPlayerState.playing) return;
+    if (_locked ||
+        _dragPosition != null ||
+        _config.dismissControlTime <= 0 ||
+        _c.playerState.value != CommonPlayerState.playing) {
+      return;
+    }
     if (_volumeOpen || _settingsOpen || _rateOpen || _qualityOpen) return;
-    _hideTimer = Timer(
-      Duration(milliseconds: widget.config.dismissControlTime),
-      () {
-        if (mounted) setState(() => _controlsVisible = false);
-      },
-    );
+    _hideTimer = Timer(Duration(milliseconds: _config.dismissControlTime), () {
+      if (mounted) setState(() => _controlsVisible = false);
+    });
   }
 
   void _toggleControls() {
+    if (!mounted) return;
     setState(() {
       _controlsVisible = !_controlsVisible;
       if (!_controlsVisible) {
@@ -217,6 +258,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   Future<void> _toggleMute() async {
     _muted = !_muted;
     await _c.setMute(_muted);
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -227,6 +269,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
       await _c.setMute(false);
     }
     await _c.setVolume(_volume);
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -234,19 +277,26 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
     _rate = rate;
     _rateOpen = false;
     await _c.setRate(rate);
+    if (!mounted) return;
     setState(() {});
     _scheduleHide();
   }
 
   Future<void> _toggleFullscreen() async {
-    await _c.mpvStartFullscreen();
-    _fullscreen = await _c.mpvIsFullscreen();
-    setState(() {});
+    final current = await _c.mpvIsFullscreen();
+    if (current) {
+      await _c.mpvExitFullscreen();
+    } else {
+      await _c.bridgeChannel.invokeMethod<void>('mpvEnterFullscreen');
+    }
+    final fullscreen = await _c.mpvIsFullscreen();
+    if (mounted) setState(() => _fullscreen = fullscreen);
   }
 
   Future<void> _openSettings() async {
     _tracks = await _c.getAudioTracks();
     _videoTracks = await _c.mpvListVideoTracks();
+    if (!mounted) return;
     setState(() {
       _settingsOpen = !_settingsOpen;
       _settingsMore = false;
@@ -259,6 +309,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
 
   Future<void> _openQuality() async {
     _videoTracks = await _c.mpvListVideoTracks();
+    if (!mounted) return;
     setState(() {
       _qualityOpen = !_qualityOpen;
       _settingsOpen = false;
@@ -271,6 +322,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   Future<void> _selectVideoTrack(int index) async {
     await _c.mpvSelectVideoTrack(index);
     _videoTracks = await _c.mpvListVideoTracks();
+    if (!mounted) return;
     setState(() => _qualityOpen = false);
     _scheduleHide();
   }
@@ -278,6 +330,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   Future<void> _selectTrack(int index) async {
     await _c.selectAudioTrack(index);
     _tracks = await _c.getAudioTracks();
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -288,12 +341,14 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
       await _c.mpvSetAutoPlayNext(enabled: false);
     }
     await _c.setLooping(_looping);
+    if (!mounted) return;
     setState(() {});
   }
 
   Future<void> _toggleMirror() async {
     _mirror = !_mirror;
     await _c.mpvSetMirrorHorizontal(enabled: _mirror);
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -307,12 +362,14 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
     if (mode >= 0 && mode < types.length) {
       await _c.mpvSetShowType(types[mode]);
     }
+    if (!mounted) return;
     setState(() {});
   }
 
   Future<void> _screenshot() async {
     final bytes = await _c.captureFrame();
     _c.onScreenshotCaptured?.call(bytes);
+    if (!mounted) return;
     setState(() => _settingsOpen = false);
   }
 
@@ -327,7 +384,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
 
   bool get _showCover {
     final state = _c.playerState.value;
-    final url = _c.coverUrl.value ?? widget.config.coverUrl;
+    final url = _c.coverUrl.value;
     final hasCover = (url ?? '').isNotEmpty;
     switch (state) {
       case CommonPlayerState.playing:
@@ -335,7 +392,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
       case CommonPlayerState.paused:
         return false;
       case CommonPlayerState.completed:
-        return !widget.config.keepLastFrameWhenComplete;
+        return !_config.keepLastFrameWhenComplete;
       case CommonPlayerState.idle:
       case CommonPlayerState.ready:
       case CommonPlayerState.error:
@@ -347,123 +404,160 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   Widget build(BuildContext context) {
     final watermark = _c.watermarkUrl.value;
     final purePlay = _c.purePlayMode.value;
-    final showChrome = widget.config.enableNativeControls && !purePlay;
+    final showChrome = _config.enableNativeControls && !purePlay && !_locked;
 
     final playing = _c.playerState.value == CommonPlayerState.playing;
     final buffering = _c.playerState.value == CommonPlayerState.buffering;
-    final accent = widget.config.accentColor;
-    final title = _c.videoTitle.value.isNotEmpty
-        ? _c.videoTitle.value
-        : widget.config.videoTitle;
+    final accent = _config.accentColor;
+    final title = _c.videoTitle.value;
 
     return Material(
       type: MaterialType.transparency,
-      child: Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: showChrome ? (_) => _toggleControls() : null,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (_showCover) _cover(),
-          if (watermark != null && watermark.isNotEmpty) _watermark(watermark),
-          if (buffering)
-            const Center(
-              child: SizedBox(
-                width: 36,
-                height: 36,
-                child: CircularProgressIndicator(strokeWidth: 3),
-              ),
-            ),
-          if (showChrome && _controlsVisible) ...[
-            IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.65),
-                    ],
-                    stops: const [0.55, 1],
+      child: Focus(
+        focusNode: _focus,
+        onKeyEvent: _onKey,
+        child: MouseRegion(
+          onHover: showChrome
+              ? (_) {
+                  if (!_controlsVisible && mounted) {
+                    if (!mounted) return;
+                    setState(() => _controlsVisible = true);
+                  }
+                  _scheduleHide();
+                }
+              : null,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: _config.enableNativeControls && !purePlay
+                ? (_) => _focus.requestFocus()
+                : null,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: showChrome ? _toggleControls : null,
+                    onDoubleTap: showChrome ? _togglePlay : null,
                   ),
                 ),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            if (title.isNotEmpty)
-              Positioned(
-                left: 12,
-                top: 10,
-                right: 12,
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                if (_showCover) _cover(),
+                if (watermark != null && watermark.isNotEmpty)
+                  _watermark(watermark),
+                if (buffering)
+                  const Center(
+                    child: SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
                   ),
-                ),
-              ),
-            Center(
-              child: _iconButton(
-                playing ? Icons.pause : Icons.play_arrow,
-                size: 56,
-                tooltip: _t('kinetic_play_pause_icon'),
-                onPressed: _togglePlay,
-              ),
+                if (showChrome && _controlsVisible) ...[
+                  IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.65),
+                          ],
+                          stops: const [0.55, 1],
+                        ),
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                  if (title.isNotEmpty)
+                    Positioned(
+                      left: 12,
+                      top: 10,
+                      right: 12,
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                        ),
+                      ),
+                    ),
+                  Center(
+                    child: _iconButton(
+                      playing ? Icons.pause : Icons.play_arrow,
+                      size: 56,
+                      tooltip: _t('kinetic_play_pause_icon'),
+                      onPressed: _togglePlay,
+                    ),
+                  ),
+                  Positioned(
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                    child: _bottomBar(playing, accent),
+                  ),
+                  if (_volumeOpen && _config.showVolumeToolbar)
+                    Positioned(
+                      right: _config.showFullscreenButton ? 96 : 56,
+                      bottom: 56,
+                      child: _volumePopup(accent),
+                    ),
+                  if (_settingsOpen && _config.showSettingsButton)
+                    Positioned(
+                      right: 12,
+                      bottom: 56,
+                      child: _settingsPopup(accent),
+                    ),
+                  if (_rateOpen)
+                    Positioned(
+                      right: _config.showFullscreenButton ? 48 : 8,
+                      bottom: 56,
+                      child: _ratePopup(accent),
+                    ),
+                  if (_qualityOpen)
+                    Positioned(
+                      right: 12,
+                      bottom: 56,
+                      child: _qualityPopup(accent),
+                    ),
+                ],
+                if (_locked && _config.showLockButton)
+                  Positioned(
+                    left: 12,
+                    top: 12,
+                    child: _barIcon(
+                      Icons.lock,
+                      'Unlock (L)',
+                      () => setState(() => _locked = false),
+                    ),
+                  ),
+              ],
             ),
-            Positioned(
-              left: 8,
-              right: 8,
-              bottom: 8,
-              child: _bottomBar(playing, accent),
-            ),
-            if (_volumeOpen && widget.config.showVolumeToolbar)
-              Positioned(
-                right: widget.config.showFullscreenButton ? 96 : 56,
-                bottom: 56,
-                child: _volumePopup(accent),
-              ),
-            if (_settingsOpen && widget.config.showSettingsButton)
-              Positioned(
-                right: 12,
-                bottom: 56,
-                child: _settingsPopup(accent),
-              ),
-            if (_rateOpen)
-              Positioned(
-                right: widget.config.showFullscreenButton ? 48 : 8,
-                bottom: 56,
-                child: _ratePopup(accent),
-              ),
-            if (_qualityOpen)
-              Positioned(
-                right: 12,
-                bottom: 56,
-                child: _qualityPopup(accent),
-              ),
-          ],
-        ],
-      ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _cover() {
-    final url = _c.coverUrl.value ?? widget.config.coverUrl;
+    final url = _c.coverUrl.value;
     return GestureDetector(
-      onTap: widget.config.thumbPlay ? _togglePlay : null,
+      onTap: _config.thumbPlay ? _togglePlay : null,
       child: ColoredBox(
         color: Colors.black,
         child: url == null || url.isEmpty
             ? const SizedBox.expand()
-            : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, _, _) {
-                return const SizedBox.expand();
-              }),
+            : Image(
+                image: kineticImageProvider(url),
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) {
+                  return const SizedBox.expand();
+                },
+              ),
       ),
     );
   }
@@ -475,8 +569,8 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
       child: IgnorePointer(
         child: Opacity(
           opacity: 0.7,
-          child: Image.network(
-            url,
+          child: Image(
+            image: kineticImageProvider(url),
             width: 96,
             fit: BoxFit.contain,
             errorBuilder: (_, _, _) => const SizedBox.shrink(),
@@ -494,8 +588,12 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
           valueListenable: _c.position,
           builder: (context, pos, _) {
             final dur = _c.duration.value;
-            final max = dur.inMilliseconds <= 0 ? 1.0 : dur.inMilliseconds.toDouble();
-            final value = pos.inMilliseconds.clamp(0, max.toInt()).toDouble();
+            final max = dur.inMilliseconds <= 0
+                ? 1.0
+                : dur.inMilliseconds.toDouble();
+            final value = (_dragPosition ?? pos.inMilliseconds.toDouble())
+                .clamp(0, max)
+                .toDouble();
             return SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 3,
@@ -509,76 +607,100 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                 min: 0,
                 max: max,
                 value: value,
-                onChanged: (v) => _c.seekTo(Duration(milliseconds: v.round())),
+                onChangeStart: (_) => _hideTimer?.cancel(),
+                onChanged: dur <= Duration.zero
+                    ? null
+                    : (v) => setState(() => _dragPosition = v),
+                onChangeEnd: (v) async {
+                  await _c.seekTo(Duration(milliseconds: v.round()));
+                  if (mounted) setState(() => _dragPosition = null);
+                  _scheduleHide();
+                },
               ),
             );
           },
         ),
-        Row(
-          children: [
-            _barIcon(
-              playing ? Icons.pause : Icons.play_arrow,
-              _t('kinetic_play_pause_icon'),
-              _togglePlay,
-            ),
-            ValueListenableBuilder<Duration>(
-              valueListenable: _c.position,
-              builder: (_, pos, _) => Text(
-                '${_fmt(pos)} / ${_fmt(_c.duration.value)}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+        LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: constraints.maxWidth < 640 ? 640 : constraints.maxWidth,
+              child: Row(
+                children: [
+                  _barIcon(
+                    playing ? Icons.pause : Icons.play_arrow,
+                    _t('kinetic_play_pause_icon'),
+                    _togglePlay,
+                  ),
+                  ValueListenableBuilder<Duration>(
+                    valueListenable: _c.position,
+                    builder: (_, pos, _) => Text(
+                      '${_fmt(pos)} / ${_fmt(_c.duration.value)}',
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_config.showVolumeToolbar)
+                    _barIcon(
+                      _muted || _volume <= 0
+                          ? Icons.volume_off
+                          : Icons.volume_up,
+                      _t('kinetic_volume_icon'),
+                      () {
+                        if (!mounted) return;
+                        setState(() {
+                          _volumeOpen = !_volumeOpen;
+                          _settingsOpen = false;
+                          _rateOpen = false;
+                          _qualityOpen = false;
+                        });
+                        _scheduleHide();
+                      },
+                    ),
+                  _barIcon(
+                    _c.subtitleEnabled.value
+                        ? Icons.subtitles
+                        : Icons.subtitles_off,
+                    _t('kinetic_subtitle_toggle'),
+                    _toggleSubtitle,
+                  ),
+                  _barIcon(
+                    Icons.high_quality,
+                    _t('kinetic_quality_icon'),
+                    _openQuality,
+                  ),
+                  _barIcon(Icons.speed, _t('kinetic_rate_icon'), () {
+                    if (!mounted) return;
+                    setState(() {
+                      _rateOpen = !_rateOpen;
+                      _volumeOpen = false;
+                      _settingsOpen = false;
+                      _qualityOpen = false;
+                    });
+                    _scheduleHide();
+                  }),
+                  if (_config.showSettingsButton)
+                    _barIcon(
+                      Icons.settings,
+                      _t('kinetic_settings_icon'),
+                      _openSettings,
+                    ),
+                  if (_config.showLockButton)
+                    _barIcon(
+                      Icons.lock_open,
+                      'Lock (L)',
+                      () => setState(() => _locked = true),
+                    ),
+                  if (_config.showFullscreenButton)
+                    _barIcon(
+                      _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                      _t('kinetic_fullscreen_icon'),
+                      _toggleFullscreen,
+                    ),
+                ],
               ),
             ),
-            const Spacer(),
-            if (widget.config.showVolumeToolbar)
-              _barIcon(
-                _muted || _volume <= 0 ? Icons.volume_off : Icons.volume_up,
-                _t('kinetic_volume_icon'),
-                () {
-                  setState(() {
-                    _volumeOpen = !_volumeOpen;
-                    _settingsOpen = false;
-                    _rateOpen = false;
-                    _qualityOpen = false;
-                  });
-                  _scheduleHide();
-                },
-              ),
-            _barIcon(
-              _c.subtitleEnabled.value ? Icons.subtitles : Icons.subtitles_off,
-              _t('kinetic_subtitle_toggle'),
-              _toggleSubtitle,
-            ),
-            _barIcon(
-              Icons.high_quality,
-              _t('kinetic_quality_icon'),
-              _openQuality,
-            ),
-            _barIcon(
-              Icons.speed,
-              _t('kinetic_rate_icon'),
-              () {
-                setState(() {
-                  _rateOpen = !_rateOpen;
-                  _volumeOpen = false;
-                  _settingsOpen = false;
-                  _qualityOpen = false;
-                });
-                _scheduleHide();
-              },
-            ),
-            if (widget.config.showSettingsButton)
-              _barIcon(
-                Icons.settings,
-                _t('kinetic_settings_icon'),
-                _openSettings,
-              ),
-            if (widget.config.showFullscreenButton)
-              _barIcon(
-                _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                _t('kinetic_fullscreen_icon'),
-                _toggleFullscreen,
-              ),
-          ],
+          ),
         ),
       ],
     );
@@ -638,10 +760,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                     thumbColor: accent,
                     inactiveTrackColor: Colors.white24,
                   ),
-                  child: Slider(
-                    value: _volume,
-                    onChanged: _setVolume,
-                  ),
+                  child: Slider(value: _volume, onChanged: _setVolume),
                 ),
               ),
             ),
@@ -674,9 +793,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
               onPressed: () => _setRate(rate),
               child: Text(
                 '${rate}x',
-                style: TextStyle(
-                  color: _rate == rate ? accent : Colors.white,
-                ),
+                style: TextStyle(color: _rate == rate ? accent : Colors.white),
               ),
             ),
         ],
@@ -716,6 +833,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                   onPressed: () async {
                     _autoPlayNext = false;
                     await _c.mpvSetAutoPlayNext(enabled: false);
+                    if (!mounted) return;
                     setState(() {});
                   },
                   child: Text(
@@ -731,6 +849,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                     await _c.setLooping(false);
                     _autoPlayNext = true;
                     await _c.mpvSetAutoPlayNext(enabled: true);
+                    if (!mounted) return;
                     setState(() {});
                   },
                   child: Text(
@@ -786,9 +905,11 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                     TextButton(
                       onPressed: () => _selectTrack(track.index),
                       child: Text(
-                        _ellipsis(track.label.isEmpty
-                            ? (track.language ?? '#${track.index}')
-                            : track.label),
+                        _ellipsis(
+                          track.label.isEmpty
+                              ? (track.language ?? '#${track.index}')
+                              : track.label,
+                        ),
                         style: TextStyle(
                           color: track.selected ? accent : Colors.white,
                         ),
@@ -825,7 +946,11 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                 ),
                 TextButton.icon(
                   onPressed: _screenshot,
-                  icon: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                  icon: const Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                   label: Text(
                     _t('kinetic_settings_screenshot'),
                     style: const TextStyle(color: Colors.white),
@@ -864,10 +989,10 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
             TextButton(
               onPressed: () => _selectVideoTrack(track.index),
               child: Text(
-                _ellipsis(track.label.isEmpty ? '#${track.index}' : track.label),
-                style: TextStyle(
-                  color: track.selected ? accent : Colors.white,
+                _ellipsis(
+                  track.label.isEmpty ? '#${track.index}' : track.label,
                 ),
+                style: TextStyle(color: track.selected ? accent : Colors.white),
               ),
             ),
         ],

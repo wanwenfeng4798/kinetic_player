@@ -49,7 +49,7 @@ verify_sha256() {
 }
 
 main() {
-  if [[ -d "${XCFRAMEWORK_OUTPUT}" ]]; then
+  if sgplayer_artifact_is_current; then
     sgplayer_log "SGPlayer.xcframework already present."
     exit 0
   fi
@@ -96,14 +96,23 @@ main() {
   fi
 
   unzip -q "${zip_path}" -d "${tmp_dir}/extract"
-  if [[ ! -d "${tmp_dir}/extract/SGPlayer.xcframework" ]]; then
-    sgplayer_log "Archive must contain SGPlayer.xcframework at zip root."
+  local framework
+  framework="$(find "${tmp_dir}/extract" -type d -name SGPlayer.xcframework -prune -print | head -n 1)"
+  if [[ -z "${framework}" || ! -f "${framework}/Info.plist" ]]; then
+    sgplayer_log "Archive has no valid SGPlayer.xcframework."
     rm -rf "${tmp_dir}"
     exit 1
   fi
-
+  local resources="${SPM_PACKAGE_DIR}/Sources/kinetic_player/Resources/SGPlayer"
+  local package_dir
+  package_dir="$(dirname "$(dirname "${framework}")")"
+  if [[ -d "${package_dir}/Sources/SGPlayerUI/Resources" ]]; then
+    mkdir -p "${resources}"
+    ditto "${package_dir}/Sources/SGPlayerUI/Resources" "${resources}"
+  fi
   rm -rf "${XCFRAMEWORK_OUTPUT}"
-  mv "${tmp_dir}/extract/SGPlayer.xcframework" "${XCFRAMEWORK_OUTPUT}"
+  mv "${framework}" "${XCFRAMEWORK_OUTPUT}"
+  read_manifest_field version > "${OUTPUT_DIR}/.sgplayer-version"
   rm -rf "${tmp_dir}"
 
   sgplayer_log "Installed ${XCFRAMEWORK_OUTPUT}"

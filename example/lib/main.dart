@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:material_ui/material_ui.dart';
 import 'package:kinetic_player/kinetic_player.dart';
 import 'package:path_provider/path_provider.dart';
@@ -30,134 +31,155 @@ class _DemoSource {
 
   final String label;
   final String url;
+
   /// Container / protocol tag shown in the source picker.
   final String format;
 
   String get menuLabel => '[$format] $label';
 }
 
-/// Demo media URLs — only sources that respond HTTP 200 in smoke checks.
+/// Bundled SGPlayer fixtures plus the original network media catalog.
 class _DemoMedia {
-  static final sources = <_DemoSource>[
-    // Progressive — short clips first (also used as continuous playlist)
-    const _DemoSource(
-      'Sample 5s',
-      'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
-      format: 'MP4',
-    ),
-    const _DemoSource(
-      'Flower',
-      'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
-      format: 'MP4',
-    ),
-    const _DemoSource(
-      'Flower',
-      'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm',
-      format: 'WebM',
-    ),
-    const _DemoSource(
-      'Big Buck Bunny (短)',
-      'https://www.w3schools.com/html/mov_bbb.mp4',
-      format: 'MP4',
-    ),
-    const _DemoSource(
-      'XGPlayer Demo 360p',
-      'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/mp4/xgplayer-demo-360p.mp4',
-      format: 'MP4',
-    ),
-    const _DemoSource(
-      'Sintel Trailer',
-      'https://media.w3.org/2010/05/sintel/trailer.mp4',
-      format: 'MP4',
-    ),
-    const _DemoSource(
-      'Big Buck Bunny',
-      'https://cdn.jsdelivr.net/gh/mediaelement/mediaelement-files@master/big_buck_bunny.mp4',
-      format: 'MP4',
-    ),
-    const _DemoSource(
-      '640x360 sample',
-      'https://filesamples.com/samples/video/mp4/sample_640x360.mp4',
-      format: 'MP4',
-    ),
-    // Adaptive streaming
-    const _DemoSource(
-      'Apple BipBop fMP4',
-      'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
-      format: 'HLS',
-    ),
-    const _DemoSource(
-      'Mux Big Buck Bunny',
-      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      format: 'HLS',
-    ),
-    const _DemoSource(
-      'Tears of Steel VOD',
-      'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8',
-      format: 'HLS',
-    ),
-    const _DemoSource(
-      'XGPlayer HLS Demo',
-      'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/xgplayer-demo.m3u8',
-      format: 'HLS',
-    ),
-    const _DemoSource(
-      'Envivio MultiRate',
-      'https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd',
-      format: 'DASH',
-    ),
-    const _DemoSource(
-      'BBB 30fps MultiRate',
-      'https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd',
-      format: 'DASH',
-    ),
-    const _DemoSource(
-      'Shaka Angel One',
-      'https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd',
-      format: 'DASH',
-    ),
-    // Other containers
-    const _DemoSource(
-      'ExoPlayer lavf sample',
-      'https://storage.googleapis.com/exoplayer-test-media-1/mkv/android-screens-lavf-56.36.100-aac-avc-main-1280x720.mkv',
-      format: 'MKV',
-    ),
-    const _DemoSource(
-      'XGPlayer Demo 360p',
-      'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-360p.flv',
-      format: 'FLV',
-    ),
-  ];
-
-  /// Short progressive clips for「播完切下一集」smoke tests.
+  static final sources = <_DemoSource>[];
   static List<_DemoSource> get continuousPlaylist => sources
-      .where(
-        (s) =>
-            s.url.contains('sample-5s') ||
-            s.url.contains('flower.mp4') ||
-            s.url.contains('flower.webm') ||
-            s.url.contains('mov_bbb') ||
-            s.url.contains('xgplayer-demo-360p.mp4'),
-      )
+      .where((s) => s.format == 'MP4' && s.label.startsWith('[本地]'))
       .toList(growable: false);
-
   static List<String> get continuousPlaylistUrls =>
       continuousPlaylist.map((s) => s.url).toList(growable: false);
+  static String? coverUrl;
+  static List<String> _previewImages = [];
 
-  /// Demo cover / poster image.
-  static const coverUrl = 'https://www.gstatic.com/webp/gallery/1.jpg';
+  static Future<String> _assetUrl(String asset) async {
+    if (kIsWeb) return Uri.base.resolve('assets/$asset').toString();
+    final data = await rootBundle.load(asset);
+    final dir = await getTemporaryDirectory();
+    await dir.create(recursive: true);
+    final file = File('${dir.path}/kinetic_sgplayer_${asset.split('/').last}');
+    await file.writeAsBytes(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+    );
+    return file.uri.toString();
+  }
 
-  /// Stable public JPEGs for demo seek-preview cues (avoid picsum 404/redirect).
-  static const _previewImages = <String>[
-    'https://www.gstatic.com/webp/gallery/1.jpg',
-    'https://www.gstatic.com/webp/gallery/2.jpg',
-    'https://www.gstatic.com/webp/gallery/3.jpg',
-    'https://www.gstatic.com/webp/gallery/4.jpg',
-  ];
+  static Future<void> prepareSources() async {
+    final assets = [
+      ['[本地] SGPlayer 回归片段', 'integration_test/fixtures/orientation.mp4'],
+      ['[本地] SGPlayer 音视频测试', 'assets/sgplayer/transcode-av.mp4'],
+      ['[本地] I See Fire', 'assets/sgplayer/i-see-fire.mp4'],
+      ['[本地] Google Help VR', 'assets/sgplayer/google-help-vr.mp4'],
+    ];
+    final prepared = <_DemoSource>[];
+    for (final item in assets) {
+      prepared.add(
+        _DemoSource(item[0], await _assetUrl(item[1]), format: 'MP4'),
+      );
+    }
+    prepared.addAll(<_DemoSource>[
+      // Progressive — short clips first (also used as continuous playlist)
+      const _DemoSource(
+        'Sample 5s',
+        'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
+        format: 'MP4',
+      ),
+      const _DemoSource(
+        'Flower',
+        'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+        format: 'MP4',
+      ),
+      const _DemoSource(
+        'Flower',
+        'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm',
+        format: 'WebM',
+      ),
+      const _DemoSource(
+        'XGPlayer Demo 360p',
+        'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/mp4/xgplayer-demo-360p.mp4',
+        format: 'MP4',
+      ),
+      const _DemoSource(
+        'Sintel Trailer',
+        'https://media.w3.org/2010/05/sintel/trailer.mp4',
+        format: 'MP4',
+      ),
+      const _DemoSource(
+        'Big Buck Bunny',
+        'https://cdn.jsdelivr.net/gh/mediaelement/mediaelement-files@master/big_buck_bunny.mp4',
+        format: 'MP4',
+      ),
+      // Adaptive streaming
+      const _DemoSource(
+        'Apple BipBop fMP4',
+        'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
+        format: 'HLS',
+      ),
+      const _DemoSource(
+        'Mux Big Buck Bunny',
+        'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        format: 'HLS',
+      ),
+      const _DemoSource(
+        'Tears of Steel VOD',
+        'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8',
+        format: 'HLS',
+      ),
+      const _DemoSource(
+        'XGPlayer HLS Demo',
+        'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/xgplayer-demo.m3u8',
+        format: 'HLS',
+      ),
+      const _DemoSource(
+        'Envivio MultiRate',
+        'https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd',
+        format: 'DASH',
+      ),
+      const _DemoSource(
+        'BBB 30fps MultiRate',
+        'https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd',
+        format: 'DASH',
+      ),
+      const _DemoSource(
+        'Shaka Angel One',
+        'https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd',
+        format: 'DASH',
+      ),
+      // Other containers
+      const _DemoSource(
+        'XGPlayer MPEG-TS 片段',
+        'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/segment-0.ts',
+        format: 'TS',
+      ),
+      const _DemoSource(
+        'Sintel Trailer Ogg',
+        'https://media.w3.org/2010/05/sintel/trailer.ogv',
+        format: 'Ogg',
+      ),
+      const _DemoSource(
+        'ExoPlayer 音频',
+        'https://storage.googleapis.com/exoplayer-test-media-0/play.mp3',
+        format: 'MP3',
+      ),
+      const _DemoSource(
+        'ExoPlayer lavf sample',
+        'https://storage.googleapis.com/exoplayer-test-media-1/mkv/android-screens-lavf-56.36.100-aac-avc-main-1280x720.mkv',
+        format: 'MKV',
+      ),
+      const _DemoSource(
+        'XGPlayer Demo 360p',
+        'https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-360p.flv',
+        format: 'FLV',
+      ),
+    ]);
+    coverUrl = await _assetUrl('assets/sgplayer/cover.jpg');
+    _previewImages = [coverUrl!];
+    sources
+      ..clear()
+      ..addAll(prepared);
+  }
 
   /// Writes a WebVTT track with public thumbnail URLs for seek preview.
   static Future<String> preparePreviewVttUri() async {
     final dir = await getTemporaryDirectory();
+    await dir.create(recursive: true);
     final file = File('${dir.path}/kinetic_demo_preview_v2.vtt');
     await file.writeAsString(_buildPreviewVtt());
     return file.uri.toString();
@@ -196,6 +218,7 @@ class _DemoMedia {
   /// Demo WebVTT subtitle track aligned to the sample video timeline.
   static Future<String> prepareSubtitleVttUri() async {
     final dir = await getTemporaryDirectory();
+    await dir.create(recursive: true);
     final file = File('${dir.path}/kinetic_demo_subtitles.vtt');
     await file.writeAsString(_buildSubtitleVtt());
     return file.uri.toString();
@@ -237,15 +260,14 @@ class _DemoMedia {
     List<_DanmakuCue> extra = const [],
   }) async {
     final dir = await getTemporaryDirectory();
+    await dir.create(recursive: true);
     final file = File('${dir.path}/kinetic_demo_danmaku.xml');
     await file.writeAsString(_buildDanmakuXml([..._demoDanmaku, ...extra]));
     return file.uri.toString();
   }
 
   static String _buildDanmakuXml(List<_DanmakuCue> cues) {
-    final buffer = StringBuffer(
-      '<?xml version="1.0" encoding="UTF-8"?><i>',
-    );
+    final buffer = StringBuffer('<?xml version="1.0" encoding="UTF-8"?><i>');
     for (var i = 0; i < cues.length; i++) {
       final cue = cues[i];
       final color = _danmakuColors[i % _danmakuColors.length];
@@ -282,8 +304,9 @@ class PlayerDemoPage extends StatefulWidget {
 class _PlayerDemoPageState extends State<PlayerDemoPage> {
   String? _previewVttUri;
   CommonVideoController? _controller;
-  _DemoSource _selectedSource = _DemoMedia.continuousPlaylist.first;
-  bool _playlistReady = false;
+  _DemoSource _selectedSource = const _DemoSource('正在准备 SGPlayer 示例', '');
+  bool _mediaReady = false;
+  Object? _mediaError;
   String _chromeLocale = 'zh';
 
   static const _chromeLocaleLabels = <String, String>{
@@ -298,11 +321,23 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      _DemoMedia.preparePreviewVttUri().then((uri) {
-        if (mounted) setState(() => _previewVttUri = uri);
-      });
-    }
+    _DemoMedia.prepareSources()
+        .then((_) async {
+          String? preview;
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+            preview = await _DemoMedia.preparePreviewVttUri();
+          }
+          if (mounted) {
+            setState(() {
+              _selectedSource = _DemoMedia.sources.first;
+              _previewVttUri = preview;
+              _mediaReady = true;
+            });
+          }
+        })
+        .catchError((Object error) {
+          if (mounted) setState(() => _mediaError = error);
+        });
   }
 
   @override
@@ -311,118 +346,76 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
     super.dispose();
   }
 
-  Future<void> _ensureContinuousPlaylist(CommonVideoController controller) async {
-    if (_playlistReady) return;
-    final urls = _DemoMedia.continuousPlaylistUrls;
-    final idx = urls.indexOf(_selectedSource.url);
-    final start = idx < 0 ? 0 : idx;
-    if (controller is GSYVideoControllerImpl) {
-      await controller.gsySetPlaylist(urls, startIndex: start);
-    } else if (controller is MpvVideoControllerImpl) {
-      await controller.mpvSetPlaylist(urls, startIndex: start);
-    }
-    _playlistReady = true;
-  }
-
   Future<void> _onChromeLocaleChanged(String locale) async {
     if (locale == _chromeLocale) return;
-    setState(() => _chromeLocale = locale);
-    await _controller?.setLocale(locale);
+    try {
+      await _controller?.setLocale(locale);
+      if (mounted) setState(() => _chromeLocale = locale);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$error')));
+      }
+    }
   }
 
   Future<void> _onSourceChanged(_DemoSource source) async {
     if (source.url == _selectedSource.url) return;
     final controller = _controller;
-    final wasPlaying =
-        controller?.playerState.value == CommonPlayerState.playing;
     setState(() => _selectedSource = source);
     if (controller == null) return;
-    await controller.switchVideoSource(source.url, autoPlay: wasPlaying);
-    // Keep native playlist index aligned; outside the continuous list → single-item playlist.
     final urls = _DemoMedia.continuousPlaylistUrls;
-    final idx = urls.indexOf(source.url);
-    if (controller is GSYVideoControllerImpl) {
-      if (idx >= 0) {
-        await controller.gsySetPlaylist(urls, startIndex: idx);
-      } else {
-        await controller.gsySetPlaylist([source.url], startIndex: 0);
-      }
-    } else if (controller is MpvVideoControllerImpl) {
-      if (idx >= 0) {
-        await controller.mpvSetPlaylist(urls, startIndex: idx);
-      } else {
-        await controller.mpvSetPlaylist([source.url], startIndex: 0);
-      }
-    }
+    final index = urls.indexOf(source.url);
+    await controller.setPlaylist(
+      index >= 0 ? urls : [source.url],
+      startIndex: index >= 0 ? index : 0,
+      autoPlay: true,
+    );
   }
 
-  Map<String, dynamic> _creationParams({
-    required bool isAndroid,
-    required bool isWeb,
-  }) {
-    final ui = isWeb
-        ? ArtplayerUiConfig(
-            ui: KineticUiConfig(
-              enableNativeControls: true,
-              showFullscreenButton: true,
-              showVolumeToolbar: true,
-              showSettingsButton: true,
-              pictureInPictureEnabled: true,
-              coverUrl: _DemoMedia.coverUrl,
-              videoTitle: _selectedSource.label,
-              locale: _chromeLocale,
-            ),
-            artPlugins: {
-              ArtplayerPluginKeys.danmuku: true,
-              ArtplayerPluginKeys.documentPip: true,
-              ArtplayerPluginKeys.hlsControl: true,
-              ArtplayerPluginKeys.dashControl: true,
-              if (_previewVttUri != null)
-                ArtplayerPluginKeys.vttThumbnail: {'vtt': _previewVttUri},
-              ArtplayerPluginKeys.multipleSubtitles: true,
-            },
-          ).toCreationParams()
-        : isAndroid
-            ? KineticUiConfig(
-                enableNativeControls: true,
-                showFullscreenButton: true,
-                showDragProgressTextOnSeekBar: true,
-                pictureInPictureEnabled: true,
-                // Large remote MKV: disable HttpProxyCache.
-                cacheWithPlay: false,
-                videoTitle: _selectedSource.label,
-                previewVttUrl: _previewVttUri,
-                coverUrl: _DemoMedia.coverUrl,
-                keepLastFrameWhenComplete: false,
-                locale: _chromeLocale,
-              ).toCreationParams()
-            : KineticUiConfig(
-                enableNativeControls: true,
-                showFullscreenButton: true,
-                showVolumeToolbar: true,
-                showSettingsButton: true,
-                coverUrl: _DemoMedia.coverUrl,
-                keepLastFrameWhenComplete: false,
-                videoTitle: _selectedSource.label,
-                locale: _chromeLocale,
-              ).toCreationParams();
-
-    // Seed continuous playlist so「播完切下一集」works out of the box.
+  KineticPlayerConfig _playerConfig() {
     final urls = _DemoMedia.continuousPlaylistUrls;
-    var start = urls.indexOf(_selectedSource.url);
-    if (start < 0) start = 0;
-    return <String, dynamic>{
-      ...ui,
-      'playlist': urls,
-      'playlistStartIndex': start,
-    };
+    final index = urls.indexOf(_selectedSource.url);
+    return KineticPlayerConfig(
+      url: _selectedSource.url,
+      playlist: index >= 0 ? urls : [_selectedSource.url],
+      startIndex: index >= 0 ? index : 0,
+      autoPlay: false,
+      ui: KineticUiConfig(
+        enableNativeControls: true,
+        lockLand: true,
+        autoFullWithSize: false,
+        showFullscreenButton: true,
+        showVolumeToolbar: true,
+        showSettingsButton: true,
+        showDragProgressTextOnSeekBar: true,
+        pictureInPictureEnabled: true,
+        cacheWithPlay: false,
+        videoTitle: _selectedSource.label,
+        previewVttUrl: _previewVttUri,
+        coverUrl: _DemoMedia.coverUrl,
+        locale: _chromeLocale,
+      ),
+      platformOptions: {
+        if (kIsWeb)
+          'artPlugins': {
+            ArtplayerPluginKeys.danmuku: true,
+            ArtplayerPluginKeys.documentPip: true,
+            ArtplayerPluginKeys.hlsControl: true,
+            ArtplayerPluginKeys.dashControl: true,
+            if (_previewVttUri != null)
+              ArtplayerPluginKeys.vttThumbnail: {'vtt': _previewVttUri},
+            ArtplayerPluginKeys.multipleSubtitles: true,
+          },
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isAndroid =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
-    final previewReady = !isAndroid || _previewVttUri != null;
+    final previewReady = _mediaReady && (!isAndroid || _previewVttUri != null);
 
     return Scaffold(
       appBar: AppBar(
@@ -442,21 +435,18 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
             ),
         ],
       ),
-      body: previewReady
+      body: _mediaError != null
+          ? Center(child: Text('示例资源准备失败：$_mediaError'))
+          : previewReady
           ? Column(
               children: [
                 Expanded(
                   flex: 3,
                   child: CommonVideoPlayerViewBuilder(
-                    url: _selectedSource.url,
-                    creationParams: _creationParams(
-                      isAndroid: isAndroid,
-                      isWeb: kIsWeb,
-                    ),
+                    config: _playerConfig(),
                     builder: (controller) {
                       if (!identical(_controller, controller)) {
                         setState(() => _controller = controller);
-                        _ensureContinuousPlaylist(controller);
                       }
                     },
                   ),
@@ -506,10 +496,12 @@ class _ControlPanelState extends State<_ControlPanel> {
     GsyRenderCore.system: 'System MediaPlayer',
   };
 
-  static final ValueNotifier<CommonPlayerState> _idleState =
-      ValueNotifier(CommonPlayerState.idle);
-  static final ValueNotifier<Duration> _zeroDuration =
-      ValueNotifier(Duration.zero);
+  static final ValueNotifier<CommonPlayerState> _idleState = ValueNotifier(
+    CommonPlayerState.idle,
+  );
+  static final ValueNotifier<Duration> _zeroDuration = ValueNotifier(
+    Duration.zero,
+  );
 
   List<String> _filters = const ['none', 'sepia', 'gaussianBlur', 'greyScale'];
   String _selectedFilter = 'none';
@@ -575,9 +567,7 @@ class _ControlPanelState extends State<_ControlPanel> {
       setState(() => _lastCaptureBytes = bytes);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            bytes == null ? '截图失败' : '截图完成 ${bytes.length} 字节',
-          ),
+          content: Text(bytes == null ? '截图失败' : '截图完成 ${bytes.length} 字节'),
         ),
       );
     };
@@ -611,9 +601,7 @@ class _ControlPanelState extends State<_ControlPanel> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('已切换至 ${_renderCoreLabels[core]}，视频已重新加载'),
-      ),
+      SnackBar(content: Text('已切换至 ${_renderCoreLabels[core]}，视频已重新加载')),
     );
   }
 
@@ -690,28 +678,25 @@ class _ControlPanelState extends State<_ControlPanel> {
   Future<void> _playPreRollAd(GSYVideoControllerImpl gsy) async {
     final messenger = ScaffoldMessenger.of(context);
     await gsy.gsyPlayWithPreRollAd(
-      adUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+      adUrl: _DemoMedia.sources[1].url,
       contentUrl: widget.selectedSource.url,
       skipAfter: const Duration(seconds: 3),
     );
     if (!mounted) return;
-    messenger.showSnackBar(
-      const SnackBar(content: Text('片头广告：约 3 秒后可跳过')),
-    );
+    messenger.showSnackBar(const SnackBar(content: Text('片头广告：约 3 秒后可跳过')));
   }
 
   Future<void> _armMidRollAds(GSYVideoControllerImpl gsy) async {
     await gsy.gsySetMidRollAds([
       {
         'positionMs': 8000,
-        'adUrl': 'https://www.w3schools.com/html/mov_bbb.mp4',
+        'adUrl': _DemoMedia.sources[1].url,
         'contentUrl': widget.selectedSource.url,
       },
     ]);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已设置中插：约 8s 触发广告')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('已设置中插：约 8s 触发广告')));
   }
 
   Future<void> _toggleGif(GSYVideoControllerImpl gsy) async {
@@ -737,22 +722,17 @@ class _ControlPanelState extends State<_ControlPanel> {
   Future<void> _refreshNetSpeed(GSYVideoControllerImpl gsy) async {
     final speed = await gsy.gsyGetNetSpeed();
     if (!mounted) return;
-    setState(() => _netSpeedText = '${speed.text} (${speed.bytesPerSecond} B/s)');
+    setState(
+      () => _netSpeedText = '${speed.text} (${speed.bytesPerSecond} B/s)',
+    );
   }
 
   Future<void> _rotateBy(int deltaDegrees) async {
     final next = (_renderRotation + deltaDegrees) % 360;
     final normalized = next < 0 ? next + 360 : next;
     final controller = widget.controller;
-    if (controller is GSYVideoControllerImpl) {
-      await controller.gsySetRenderRotation(normalized);
-    } else if (controller is SGVideoControllerImpl) {
-      await controller.sgSetRenderRotation(normalized);
-    } else if (controller is MpvVideoControllerImpl) {
-      await controller.mpvSetRenderRotation(normalized);
-    } else {
-      return;
-    }
+    if (controller == null || !controller.supportsRenderTransform) return;
+    await controller.setRenderRotation(normalized);
     if (mounted) setState(() => _renderRotation = normalized);
   }
 
@@ -775,15 +755,8 @@ class _ControlPanelState extends State<_ControlPanel> {
     final next = !_coverEnabled;
     final url = next ? _DemoMedia.coverUrl : null;
     final controller = widget.controller;
-    if (controller is GSYVideoControllerImpl) {
-      await controller.gsySetCoverUrl(url);
-    } else if (controller is SGVideoControllerImpl) {
-      await controller.sgSetCoverUrl(url);
-    } else if (controller is MpvVideoControllerImpl) {
-      await controller.mpvSetCoverUrl(url);
-    } else {
-      return;
-    }
+    if (controller == null) return;
+    await controller.setCoverUrl(url);
     if (mounted) setState(() => _coverEnabled = next);
   }
 
@@ -852,8 +825,10 @@ class _ControlPanelState extends State<_ControlPanel> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     'Error: $err',
-                    style:
-                        const TextStyle(color: Colors.redAccent, fontSize: 12),
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                    ),
                   ),
                 );
               },
@@ -861,10 +836,7 @@ class _ControlPanelState extends State<_ControlPanel> {
           ],
           if (active != null) ...[
             const SizedBox(height: 12),
-            const Text(
-              '设置',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            const Text('设置', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -930,10 +902,7 @@ class _ControlPanelState extends State<_ControlPanel> {
           ],
           if (isAndroidGsy) ...[
             const SizedBox(height: 8),
-            const Text(
-              '播放内核',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            const Text('播放内核', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -989,10 +958,7 @@ class _ControlPanelState extends State<_ControlPanel> {
           ],
           if (isAndroidGsy) ...[
             const SizedBox(height: 12),
-            const Text(
-              '字幕',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            const Text('字幕', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             TextField(
               controller: _subtitleTextController,
@@ -1030,10 +996,7 @@ class _ControlPanelState extends State<_ControlPanel> {
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 12),
-            const Text(
-              '弹幕',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            const Text('弹幕', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
@@ -1101,9 +1064,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                     final ok = await active.gsyPlayNextInPlaylist();
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(ok ? '已切下一首' : '已是最后一首'),
-                      ),
+                      SnackBar(content: Text(ok ? '已切下一首' : '已是最后一首')),
                     );
                   },
                   child: const Text('播放下一首'),
@@ -1165,9 +1126,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                     );
                     if (mounted) setState(() {});
                   },
-                  child: Text(
-                    active.subtitleEnabled.value ? '字幕: 开' : '字幕: 关',
-                  ),
+                  child: Text(active.subtitleEnabled.value ? '字幕: 开' : '字幕: 关'),
                 ),
                 FilledButton.tonal(
                   onPressed: () async {
@@ -1194,7 +1153,7 @@ class _ControlPanelState extends State<_ControlPanel> {
             ],
             const SizedBox(height: 4),
             const Text(
-              'creationParams 已注入短片 playlist；设置→更多→「播完切下一集」可验证连播。'
+              'SGPlayer 随包片段已组成 playlist；设置→更多→「播完切下一集」可验证连播。'
               '弹幕 / 广告 / GIF / PiP / GL 滤镜桌面端不实现。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
@@ -1216,9 +1175,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                         await active.setHttpRequestOptions(
                           const KineticHttpRequestOptions(
                             userAgent: 'KineticPlayer-Example/2.1',
-                            headers: {
-                              'Referer': 'https://example.com/',
-                            },
+                            headers: {'Referer': 'https://example.com/'},
                           ),
                         );
                         if (!context.mounted) return;
@@ -1247,10 +1204,7 @@ class _ControlPanelState extends State<_ControlPanel> {
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            '公共 · 截图',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
+          const Text('公共 · 截图', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -1270,9 +1224,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                         messenger.showSnackBar(
                           SnackBar(
                             content: Text(
-                              bytes == null
-                                  ? '截图失败'
-                                  : '截图 ${bytes.length} 字节',
+                              bytes == null ? '截图失败' : '截图 ${bytes.length} 字节',
                             ),
                           ),
                         );
@@ -1288,19 +1240,15 @@ class _ControlPanelState extends State<_ControlPanel> {
               style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 6),
-            Image.memory(
-              _lastCaptureBytes!,
-              height: 96,
-              fit: BoxFit.contain,
-            ),
+            Image.memory(_lastCaptureBytes!, height: 96, fit: BoxFit.contain),
           ],
           const SizedBox(height: 4),
           Text(
             isAndroidGsy
                 ? '截图返回 PNG 字节；设置面板截图走 onScreenshotCaptured，由宿主决定保存位置。倍速/音量/循环请用原生底栏。'
                 : isWebArt
-                    ? 'Web：截图返回 PNG 字节；倍速/音量用 Artplayer 控件。'
-                    : '截图返回 PNG 字节；设置面板截图走 onScreenshotCaptured。倍速/音量/循环请用原生底栏。',
+                ? 'Web：截图返回 PNG 字节；倍速/音量用 Artplayer 控件。'
+                : '截图返回 PNG 字节；设置面板截图走 onScreenshotCaptured。倍速/音量/循环请用原生底栏。',
             style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
           if (isWebArt) ...[
@@ -1320,9 +1268,8 @@ class _ControlPanelState extends State<_ControlPanel> {
                       await active.togglePip();
                     } catch (e) {
                       if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('PiP: $e')),
-                      );
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text('PiP: $e')));
                     }
                   },
                   child: const Text('Video PiP'),
@@ -1380,10 +1327,7 @@ class _ControlPanelState extends State<_ControlPanel> {
           ],
           if (supportsTransform) ...[
             const SizedBox(height: 12),
-            const Text(
-              '旋转',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            const Text('旋转', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
@@ -1434,7 +1378,9 @@ class _ControlPanelState extends State<_ControlPanel> {
                   child: Text(_coverEnabled ? '封面: 开' : '封面: 关'),
                 ),
                 FilledButton.tonal(
-                  onPressed: _toggleKeepLastFrame,
+                  onPressed: active is SGVideoControllerImpl
+                      ? null
+                      : _toggleKeepLastFrame,
                   child: Text(_keepLastFrame ? '保留最后一帧: 开' : '保留最后一帧: 关'),
                 ),
               ],
@@ -1502,9 +1448,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                       timeout: Duration(seconds: 20),
                       reconnect: true,
                       userAgent: 'KineticPlayer-Example',
-                      headers: {
-                        'Referer': 'https://example.com/',
-                      },
+                      headers: {'Referer': 'https://example.com/'},
                     ),
                   ),
                   child: const Text('Demuxer 选项'),
@@ -1523,14 +1467,12 @@ class _ControlPanelState extends State<_ControlPanel> {
                   onPressed: () async {
                     await active.sgReplaceWithSegments([
                       SgMediaSegment(url: widget.selectedSource.url),
-                      const SgMediaSegment(
-                        url: 'https://www.w3schools.com/html/mov_bbb.mp4',
-                      ),
+                      SgMediaSegment(url: _DemoMedia.sources[1].url),
                     ]);
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('已替换为两段资源')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('已替换为两段资源')));
                   },
                   child: const Text('多段资源'),
                 ),

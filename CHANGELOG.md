@@ -1,3 +1,14 @@
+## 3.0.0
+
+- Refresh material_ui to ^1.8.0, web to ^1.1.2 and hls.js to 1.7.4; add device playback/fullscreen tests and fix native state forwarding, fullscreen exit and SPM lifecycle exports.
+- Add the full SGPlayer 2 high-level feature adapter, native task/HLS/PiP lifecycle, bundled fonts, shared typed Flutter config/actions, native GSY playlists, and desktop UI/keyboard/state regression fixes.
+- Pin iOS/macOS to official SGPlayer v2.0.0 release archives and checksums; minimum iOS 15 / macOS 12.
+- Delegate playback policy, automatic kernel selection, playlists, looping, seeks, audio tracks and native controls to SGPlayer. Remove duplicate Darwin chrome/gesture/panel implementations.
+- Expose native PiP and session diagnostics through SGVideoControllerImpl.
+- Support nested release archives, versioned caches and explicit source-build fallback. SwiftPM requires the documented preparation step before first resolution.
+- Keep GSY native playback on Android and independent libmpv/Artplayer UI on Windows/Linux/Web. Document platform/UI differences and Darwin localization limits.
+- Validate without launching devices or simulators; runtime playback remains for manual verification.
+
 ## 2.1.2
 
 - **Stable dependency audit (2026-10-16)**: GSYVideoPlayer **14.0.0**, AGP **9.4.1**, Kotlin **2.4.21**, example Gradle **9.8.1** with distribution SHA-256 verification; Mockito **5.24.0**, Kotlin JUnit adapter and JUnit **6.1.3** engine. Enable built-in Kotlin, retain `android.newDsl=false` for Flutter 3.47, and align example subprojects with SDK Build Tools **37.0.0** / NDK **30.0.16248370**. The example falls back to debug signing when release signing is absent.

@@ -8,6 +8,7 @@ import '../common/common_video_controller.dart';
 import '../common/common_video_controller_bridge.dart';
 import '../common/platform_guard.dart';
 import 'sg_video_features.dart';
+import 'sg_native_features.dart';
 
 class SGVideoControllerImpl
     with CommonVideoControllerBridge
@@ -16,6 +17,11 @@ class SGVideoControllerImpl
   late MethodChannel _channel;
   bool _isDisposed = false;
 
+  late final SgNativeFeatures native = SgNativeFeatures(
+    _channel,
+    () => _isDisposed,
+  );
+
   @override
   MethodChannel get bridgeChannel => _channel;
 
@@ -23,8 +29,9 @@ class SGVideoControllerImpl
   bool get bridgeDisposed => _isDisposed;
 
   @override
-  final ValueNotifier<CommonPlayerState> playerState =
-      ValueNotifier(CommonPlayerState.idle);
+  final ValueNotifier<CommonPlayerState> playerState = ValueNotifier(
+    CommonPlayerState.idle,
+  );
   @override
   final ValueNotifier<Duration> position = ValueNotifier(Duration.zero);
   @override
@@ -45,13 +52,51 @@ class SGVideoControllerImpl
     _channel.setMethodCallHandler(_handleNativeEvents);
   }
 
+  /// Current Apple network path snapshot; does not request permissions.
+  Future<Map<Object?, Object?>> getNetworkDiagnostics() async =>
+      await _channel.invokeMapMethod<Object?, Object?>(
+        'sgNetworkDiagnostics',
+      ) ??
+      {};
+
+  /// SGPlayer 2 native session diagnostics (contains no media URLs).
+  Future<Map<Object?, Object?>> getDiagnostics() async =>
+      await _channel.invokeMapMethod<Object?, Object?>('sgDiagnostics') ?? {};
+
+  Future<bool> startPictureInPicture() async =>
+      await _channel.invokeMethod<bool>('sgStartPictureInPicture') ?? false;
+
+  Future<void> stopPictureInPicture() =>
+      _channel.invokeMethod<void>('sgStopPictureInPicture');
+
+  Future<bool> isPictureInPictureActive() async =>
+      await _channel.invokeMethod<bool>('sgIsPictureInPictureActive') ?? false;
+
   Future<void> _handleNativeEvents(MethodCall call) async {
     if (_isDisposed) return;
     switch (call.method) {
+      case 'onSgFeatureEvent':
+        final event = Map<Object?, Object?>.from(call.arguments as Map);
+        if (event['type'] == 'pipRestore') {
+          var restored = false;
+          try {
+            restored = await native.onRestorePictureInPicture?.call() ?? true;
+          } catch (_) {
+            restored = false;
+          } finally {
+            if (!_isDisposed) {
+              await native.completePictureInPictureRestore(
+                event['requestId'] as String,
+                restored,
+              );
+            }
+          }
+        }
+        native.onEvent?.call(Map<Object?, Object?>.from(call.arguments as Map));
+        break;
       case 'onPlayerStateChanged':
         final args = call.arguments as Map;
-        playerState.value =
-            CommonPlayerState.values[args['state'] as int];
+        playerState.value = CommonPlayerState.values[args['state'] as int];
         if (playerState.value != CommonPlayerState.error) {
           playerError.value = null;
           playerErrorCode.value = 0;
@@ -59,10 +104,8 @@ class SGVideoControllerImpl
         break;
       case 'onPositionChanged':
         final args = call.arguments as Map;
-        position.value =
-            Duration(milliseconds: args['position'] as int);
-        duration.value =
-            Duration(milliseconds: args['duration'] as int);
+        position.value = Duration(milliseconds: args['position'] as int);
+        duration.value = Duration(milliseconds: args['duration'] as int);
         final bufferedMs = args['buffered'] as int? ?? 0;
         buffered.value = Duration(milliseconds: bufferedMs);
         break;
@@ -112,8 +155,9 @@ class SGVideoControllerImpl
       _invoke('sgSetVrViewport', viewport.toMap());
 
   Future<SgVrViewport> sgGetVrViewport() async {
-    final result =
-        await _channel.invokeMethod<Map<Object?, Object?>>('sgGetVrViewport');
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      'sgGetVrViewport',
+    );
     return SgVrViewport.fromMap(result ?? const {});
   }
 
@@ -126,8 +170,9 @@ class SGVideoControllerImpl
   }
 
   Future<List<CommonAudioTrack>> sgGetVideoTracks() async {
-    final result =
-        await _channel.invokeMethod<List<Object?>>('sgGetVideoTracks');
+    final result = await _channel.invokeMethod<List<Object?>>(
+      'sgGetVideoTracks',
+    );
     return result
             ?.map(
               (item) =>
@@ -147,24 +192,21 @@ class SGVideoControllerImpl
     List<SgMediaSegment> segments, {
     bool autoPlay = true,
   }) async {
-    final result = await _channel.invokeMethod<bool>(
-      'sgReplaceWithSegments',
-      {
-        'segments': segments.map((s) => s.toMap()).toList(),
-        'autoPlay': autoPlay,
-      },
-    );
+    final result = await _channel.invokeMethod<bool>('sgReplaceWithSegments', {
+      'segments': segments.map((s) => s.toMap()).toList(),
+      'autoPlay': autoPlay,
+    });
     return result ?? false;
   }
 
   Future<void> sgSetBackgroundPlaybackPolicy(
     SgBackgroundPlaybackPolicy policy,
-  ) =>
-      _invoke('sgSetBackgroundPlaybackPolicy', policy.toMap());
+  ) => _invoke('sgSetBackgroundPlaybackPolicy', policy.toMap());
 
   Future<SgBackgroundPlaybackPolicy> sgGetBackgroundPlaybackPolicy() async {
-    final result = await _channel
-        .invokeMethod<Map<Object?, Object?>>('sgGetBackgroundPlaybackPolicy');
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      'sgGetBackgroundPlaybackPolicy',
+    );
     return SgBackgroundPlaybackPolicy.fromMap(result ?? const {});
   }
 
@@ -174,8 +216,9 @@ class SGVideoControllerImpl
   }
 
   Future<({String? message, int code})> sgGetLastError() async {
-    final result =
-        await _channel.invokeMethod<Map<Object?, Object?>>('sgGetLastError');
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      'sgGetLastError',
+    );
     return (
       message: result?['message'] as String?,
       code: result?['code'] as int? ?? 0,

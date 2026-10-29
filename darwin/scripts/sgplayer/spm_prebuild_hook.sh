@@ -21,6 +21,8 @@ sgplayer_log "Syncing unified Package.swift from manifests..."
 bash "${SCRIPT_DIR}/generate_package_swift.sh"
 
 sgplayer_log "Ensuring SGPlayer.xcframework (CocoaPods / local fallback)..."
-bash "${SCRIPT_DIR}/ensure_sgplayer.sh" "${KINETIC_SGPLAYER_PLATFORM}"
+# SwiftPM validates both declared local binary targets while resolving the package.
+bash "${SCRIPT_DIR}/ensure_sgplayer.sh" ios
+bash "${SCRIPT_DIR}/ensure_sgplayer.sh" macos
 
 sgplayer_log "Done."

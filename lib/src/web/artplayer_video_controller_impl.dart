@@ -29,8 +29,9 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
   final ValueNotifier<bool> pipActive = ValueNotifier(false);
 
   @override
-  final ValueNotifier<CommonPlayerState> playerState =
-      ValueNotifier(CommonPlayerState.idle);
+  final ValueNotifier<CommonPlayerState> playerState = ValueNotifier(
+    CommonPlayerState.idle,
+  );
   @override
   final ValueNotifier<Duration> position = ValueNotifier(Duration.zero);
   @override
@@ -64,6 +65,16 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
     }
   }
 
+  Future<Object?> invokeCommand(
+    String method,
+    Map<String, dynamic> args,
+  ) async {
+    if (_isDisposed) throw StateError('Player disposed');
+    final host = _host;
+    if (host == null) throw StateError('Web player not attached');
+    return host.invoke<Object?>(method, args);
+  }
+
   Future<void> _invoke(String method, [Map<String, dynamic>? arguments]) async {
     if (_isDisposed) return;
     final host = _host;
@@ -89,11 +100,12 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
       _invoke('setScaleMode', {'mode': mode.index});
 
   @override
-  Future<void> setRate(double rate) => _invoke('setRate', {'rate': rate});
+  Future<void> setRate(double rate) =>
+      _invoke('setRate', {'rate': kineticPlaybackRate(rate)});
 
   @override
   Future<void> setVolume(double volume) =>
-      _invoke('setVolume', {'volume': volume});
+      _invoke('setVolume', {'volume': kineticVolume(volume)});
 
   @override
   Future<void> setMute(bool muted) => _invoke('setMute', {'muted': muted});
@@ -110,9 +122,7 @@ class ArtplayerVideoControllerImpl implements CommonVideoController {
     if (result is! List) return const [];
     return result.map((item) {
       if (item is Map) {
-        return CommonAudioTrack.fromMap(
-          Map<Object?, Object?>.from(item),
-        );
+        return CommonAudioTrack.fromMap(Map<Object?, Object?>.from(item));
       }
       return const CommonAudioTrack(index: 0, label: 'Default', selected: true);
     }).toList();

@@ -9,6 +9,20 @@ import 'common_video_controller.dart';
 import 'common_video_size.dart';
 import 'kinetic_http_request_options.dart';
 
+double kineticPlaybackRate(double value) {
+  if (!value.isFinite || value <= 0) {
+    throw ArgumentError.value(value, 'rate', 'Must be finite and positive');
+  }
+  return value;
+}
+
+double kineticVolume(double value) {
+  if (!value.isFinite) {
+    throw ArgumentError.value(value, 'volume', 'Must be finite');
+  }
+  return value.clamp(0, 1);
+}
+
 /// PNG bytes from a MethodChannel / JS result (raw bytes, or a data URL).
 Uint8List? screenshotBytesFromNative(Object? value) {
   if (value == null) return null;
@@ -52,32 +66,29 @@ mixin CommonVideoControllerBridge implements CommonVideoController {
   Future<void> stop() => _invoke('stop');
 
   @override
-  Future<void> setRate(double rate) => _invoke('setRate', {'rate': rate});
+  Future<void> setRate(double rate) =>
+      _invoke('setRate', {'rate': kineticPlaybackRate(rate)});
 
   @override
   Future<void> setVolume(double volume) =>
-      _invoke('setVolume', {'volume': volume});
+      _invoke('setVolume', {'volume': kineticVolume(volume)});
 
   @override
   Future<void> setMute(bool muted) => _invoke('setMute', {'muted': muted});
 
   @override
-  Future<void> switchVideoSource(
-    String url, {
-    bool autoPlay = true,
-  }) =>
-      _invoke('switchVideoSource', {
-        'url': url,
-        'autoPlay': autoPlay,
-      });
+  Future<void> switchVideoSource(String url, {bool autoPlay = true}) =>
+      _invoke('switchVideoSource', {'url': url, 'autoPlay': autoPlay});
 
   @override
   Future<List<CommonAudioTrack>> getAudioTracks() async {
-    final result =
-        await bridgeChannel.invokeMethod<List<Object?>>('getAudioTracks');
+    final result = await bridgeChannel.invokeMethod<List<Object?>>(
+      'getAudioTracks',
+    );
     return result
             ?.map(
-              (item) => CommonAudioTrack.fromMap(item! as Map<Object?, Object?>),
+              (item) =>
+                  CommonAudioTrack.fromMap(item! as Map<Object?, Object?>),
             )
             .toList() ??
         const [];
@@ -95,8 +106,9 @@ mixin CommonVideoControllerBridge implements CommonVideoController {
 
   @override
   Future<CommonVideoSize?> getVideoSize() async {
-    final result =
-        await bridgeChannel.invokeMethod<Map<Object?, Object?>>('getVideoSize');
+    final result = await bridgeChannel.invokeMethod<Map<Object?, Object?>>(
+      'getVideoSize',
+    );
     if (result == null) return null;
     final size = CommonVideoSize.fromMap(result);
     return size.isValid ? size : null;
@@ -122,13 +134,10 @@ mixin CommonVideoControllerBridge implements CommonVideoController {
     bool highQuality = true,
     bool includeOverlay = false,
   }) async {
-    final result = await bridgeChannel.invokeMethod<dynamic>(
-      'captureFrame',
-      {
-        'highQuality': highQuality,
-        'includeOverlay': includeOverlay,
-      },
-    );
+    final result = await bridgeChannel.invokeMethod<dynamic>('captureFrame', {
+      'highQuality': highQuality,
+      'includeOverlay': includeOverlay,
+    });
     return screenshotBytesFromNative(result);
   }
 

@@ -60,8 +60,8 @@ import PackageDescription
 let package = Package(
     name: "kinetic_player",
     platforms: [
-        .iOS(.v13),
-        .macOS(.v11),
+        .iOS(.v15),
+        .macOS(.v12),
     ],
     products: [
         .library(name: "kinetic-player", targets: ["kinetic_player"]),
@@ -72,13 +72,11 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "SGPlayer_iOS",
-            url: "{ios_url}",
-            checksum: "{ios_sha}"
+            path: "Artifacts/ios/SGPlayer.xcframework"
         ),
         .binaryTarget(
             name: "SGPlayer_macOS",
-            url: "{macos_url}",
-            checksum: "{macos_sha}"
+            path: "Artifacts/macos/SGPlayer.xcframework"
         ),
         .target(
             name: "SgNativePlayerBridge",
@@ -93,6 +91,16 @@ let package = Package(
             ],
             linkerSettings: [
                 .linkedFramework("AVFoundation"),
+                .linkedFramework("AVKit"),
+                .linkedFramework("ImageIO"),
+                .linkedFramework("GLKit"),
+                .linkedFramework("QuartzCore"),
+                .linkedFramework("CoreImage"),
+                .linkedFramework("CoreText"),
+                .linkedFramework("CoreVideo"),
+                .linkedFramework("Security"),
+                .linkedFramework("UniformTypeIdentifiers"),
+                .linkedLibrary("c++"),
                 .linkedFramework("AudioToolbox"),
                 .linkedFramework("VideoToolbox"),
                 .linkedFramework("CoreMedia"),
@@ -113,7 +121,8 @@ let package = Package(
                 "SgNativePlayerBridge",
             ],
             path: "Sources",
-            exclude: ["SgNativePlayerBridge"]
+            exclude: ["SgNativePlayerBridge"],
+            resources: [.copy("kinetic_player/Resources/SGPlayer")]
         ),
     ]
 )

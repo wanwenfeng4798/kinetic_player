@@ -8,8 +8,8 @@ import PackageDescription
 let package = Package(
     name: "kinetic_player",
     platforms: [
-        .iOS(.v13),
-        .macOS(.v11),
+        .iOS(.v15),
+        .macOS(.v12),
     ],
     products: [
         .library(name: "kinetic-player", targets: ["kinetic_player"]),
@@ -20,13 +20,11 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "SGPlayer_iOS",
-            url: "https://github.com/wanwenfeng4798/kinetic_player/releases/download/sgplayer-v1.0.0/SGPlayer.xcframework.zip",
-            checksum: "200809e52688fde99a64e3f8c5b6bd2602311dc5968f329cb9db606305413f84"
+            path: "Artifacts/ios/SGPlayer.xcframework"
         ),
         .binaryTarget(
             name: "SGPlayer_macOS",
-            url: "https://github.com/wanwenfeng4798/kinetic_player/releases/download/sgplayer-macos-v1.0.0/SGPlayer-macOS.xcframework.zip",
-            checksum: "717ae074d6aa829455151ce96ba14b235727d211a90ce333638d951c53215b2e"
+            path: "Artifacts/macos/SGPlayer.xcframework"
         ),
         .target(
             name: "SgNativePlayerBridge",
@@ -41,6 +39,16 @@ let package = Package(
             ],
             linkerSettings: [
                 .linkedFramework("AVFoundation"),
+                .linkedFramework("AVKit"),
+                .linkedFramework("ImageIO"),
+                .linkedFramework("GLKit"),
+                .linkedFramework("QuartzCore"),
+                .linkedFramework("CoreImage"),
+                .linkedFramework("CoreText"),
+                .linkedFramework("CoreVideo"),
+                .linkedFramework("Security"),
+                .linkedFramework("UniformTypeIdentifiers"),
+                .linkedLibrary("c++"),
                 .linkedFramework("AudioToolbox"),
                 .linkedFramework("VideoToolbox"),
                 .linkedFramework("CoreMedia"),
@@ -61,7 +69,8 @@ let package = Package(
                 "SgNativePlayerBridge",
             ],
             path: "Sources",
-            exclude: ["SgNativePlayerBridge"]
+            exclude: ["SgNativePlayerBridge"],
+            resources: [.copy("kinetic_player/Resources/SGPlayer")]
         ),
     ]
 )

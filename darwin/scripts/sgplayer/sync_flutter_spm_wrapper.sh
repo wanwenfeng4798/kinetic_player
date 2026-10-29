@@ -19,8 +19,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_common.sh"
 kinetic_sgplayer_init "macos"
 
-MACOS_MIN="11.0"
-IOS_MIN="13.0"
+MACOS_MIN="12.0"
+IOS_MIN="15.0"
 
 find_flutter_app_root() {
   local start="${1:-}"

@@ -98,3 +98,13 @@ Wayland 与 X11 均走 Texture，不使用 `--wid` 嵌入。硬件解码默认 `
 ## 可选替代
 
 若你更需要 GStreamer 管线而不是 libmpv，仍可使用独立包 [GstPlayer](https://pub.dev/packages/gstplayer)。本插件桌面内核是 libmpv，不必再引入 GstPlayer。
+
+## 3.0 UI/功能核查与修复
+
+Windows/Linux 共用同一 Dart 桌面控制栏和同一 C++ mpv core。已修复：运行时 UI 配置与倍速/音量/静音/循环/镜像/连播状态不同步；拖动滑块连续发送 seek；顶层双击手势影响按钮点击；窄窗口工具栏溢出；播放器创建后立即销毁时的资源泄漏；清空封面仍显示旧封面；手动下一集被自动连播开关阻止；mpv redirect 被错误显示为播放失败。音量调为正值会解除静音。
+
+新增空格播放/暂停、左右方向键 5 秒（Shift 为 30 秒）、M 静音、F 全屏、L 锁定、Escape 退出全屏；快捷键只作用于获得焦点的播放器，不占用带 command/control/alt 的快捷键。关闭控制栏或纯播放模式时不接管键盘。
+
+原 mpvStartFullscreen 仍兼容 toggle；公共 enterFullscreen 使用新的幂等命令。全屏按钮查询真实窗口状态后进入或退出。字幕/视频轨、网络速度、截图和公共配置继续保留。系统 PiP、SG 高级合成/导出/缓存并未变成 mpv 功能；Web 的浏览器插件也不适用于桌面。
+
+验证使用无设备 Flutter 组件测试和共享 C++ core 语法检查，未验证 Windows D3D、Linux GTK/Wayland 的实际渲染、窗口回调或驱动行为，需在目标系统手动验收。

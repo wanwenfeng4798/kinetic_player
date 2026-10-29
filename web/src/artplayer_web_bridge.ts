@@ -15,6 +15,10 @@ export class ArtplayerWebBridge {
   attach(config: {
     container: HTMLDivElement;
     url?: string;
+    playlist?: string[];
+    playlistStartIndex?: number;
+    autoPlay?: boolean;
+    autoPlayNext?: boolean;
     ui?: ArtplayerUiConfig;
     userAgent?: string;
     headers?: Record<string, string>;
@@ -29,6 +33,10 @@ export class ArtplayerWebBridge {
     const adapterConfig: KineticArtplayerConfig = {
       container: config.container,
       url: config.url,
+      playlist: config.playlist,
+      playlistStartIndex: config.playlistStartIndex,
+      autoPlay: config.autoPlay,
+      autoPlayNext: config.autoPlayNext,
       ui: config.ui,
       userAgent: config.userAgent,
       headers: config.headers,
@@ -69,6 +77,17 @@ export class ArtplayerWebBridge {
   async handleMethod(method: string, args: Record<string, unknown> = {}): Promise<unknown> {
     const adapter = this.requireAdapter();
     switch (method) {
+      case 'SetCoverUrl': adapter.setCoverUrl(typeof args.url === 'string' ? args.url : ''); return null;
+      case 'SetSubtitleUrl': await adapter.setSubtitleSource(String(args.url ?? ''), typeof args.mimeType === 'string' ? args.mimeType : undefined); return null;
+      case 'SetSubtitleEnabled': adapter.setSubtitlesEnabled(args.enabled !== false); return null;
+      case 'SetPlaylist':
+        await adapter.setPlaylist(args.urls as string[], Number(args.startIndex ?? 0), args.autoPlay === true);
+        return null;
+      case 'PlayNextInPlaylist': return adapter.playNext();
+      case 'SetAutoPlayNext': adapter.setAutoPlayNext(args.enabled !== false); return null;
+      case 'EnterFullscreen': adapter.setFullscreen(true); return null;
+      case 'ExitFullscreen': adapter.setFullscreen(false); return null;
+      case 'IsFullscreen': return adapter.isFullscreen();
       case 'play':
         await adapter.play();
         return null;

@@ -119,9 +119,9 @@ void ApplyCreateOptions(kinetic::MpvPlayer* player, const EncodableMap& args) {
   player->SetLooping(GetBool(src, "looping", false));
   player->SetKeepLastFrame(GetBool(src, "keepLastFrameWhenComplete", false));
   player->SetSeekOnStartMs(GetInt(src, "seekOnStartMs", -1));
-  player->SetAutoPlayNext(GetBool(src, "autoPlayNext", true));
+  player->SetAutoPlayNext(GetBool(args, "autoPlayNext", GetBool(src, "autoPlayNext", true)));
   ApplyHttpRequestOptions(player, args);
-  const bool auto_play = GetBool(src, "startAfterPrepared", true);
+  const bool auto_play = GetBool(args, "autoPlay", GetBool(src, "startAfterPrepared", true));
   auto playlist = GetStringList(args, "playlist");
   if (!playlist.empty()) {
     player->SetPlaylist(playlist,
@@ -342,6 +342,9 @@ class PlayerSlot {
       } else {
         result->Success(EncodableValue(std::move(png)));
       }
+    } else if (method == "mpvEnterFullscreen") {
+      if (!IsFullscreen(hwnd_)) ToggleFullscreen(hwnd_);
+      result->Success();
     } else if (method == "mpvStartFullscreen") {
       ToggleFullscreen(hwnd_);
       result->Success();

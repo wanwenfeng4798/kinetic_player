@@ -3,15 +3,17 @@
 The strongest cross-platform Flutter video player plugin for **Android / iOS / macOS / Web / Windows / Linux**.
 
 - **Android**: [GSYVideoPlayer 14.0.0](https://github.com/CarGuo/GSYVideoPlayer)
-- **iOS / macOS**: [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) (**master**)
+- **iOS / macOS**: [wanwenfeng4798/SGPlayer](https://github.com/wanwenfeng4798/SGPlayer) (**v2.0.0**)
 - **Web**: [Artplayer.js 5.4.0](https://artplayer.org)
 - **Windows / Linux**: [libmpv](https://mpv.io)
 
 Repo: [github.com/wanwenfeng4798/kinetic_player](https://github.com/wanwenfeng4798/kinetic_player)
 
-Requires **Dart 3.13 / Flutter 3.47+** and `material_ui: ^1.7.0`.
+Requires **Dart 3.13 / Flutter 3.47+** and `material_ui: ^1.8.0`.
 
 ## Platform previews
+
+These previews predate migration; 3.0 uses SGPlayer 2 native controls on iOS/macOS.
 
 | Android | iOS |
 |:-------:|:---:|
@@ -25,7 +27,7 @@ Requires **Dart 3.13 / Flutter 3.47+** and `material_ui: ^1.7.0`.
 
 - Unified `CommonVideoController` API (play / pause / seek / scale / rate / volume / tracks / loop / screenshot / etc.)
 - Platform auto-selection: Android → GSY, iOS / macOS → SGPlayer, Web → Artplayer, **Windows / Linux → libmpv**
-- Bilibili-style native control bar (vertical volume popup with percentage while dragging, settings panel for tracks / screenshot / Android GIF, popup fade, consistent progress bar + bottom bar icon sizing)
+- GSY native controls on Android; SGPlayer 2 native controls on iOS/macOS; independent desktop and Web UI
 - **Android / iOS** pan gestures for seek / volume / brightness (`enableNativeControls`); **macOS / Windows / Linux** have no pans — progress bar + speaker / gear popups
 - Android Picture-in-Picture (PiP) **enabled by default** (API 26+)
 - Web: Video / Document PiP, HLS/DASH, official Artplayer plugins (danmaku / subtitles / Chromecast / …)
@@ -69,11 +71,7 @@ flutter:
 
 See [doc/DARWIN_SGPLAYER_EN.md](doc/DARWIN_SGPLAYER_EN.md).
 
-**SPM (recommended):** The published package already includes `Package.swift` + sources; Xcode downloads `SGPlayer.xcframework` via the remote `binaryTarget`. Set macOS `MACOSX_DEPLOYMENT_TARGET` to **11.0+**. If Xcode reports an SPM wrapper version mismatch, see [DARWIN_SGPLAYER_EN.md](doc/DARWIN_SGPLAYER_EN.md#spm-wrapper-minimum-os) to edit `FlutterGeneratedPluginSwiftPackage` manually.
-
-**CocoaPods:** `pod install` runs `prepare_command` → `ensure_sgplayer.sh` (download prebuilt; fall back to local build).
-
-Maintainers regenerating `Package.swift` after Release / manifest updates, or forcing a local build: see the Darwin guide.
+**SPM:** Before first resolution run `bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios` from the plugin root. This prepares both official v2.0.0 local binary targets. Minimum iOS 15 / macOS 12. CocoaPods downloads them automatically. See the Darwin guide for native UI configuration limits.
 
 ### 4. Minimal example
 
@@ -123,8 +121,8 @@ If you specifically need a GStreamer pipeline, the separate [GstPlayer](https://
 | Platform | Core | Device / desktop | Simulator / browser | PiP |
 |---|---|---|---|---|
 | Android | GSYVideoPlayer 14.0.0 | ✅ | ✅ | ✅ (enabled by default) |
-| iOS | SGPlayer master | ✅ | ❌ (prebuilt FFmpeg is arm64 only) | ❌ |
-| macOS | SGPlayer master | ✅ | ✅ (macosx xcframework) | ❌ |
+| iOS | SGPlayer 2.0.0 | ✅ | ✅ (arm64 / x86_64) | ✅ SGPlayer 2 |
+| macOS | SGPlayer 2.0.0 | ✅ | ✅ (macosx xcframework) | ✅ SGPlayer 2 |
 | Web | Artplayer.js 5.4.0 | — | ✅ Chrome / Safari / mobile Web | ✅ Video PiP; Document PiP optional |
 | Windows | libmpv (bundled DLL) | ✅ x64 | — | ❌ |
 | Linux | libmpv (system library) | ✅ | — | ❌ |

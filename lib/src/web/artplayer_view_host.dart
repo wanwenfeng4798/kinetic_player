@@ -49,6 +49,17 @@ class ArtplayerViewHost {
       if (url is String && url.isNotEmpty) {
         config.setProperty('url'.toJS, url.toJS);
       }
+      for (final key in [
+        'playlist',
+        'playlistStartIndex',
+        'autoPlay',
+        'autoPlayNext',
+      ]) {
+        if (params.containsKey(key)) {
+          final Object? value = params[key];
+          config.setProperty(key.toJS, value.jsify());
+        }
+      }
       final userAgent = params['userAgent'];
       if (userAgent is String && userAgent.isNotEmpty) {
         config.setProperty('userAgent'.toJS, userAgent.toJS);
@@ -128,8 +139,11 @@ class ArtplayerViewHost {
       final bridge = _bridge;
       if (bridge != null) {
         final handle = bridge.getProperty('handleMethod'.toJS) as JSFunction;
-        final result =
-            handle.callAsFunction(bridge, 'dispose'.toJS, JSObject());
+        final result = handle.callAsFunction(
+          bridge,
+          'dispose'.toJS,
+          JSObject(),
+        );
         if (result != null) {
           await _awaitJs(result);
         }
@@ -210,9 +224,7 @@ Future<void> ensureKineticArtplayerLoaded() async {
         load.complete();
       }.toJS;
       script.onerror = (web.Event _) {
-        load.completeError(
-          StateError('Failed to load kinetic_artplayer.js'),
-        );
+        load.completeError(StateError('Failed to load kinetic_artplayer.js'));
       }.toJS;
       web.document.head!.append(script);
       await load.future;

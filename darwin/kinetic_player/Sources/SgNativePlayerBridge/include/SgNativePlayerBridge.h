@@ -13,6 +13,7 @@ typedef void (^SgProgressChangedBlock)(int64_t positionMs, int64_t durationMs, i
 typedef void (^SgErrorChangedBlock)(NSString *_Nullable message, NSInteger code);
 
 @interface SgNativePlayerBridge : NSObject
++ (BOOL)handleBackgroundSession:(NSString *)identifier completion:(void (^)(void))completion;
 
 #if TARGET_OS_OSX
 @property (nonatomic, readonly) NSView *view;
@@ -27,6 +28,17 @@ typedef void (^SgErrorChangedBlock)(NSString *_Nullable message, NSInteger code)
 - (void)switchVideoSource:(NSString *)urlString autoPlay:(BOOL)autoPlay;
 /// Replace with multi-segment asset. Each segment: {url, streamIndex?, startMs?, endMs?}.
 - (BOOL)replaceWithSegments:(NSArray<NSDictionary *> *)segments autoPlay:(BOOL)autoPlay;
+- (void)configureControls:(BOOL)enabled autoHide:(double)seconds fullscreen:(void (^)(void))fullscreen;
+- (BOOL)setPlaylist:(NSArray<NSString *> *)urls startIndex:(NSInteger)index autoPlay:(BOOL)autoPlay;
+- (BOOL)playNext;
+- (void)setAutomaticAdvance:(BOOL)enabled;
+- (NSDictionary *)diagnostics;
+- (BOOL)startPictureInPicture;
+- (void)stopPictureInPicture;
+- (BOOL)isPictureInPictureActive;
+- (void)setDismissFullscreenHandler:(void (^)(void))handler;
+- (void)setFeatureEventHandler:(void (^)(NSDictionary *event))handler;
+- (void)performOperation:(NSString *)operation arguments:(NSDictionary *)arguments completion:(void (^)(id _Nullable, NSError * _Nullable))completion;
 - (void)play;
 - (void)pause;
 - (void)stop;

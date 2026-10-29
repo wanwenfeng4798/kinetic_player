@@ -60,12 +60,15 @@ class GsyVideoPlatformView(
         val startIndex =
             (creationParams?.get("playlistStartIndex") as? Number)?.toInt()
                 ?: 0
+        player.setAutoPlayNext(creationParams?.get("autoPlayNext") as? Boolean ?: true)
+        val autoPlay = creationParams?.get("autoPlay") as? Boolean ?: false
         if (playlistUrls.isNotEmpty()) {
             player.setPlaylist(playlistUrls, startIndex)
+            if (autoPlay) player.startPlayLogic()
         } else {
             val url = creationParams?.get("url") as? String
             if (!url.isNullOrEmpty()) {
-                player.switchVideoSource(url, autoPlay = false)
+                player.switchVideoSource(url, autoPlay = autoPlay)
             }
         }
     }
@@ -259,10 +262,15 @@ class GsyVideoPlatformView(
             "gsyStopGifRecording" -> {
                 player.stopGifRecording { path -> result.success(path) }
             }
+            "gsyEnterFullscreen" -> { player.enterFullscreen(); result.success(null) }
+            "gsyExitFullscreen" -> { player.exitFullscreen(); result.success(null) }
+            "gsyIsFullscreen" -> result.success(player.isFullscreen())
+            "gsySetAutoPlayNext" -> { player.setAutoPlayNext(call.argument<Boolean>("enabled") ?: true); result.success(null) }
             "gsySetPlaylist" -> {
                 @Suppress("UNCHECKED_CAST")
                 val urls = call.argument<List<String>>("urls") ?: emptyList()
                 player.setPlaylist(urls, call.argument<Int>("startIndex") ?: 0)
+                if (call.argument<Boolean>("autoPlay") == true) player.startPlayLogic()
                 result.success(null)
             }
             "gsyPlayNextInPlaylist" -> result.success(player.playNextInPlaylist())

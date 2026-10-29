@@ -57,7 +57,6 @@ class GsyNativePlayer(
     private var isPlaying = false
     private var currentUrl: String? = null
     private var playlist: List<String> = emptyList()
-    private var playlistIndex = 0
     private var pendingContentUrl: String? = null
     private var pendingContentPositionMs: Long = 0L
     private var adMode = AdMode.NONE
@@ -118,11 +117,6 @@ class GsyNativePlayer(
                     adMode != AdMode.NONE && pendingContentUrl != null -> {
                         finishAdAndResumeContent()
                     }
-                    autoPlayNext && playlist.size > 1 && playlistIndex < playlist.lastIndex -> {
-                        playlistIndex++
-                        setUrl(playlist[playlistIndex])
-                        startPlayLogic()
-                    }
                     else -> {
                         activePlayer().getOverlayDanmaku()?.onPlaybackComplete()
                         callbacks.onPlayerStateChanged(CommonPlayerState.COMPLETED)
@@ -132,7 +126,8 @@ class GsyNativePlayer(
             }
 
             override fun onPrepared(url: String?, vararg objects: Any?) {
-                callbacks.onPlayerStateChanged(CommonPlayerState.READY)
+                if (!url.isNullOrEmpty()) currentUrl = url
+                emitMappedState(activePlayer().currentState)
                 applyRenderTransform()
                 applySavedVolume()
                 playerView.fixControlOverlayLayering()
@@ -150,6 +145,10 @@ class GsyNativePlayer(
         }
 
     init {
+        playerView.onNativeStateChanged = { state ->
+            isPlaying = state == GSYVideoView.CURRENT_STATE_PLAYING
+            emitMappedState(state)
+        }
         playerView.uiConfig = initialUiConfig
         playerView.onDanmakuPlaybackStart = {
             activePlayer().getOverlayDanmaku()?.onPlaybackStart()
@@ -185,7 +184,7 @@ class GsyNativePlayer(
         playerView.onStartAfterPreparedChanged = {
             uiConfig = uiConfig.copy(startAfterPrepared = it)
         }
-        playerView.onAutoPlayNextChanged = { autoPlayNext = it }
+        playerView.onAutoPlayNextChanged = { setAutoPlayNext(it) }
         playerView.onShowTypeChanged = { setGsyShowType(it) }
         playerView.onSubtitleEnabledChanged = { setSubtitleEnabled(it) }
         playerView.onDanmakuVisibleChanged = { toggleDanmaku(it) }
@@ -219,7 +218,8 @@ class GsyNativePlayer(
         playerView.uiConfig = config
         GsyPlayerDefaults.applyIjkOptions(config.ijkEnableAccurateSeek)
         config.previewVttUrl?.let { playerView.setPreviewVttUrl(it) }
-        currentUrl?.let { setUrl(it) }
+        setSpeed(config.speed)
+        setLooping(config.looping)
         syncPictureInPictureParams()
     }
 
@@ -242,6 +242,15 @@ class GsyNativePlayer(
         playerView.setPreviewVttUrl(url)
     }
 
+    fun isFullscreen(): Boolean = activePlayer().isIfCurrentIsFullscreen
+    fun enterFullscreen() { if (!isFullscreen()) playerView.toggleWindowFullscreen() }
+    fun exitFullscreen() { if (isFullscreen()) GSYVideoManager.backFromWindowFull(container.context) }
+    fun setAutoPlayNext(enabled: Boolean) {
+        autoPlayNext = enabled
+        playerView.nativeAutomaticAdvance = enabled && adMode == AdMode.NONE
+        activePlayer().nativeAutomaticAdvance = playerView.nativeAutomaticAdvance
+    }
+
     fun startFullscreen() = playerView.toggleWindowFullscreen()
 
     fun setSpeed(speed: Float) {
@@ -252,6 +261,7 @@ class GsyNativePlayer(
     fun setLooping(looping: Boolean) {
         uiConfig = uiConfig.copy(looping = looping)
         playerView.isLooping = looping
+        activePlayer().isLooping = looping
     }
 
     fun setUrl(videoUrl: String) {
@@ -260,25 +270,24 @@ class GsyNativePlayer(
             .setUrl(videoUrl)
             .setPlayTag(playTag)
             .build(playerView)
+        val index = playlist.indexOf(videoUrl)
+        val urls = if (index >= 0 && adMode == AdMode.NONE) playlist else listOf(videoUrl)
+        val headers = httpHeaders.toMutableMap()
+        httpUserAgent?.takeIf { it.isNotEmpty() }?.let { headers["User-Agent"] = it }
+        playerView.configureNativePlaylist(urls, if (urls === playlist) index else 0, headers)
+        setAutoPlayNext(autoPlayNext)
         uiConfig.previewVttUrl?.let { playerView.setPreviewVttUrl(it) }
         callbacks.onPlayerStateChanged(CommonPlayerState.IDLE)
     }
 
     fun setPlaylist(urls: List<String>, startIndex: Int = 0) {
-        playlist = urls
-        playlistIndex = startIndex.coerceIn(0, (urls.size - 1).coerceAtLeast(0))
-        if (urls.isNotEmpty()) {
-            setUrl(urls[playlistIndex])
-        }
+        require(urls.isNotEmpty()) { "Playlist must not be empty" }
+        require(startIndex in urls.indices) { "Invalid playlist startIndex" }
+        playlist = urls.toList()
+        setUrl(urls[startIndex])
     }
 
-    fun playNextInPlaylist(): Boolean {
-        if (playlistIndex >= playlist.lastIndex) return false
-        playlistIndex++
-        setUrl(playlist[playlistIndex])
-        startPlayLogic()
-        return true
-    }
+    fun playNextInPlaylist(): Boolean = activePlayer().playNextManually()
 
     fun playWithPreRollAd(
         adUrl: String,
@@ -385,7 +394,7 @@ class GsyNativePlayer(
         playerView.startPlayLogic()
         onPlaybackStarted()
         applySavedVolume()
-        emitMappedState(GSYVideoView.CURRENT_STATE_PLAYING)
+        emitMappedState(activePlayer().currentState)
         reportProgress(force = true)
     }
 
@@ -436,10 +445,6 @@ class GsyNativePlayer(
         url: String,
         autoPlay: Boolean,
     ) {
-        val idx = playlist.indexOf(url)
-        if (idx >= 0) {
-            playlistIndex = idx
-        }
         setUrl(url)
         if (autoPlay) {
             startPlayLogic()

@@ -1,113 +1,208 @@
 #import "SgNativePlayerBridge.h"
-
-#import <AVFoundation/AVFoundation.h>
+#import "SgFeatureService.h"
 #import <SGPlayer/SGPlayer.h>
-
+#import <SGPlayer/SGPlaybackSession.h>
+#import <SGPlayer/SGPlaybackControls.h>
+#import <math.h>
 #if TARGET_OS_OSX
-#import <AppKit/AppKit.h>
 #define SgPlatformView NSView
-#define SgPlatformColorBlack NSColor.blackColor
 #else
-#import <UIKit/UIKit.h>
 #define SgPlatformView UIView
-#define SgPlatformColorBlack UIColor.blackColor
 #endif
 
 @interface SgNativePlayerBridge ()
-
-@property (nonatomic, copy) SgStateChangedBlock stateHandler;
-@property (nonatomic, copy) SgProgressChangedBlock progressHandler;
-@property (nonatomic, copy) SgErrorChangedBlock errorHandler;
-@property (nonatomic, strong) SGPlayer *player;
-@property (nonatomic, strong) SgPlatformView *containerView;
-@property (nonatomic, assign) BOOL looping;
-@property (nonatomic, assign) BOOL muted;
-@property (nonatomic, assign) Float64 savedVolume;
-@property (nonatomic, assign) Float64 savedPitch;
-@property (nonatomic, assign) int64_t lastBufferedMs;
-@property (nonatomic, copy, nullable) NSString *lastErrorMessage;
-@property (nonatomic, assign) NSInteger lastErrorCode;
-@property (nonatomic, copy, nullable) NSDictionary *pendingDemuxerOptions;
-@property (nonatomic, assign) BOOL seekInFlight;
-@property (nonatomic, assign) int64_t pendingSeekMs;
-@property (nonatomic, assign) BOOL needsVideoDisplayRefresh;
-@property (nonatomic, assign) BOOL wantsBackgroundPlayback;
-@property (nonatomic, strong, nullable) dispatch_block_t seekWatchdog;
-
+@property(nonatomic, copy) SgStateChangedBlock stateHandler;
+@property(nonatomic, copy) SgProgressChangedBlock progressHandler;
+@property(nonatomic, copy) SgErrorChangedBlock errorHandler;
+@property(nonatomic, strong) SGPlaybackController *controller;
+@property(nonatomic, strong) SGPlaybackSession *session;
+@property(nonatomic, strong) SGPlaybackControls *controls;
+@property(nonatomic, strong) SgFeatureService *features;
+@property(nonatomic, strong) NSTimer *progressTimer;
+@property(nonatomic) BOOL segmentMode;
+@property(nonatomic) BOOL segmentLooping;
+@property(nonatomic) NSInteger renderMode;
+@property(nonatomic, strong) SgPlatformView *containerView;
+@property(nonatomic, strong) SgPlatformView *surface;
+@property(nonatomic) BOOL muted;
+@property(nonatomic) double savedVolume;
+@property(nonatomic) double savedPitch;
+@property(nonatomic) BOOL wantsBackgroundPlayback;
+@property(nonatomic, copy) NSDictionary *pendingDemuxerOptions;
+@property(nonatomic, copy) NSString *lastErrorMessage;
+@property(nonatomic) NSInteger lastErrorCode;
 @end
 
 @implementation SgNativePlayerBridge
-
++ (BOOL)handleBackgroundSession:(NSString *)identifier completion:(void (^)(void))completion { return [SgFeatureService handleBackgroundSession:identifier completion:completion]; }
+- (SGPlayer *)player { return self.controller.ffmpegPlayer; }
 - (instancetype)initWithStateHandler:(SgStateChangedBlock)stateHandler
                      progressHandler:(SgProgressChangedBlock)progressHandler
                         errorHandler:(SgErrorChangedBlock)errorHandler {
-  self = [super init];
-  if (self) {
+  if ((self = [super init])) {
     _stateHandler = [stateHandler copy];
     _progressHandler = [progressHandler copy];
     _errorHandler = [errorHandler copy];
+    _savedVolume = _savedPitch = 1;
     _containerView = [[SgPlatformView alloc] init];
-#if TARGET_OS_OSX
-    if ([_containerView respondsToSelector:@selector(setWantsLayer:)]) {
-      _containerView.wantsLayer = YES;
-      _containerView.layer.backgroundColor = NSColor.blackColor.CGColor;
+    _surface = [[SgPlatformView alloc] init];
+    _controller = [[SGPlaybackController alloc] initWithKernel:SGPlaybackKernelFFmpeg view:_surface];
+    _session = [[SGPlaybackSession alloc] initWithController:_controller resumeStore:NSUserDefaults.standardUserDefaults];
+    _session.resumeEnabled = NO;
+    _controls = [[SGPlaybackControls alloc] initWithSession:_session];
+    for (SgPlatformView *view in @[_surface, _controls]) {
+      view.translatesAutoresizingMaskIntoConstraints = NO;
+      [_containerView addSubview:view];
+      [NSLayoutConstraint activateConstraints:@[
+        [view.leadingAnchor constraintEqualToAnchor:_containerView.leadingAnchor],
+        [view.trailingAnchor constraintEqualToAnchor:_containerView.trailingAnchor],
+        [view.topAnchor constraintEqualToAnchor:_containerView.topAnchor],
+        [view.bottomAnchor constraintEqualToAnchor:_containerView.bottomAnchor]]];
     }
-#else
-    _containerView.backgroundColor = UIColor.blackColor;
-#endif
-    _savedVolume = 1.0;
-    _savedPitch = 1.0;
-
-    _player = [[SGPlayer alloc] init];
-    _player.minimumTimeInfoInterval = 0.25;
-    _player.videoRenderer.view = _containerView;
-    _player.videoRenderer.scalingMode = SGScalingModeResizeAspect;
-    _player.videoRenderer.displayMode = SGDisplayModePlane;
-    _player.audioRenderer.pitch = _savedPitch;
-
+    _features = [[SgFeatureService alloc] initWithSession:_session controls:_controls surface:_surface container:_containerView];
     __weak typeof(self) weakSelf = self;
-    _player.readyHandler = ^(SGPlayer *player) {
-      (void)player;
-      [weakSelf applySavedVolume];
-      weakSelf.player.audioRenderer.pitch = weakSelf.savedPitch;
+    _progressTimer = [NSTimer timerWithTimeInterval:0.25 repeats:YES block:^(NSTimer *timer) {
+      typeof(self) self = weakSelf;
+      if (!self) return;
+      if (self.segmentMode) {
+        SGStateInfo info = self.player.sstateInfo;
+        NSInteger state = info.player == SGPlayerStateFailed ? 6 :
+          (info.playback & SGPlaybackStateFinished) ? 5 :
+          (info.playback & SGPlaybackStatePlaying) ? 3 :
+          info.player == SGPlayerStatePreparing ? 1 : 4;
+        [self emitState:state];
+        if (state == 6) [self publishError:self.player.error];
+        if (state == 5 && self.segmentLooping) {
+          [self.controller seekToTime:kCMTimeZero completion:^(BOOL success) {
+            if (success) [weakSelf.controller play];
+          }];
+        }
+      }
+      if (self.progressHandler) self.progressHandler([self milliseconds:self.controller.currentTime],
+          [self milliseconds:self.controller.duration], [self bufferedPositionMs]);
+    }];
+    [[NSRunLoop mainRunLoop] addTimer:_progressTimer forMode:NSRunLoopCommonModes];
+    _session.changed = ^(SGPlaybackSession *session) {
+      typeof(self) self = weakSelf;
+      if (!self) return;
+      const NSInteger states[] = {0, 1, 3, 4, 1, 5, 6};
+      [self emitState:states[session.state]];
+      if (session.error) [self publishError:session.error];
+      if (self.progressHandler) self.progressHandler([self milliseconds:self.controller.currentTime],
+          [self milliseconds:self.controller.duration], [self bufferedPositionMs]);
+      self.player.audioRenderer.pitch = self.savedPitch;
+      [self setRenderMode:self.renderMode];
+      [self.controls refresh];
     };
-
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(handleInfoChanged:)
-                                                 name:SGPlayerDidChangeInfosNotification
-                                               object:_player];
-#if TARGET_OS_IPHONE || TARGET_OS_TV
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(handleDidEnterBackground:)
-                                                 name:UIApplicationDidEnterBackgroundNotification
-                                               object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(handleDidBecomeActive:)
-                                                 name:UIApplicationDidBecomeActiveNotification
-                                               object:nil];
-#elif TARGET_OS_OSX
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(handleDidEnterBackground:)
-                                                 name:NSApplicationDidResignActiveNotification
-                                               object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(handleDidBecomeActive:)
-                                                 name:NSApplicationDidBecomeActiveNotification
-                                               object:nil];
-#endif
   }
   return self;
 }
-
-- (void)dealloc {
-  [[NSNotificationCenter defaultCenter] removeObserver:self];
-  [self releasePlayer];
+- (SgPlatformView *)view { return self.containerView; }
+- (void)configureControls:(BOOL)enabled autoHide:(double)seconds fullscreen:(void (^)(void))fullscreen {
+  self.controls.hidden = !enabled;
+#if TARGET_OS_OSX
+  [self.controls attachKeyboardToView:enabled ? self.surface : nil];
+#else
+  if (enabled) [self.controls attachGesturesToView:self.surface];
+#endif
+  self.controls.autoHideInterval = seconds;
+  __weak typeof(self) weakSelf = self;
+  self.controls.toggleFullScreen = ^{
+    [weakSelf.features perform:@"presentation.restore" arguments:@{} completion:^(id result, NSError *error) { fullscreen(); }];
+  };
 }
-
-- (SgPlatformView *)view {
-  return _containerView;
+- (int64_t)milliseconds:(CMTime)time {
+  double seconds = CMTimeGetSeconds(time);
+  return isfinite(seconds) ? (int64_t)(MAX(0, seconds) * 1000) : 0;
 }
-
+- (void)switchVideoSource:(NSString *)urlString autoPlay:(BOOL)autoPlay {
+  self.segmentMode = NO;
+  NSURL *url = [NSURL URLWithString:urlString];
+  if (!url.scheme.length) {
+    [self publishError:[NSError errorWithDomain:@"SgNativePlayer" code:-1 userInfo:@{NSLocalizedDescriptionKey:@"Invalid absolute media URL"}]];
+    [self emitState:6];
+    return;
+  }
+  [self clearError];
+  // Custom HTTP/FFmpeg options and pitch require FFmpeg; ordinary media uses SDK automatic selection.
+  self.session.requiresFFmpeg = self.pendingDemuxerOptions.count > 0 || self.savedPitch != 1 || [self displayMode] != 0;
+  if (self.session.requiresFFmpeg && self.controller.kernel != SGPlaybackKernelFFmpeg)
+    [self.controller resetToKernel:SGPlaybackKernelFFmpeg];
+  [self applyPendingDemuxerOptions];
+  SGPlaybackRendition *rendition = [[SGPlaybackRendition alloc] initWithIdentifier:@"original" title:@"Original" URL:url];
+  SGPlaybackItem *item = [[SGPlaybackItem alloc] initWithIdentifier:NSUUID.UUID.UUIDString title:@"Video" renditions:@[rendition]];
+  NSError *error = nil;
+  if (![self.session loadItems:@[item] startIndex:0 autoPlay:autoPlay error:&error]) [self publishError:error];
+}
+- (void)play { [self configurePlaybackAudioSessionIfNeeded]; [self.session play]; }
+- (void)pause { [self.session pause]; }
+- (void)stop { [self.session pause]; [self seekToMs:0]; }
+- (void)seekToMs:(NSInteger)positionMs { [self.controller seekToTime:CMTimeMake(MAX(0,positionMs),1000) completion:^(BOOL success) {}]; }
+- (void)setRate:(double)rate { self.controller.rate = rate; }
+- (void)applySavedVolume { self.controller.volume = self.muted ? 0 : self.savedVolume; }
+- (void)setLooping:(BOOL)looping { self.segmentLooping = looping; self.session.loopMode = looping ? SGPlaybackLoopModeOne : SGPlaybackLoopModeNone; }
+- (NSArray<NSDictionary *> *)getAudioTracks {
+  NSMutableArray *result = [NSMutableArray array];
+  [self.controller.audioTrackTitles enumerateObjectsUsingBlock:^(NSString *title, NSUInteger i, BOOL *stop) {
+    [result addObject:@{@"index":@(i), @"label":title, @"language":NSNull.null, @"selected":@(self.controller.selectedAudioTrack == i)}];
+  }];
+  return result;
+}
+- (BOOL)selectAudioTrack:(NSInteger)index { return [self.controller selectAudioTrackAtIndex:index]; }
+- (BOOL)isSeekable {
+  if (self.controller.kernel == SGPlaybackKernelFFmpeg) return [self.player seekable];
+  return self.controller.nativePlayer.currentItem.seekableTimeRanges.count > 0;
+}
+- (int64_t)bufferedPositionMs {
+  if (self.controller.kernel == SGPlaybackKernelFFmpeg) return [self milliseconds:[self.player timeInfo].cached];
+  int64_t end = 0;
+  for (NSValue *value in self.controller.nativePlayer.currentItem.loadedTimeRanges)
+    end = MAX(end, [self milliseconds:CMTimeRangeGetEnd(value.CMTimeRangeValue)]);
+  return end;
+}
+- (BOOL)setPlaylist:(NSArray<NSString *> *)urls startIndex:(NSInteger)index autoPlay:(BOOL)autoPlay {
+  self.session.requiresFFmpeg = self.pendingDemuxerOptions.count > 0 || self.savedPitch != 1 || [self displayMode] != 0;
+  if (self.session.requiresFFmpeg && self.controller.kernel != SGPlaybackKernelFFmpeg)
+    [self.controller resetToKernel:SGPlaybackKernelFFmpeg];
+  [self applyPendingDemuxerOptions];
+  NSMutableArray *items = [NSMutableArray array];
+  for (NSString *text in urls) {
+    NSURL *url = [NSURL URLWithString:text];
+    if (!url.scheme.length) return NO;
+    SGPlaybackRendition *r = [[SGPlaybackRendition alloc] initWithIdentifier:@"original" title:@"Original" URL:url];
+    [items addObject:[[SGPlaybackItem alloc] initWithIdentifier:NSUUID.UUID.UUIDString title:@"Video" renditions:@[r]]];
+  }
+  self.segmentMode = NO;
+  NSError *error = nil;
+  BOOL ok = [self.session loadItems:items startIndex:index autoPlay:autoPlay error:&error];
+  if (!ok) [self publishError:error];
+  return ok;
+}
+- (BOOL)playNext { return [self.session next]; }
+- (void)setAutomaticAdvance:(BOOL)enabled { self.session.automaticAdvance = enabled; }
+- (NSDictionary *)diagnostics { return [self.session diagnostics]; }
+- (BOOL)startPictureInPicture { NSError *error = nil; BOOL ok = [self.controller startPictureInPicture:&error]; if (!ok) [self publishError:error]; return ok; }
+- (void)stopPictureInPicture { [self.controller stopPictureInPicture]; }
+- (BOOL)isPictureInPictureActive { return self.controller.pictureInPictureActive; }
+- (void)setDismissFullscreenHandler:(void (^)(void))handler {
+  __weak typeof(self) weakSelf = self;
+  self.controls.dismissPresentation = ^{
+    [weakSelf.features perform:@"presentation.restore" arguments:@{} completion:^(id result, NSError *error) { handler(); }];
+  };
+}
+- (void)setFeatureEventHandler:(void (^)(NSDictionary *))handler { self.features.eventHandler = handler; }
+- (void)performOperation:(NSString *)operation arguments:(NSDictionary *)arguments completion:(void (^)(id, NSError *))completion {
+  if ([operation isEqual:@"session.load"]) {
+    self.segmentMode = NO;
+    self.session.requiresFFmpeg = self.session.requiresFFmpeg || self.pendingDemuxerOptions.count > 0 || self.savedPitch != 1 || [self displayMode] != 0;
+    if (self.session.requiresFFmpeg && self.controller.kernel != SGPlaybackKernelFFmpeg) [self.controller resetToKernel:SGPlaybackKernelFFmpeg];
+    [self applyPendingDemuxerOptions];
+  }
+  @try { [self.features perform:operation arguments:arguments completion:completion]; }
+  @catch (NSException *exception) { completion(nil,[NSError errorWithDomain:@"kinetic_player.sg.arguments" code:1 userInfo:@{NSLocalizedDescriptionKey:exception.reason ?: @"Invalid feature arguments"}]); }
+}
+- (void)releasePlayer { [self.features close]; [self.progressTimer invalidate]; self.progressTimer = nil; self.session.changed = nil; [self.session close]; }
+- (void)dealloc { [self releasePlayer]; }
 - (void)applyPendingDemuxerOptions {
   if (!self.pendingDemuxerOptions.count) {
     return;
@@ -162,32 +257,14 @@
   }
 }
 
-- (void)switchVideoSource:(NSString *)urlString autoPlay:(BOOL)autoPlay {
-  NSURL *url = [NSURL URLWithString:urlString];
-  if (!url) {
-    NSError *error = [NSError errorWithDomain:@"SgNativePlayer"
-                                         code:-1
-                                     userInfo:@{NSLocalizedDescriptionKey : @"Invalid URL"}];
-    [self publishError:error];
-    [self emitState:6];
-    return;
-  }
-  [self clearError];
-  [self emitState:0];
-  [self applyPendingDemuxerOptions];
-  [_player replaceWithURL:url];
-  [self applySavedVolume];
-  _player.audioRenderer.pitch = _savedPitch;
-  if (autoPlay) {
-    [_player play];
-  }
-}
-
 - (BOOL)replaceWithSegments:(NSArray<NSDictionary *> *)segments autoPlay:(BOOL)autoPlay {
   if (segments.count == 0) {
     return NO;
   }
   [self clearError];
+  self.segmentMode = YES;
+  self.session.requiresFFmpeg = YES;
+  [self.controller resetToKernel:SGPlaybackKernelFFmpeg];
   [self applyPendingDemuxerOptions];
 
   SGMutableAsset *asset = [[SGMutableAsset alloc] init];
@@ -230,42 +307,13 @@
   }
 
   [self emitState:0];
-  BOOL ok = [_player replaceWithAsset:asset];
+  BOOL ok = [self.player replaceWithAsset:asset];
   [self applySavedVolume];
-  _player.audioRenderer.pitch = _savedPitch;
+  self.player.audioRenderer.pitch = _savedPitch;
   if (ok && autoPlay) {
-    [_player play];
+    [self.controller play];
   }
   return ok;
-}
-
-- (void)play {
-  [self configurePlaybackAudioSessionIfNeeded];
-  SGStateInfo stateInfo = [_player sstateInfo];
-  if (stateInfo.playback & SGPlaybackStateFinished) {
-    [self replayFromBeginning];
-    return;
-  }
-  [_player play];
-  [self applySavedVolume];
-  _player.audioRenderer.pitch = _savedPitch;
-}
-
-- (void)pause {
-  [_player pause];
-}
-
-- (void)stop {
-  [_player pause];
-  [_player seekToTime:kCMTimeZero];
-  [self emitState:0];
-  if (self.progressHandler) {
-    self.progressHandler(0, [self getDurationMs], 0);
-  }
-}
-
-- (void)setRate:(double)rate {
-  _player.rate = rate;
 }
 
 - (void)setVolume:(double)volume {
@@ -286,19 +334,21 @@
   // SGPlayer pitch is typically around 0.5–2.0; clamp gently.
   Float64 clamped = fmax(0.5, fmin(pitch, 2.0));
   _savedPitch = clamped;
-  _player.audioRenderer.pitch = clamped;
+  if (clamped != 1 && self.controller.kernel != SGPlaybackKernelFFmpeg) {
+    self.session.requiresFFmpeg = YES;
+    __weak typeof(self) weakSelf = self;
+    [self.session switchToKernel:SGPlaybackKernelFFmpeg completion:^(BOOL success) {
+      if (success) weakSelf.player.audioRenderer.pitch = weakSelf.savedPitch;
+    }];
+  } else { self.player.audioRenderer.pitch = clamped; }
 }
 
 - (double)currentPitch {
   return _savedPitch;
 }
 
-- (void)applySavedVolume {
-  _player.audioRenderer.volume = _muted ? 0.0 : _savedVolume;
-}
-
 - (NSArray<NSDictionary *> *)tracksOfType:(SGMediaType)type labelPrefix:(NSString *)prefix {
-  SGPlayerItem *item = [_player currentItem];
+  SGPlayerItem *item = [self.player currentItem];
   if (!item) {
     return @[];
   }
@@ -321,7 +371,7 @@
 }
 
 - (BOOL)selectTrackAtIndex:(NSInteger)index type:(SGMediaType)type {
-  SGPlayerItem *item = [_player currentItem];
+  SGPlayerItem *item = [self.player currentItem];
   if (!item) {
     return NO;
   }
@@ -341,14 +391,6 @@
   return YES;
 }
 
-- (NSArray<NSDictionary *> *)getAudioTracks {
-  return [self tracksOfType:SGMediaTypeAudio labelPrefix:@"音轨"];
-}
-
-- (BOOL)selectAudioTrack:(NSInteger)index {
-  return [self selectTrackAtIndex:index type:SGMediaTypeAudio];
-}
-
 - (NSArray<NSDictionary *> *)getVideoTracks {
   return [self tracksOfType:SGMediaTypeVideo labelPrefix:@"视频轨"];
 }
@@ -357,24 +399,10 @@
   return [self selectTrackAtIndex:index type:SGMediaTypeVideo];
 }
 
-- (int64_t)getDurationMs {
-  SGTimeInfo timeInfo = [_player timeInfo];
-  if (CMTIME_IS_NUMERIC(timeInfo.duration)) {
-    return (int64_t)(CMTimeGetSeconds(timeInfo.duration) * 1000.0);
-  }
-  SGPlayerItem *item = [_player currentItem];
-  if (item && CMTIME_IS_NUMERIC(item.duration)) {
-    return (int64_t)(CMTimeGetSeconds(item.duration) * 1000.0);
-  }
-  return 0;
-}
-
-- (int64_t)bufferedPositionMs {
-  return _lastBufferedMs;
-}
-
 - (NSDictionary *)getVideoSize {
-  SGPLFImage *image = [_player.videoRenderer currentImage];
+  CGSize presentationSize = self.controller.nativePlayer.currentItem.presentationSize;
+  if (presentationSize.width > 0 && presentationSize.height > 0) return @{@"width":@((int)presentationSize.width),@"height":@((int)presentationSize.height)};
+  SGPLFImage *image = [self.controller currentImage];
   if (image && image.size.width > 0 && image.size.height > 0) {
     return @{
       @"width" : @((int)image.size.width),
@@ -384,32 +412,8 @@
   return nil;
 }
 
-- (void)setLooping:(BOOL)looping {
-  _looping = looping;
-  if (looping) {
-    SGStateInfo stateInfo = [_player sstateInfo];
-    if (stateInfo.playback & SGPlaybackStateFinished) {
-      [self replayFromBeginning];
-    }
-  }
-}
-
-- (void)replayFromBeginning {
-  __weak typeof(self) weakSelf = self;
-  [_player seekToTime:kCMTimeZero
-                result:^(CMTime time, NSError *error) {
-                  if (error) {
-                    [weakSelf publishError:error];
-                    return;
-                  }
-                  [weakSelf.player play];
-                  [weakSelf applySavedVolume];
-                  weakSelf.player.audioRenderer.pitch = weakSelf.savedPitch;
-                }];
-}
-
 - (NSData *)captureFrame {
-  SGPLFImage *image = [_player.videoRenderer currentImage];
+  SGPLFImage *image = [self.controller currentImage];
   if (!image) {
     return nil;
   }
@@ -430,123 +434,57 @@
 }
 
 - (double)currentVolume {
-  return _savedVolume;
+  return self.controller.volume > 0 ? self.controller.volume : self.savedVolume;
 }
 
 - (BOOL)isMuted {
-  return _muted;
-}
-
-- (void)seekToMs:(NSInteger)positionMs {
-  int64_t targetMs = (int64_t)MAX(0, positionMs);
-  CMTime time = CMTimeMake(targetMs, 1000);
-  BOOL resumeAfterSeek = _player.wantsToPlay;
-
-  [self cancelSeekWatchdog];
-  self.seekInFlight = YES;
-  self.pendingSeekMs = targetMs;
-
-  if (![_player seekable]) {
-    self.seekInFlight = NO;
-    [self emitProgressAtMs:targetMs];
-    return;
-  }
-
-  __weak typeof(self) weakSelf = self;
-  BOOL started =
-      [_player seekToTime:time
-           toleranceBefor:kCMTimeZero
-            toleranceAfter:kCMTimeZero
-                   result:^(CMTime resultTime, NSError *error) {
-                     __strong typeof(weakSelf) strongSelf = weakSelf;
-                     if (!strongSelf) {
-                       return;
-                     }
-                     [strongSelf cancelSeekWatchdog];
-                     strongSelf.seekInFlight = NO;
-
-                     int64_t landedMs = strongSelf.pendingSeekMs;
-                     if (!error && CMTIME_IS_NUMERIC(resultTime)) {
-                       landedMs = (int64_t)llround(CMTimeGetSeconds(resultTime) * 1000.0);
-                     }
-                     [strongSelf emitProgressAtMs:landedMs];
-                     [strongSelf kickMetalDisplay];
-
-                     if (resumeAfterSeek || strongSelf.player.wantsToPlay) {
-                       [strongSelf.player play];
-                       [strongSelf applySavedVolume];
-                       strongSelf.player.audioRenderer.pitch = strongSelf.savedPitch;
-                     }
-                   }];
-
-  if (!started) {
-    self.seekInFlight = NO;
-    [self emitProgressAtMs:targetMs];
-    return;
-  }
-
-  // If SGPlayer never invokes the result block, unblock progress updates.
-  dispatch_block_t watchdog = dispatch_block_create(0, ^{
-    __strong typeof(weakSelf) strongSelf = weakSelf;
-    if (!strongSelf || !strongSelf.seekInFlight) {
-      return;
-    }
-    strongSelf.seekInFlight = NO;
-    [strongSelf emitProgressAtMs:strongSelf.pendingSeekMs];
-  });
-  self.seekWatchdog = watchdog;
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)),
-                 dispatch_get_main_queue(), watchdog);
-}
-
-- (void)cancelSeekWatchdog {
-  if (self.seekWatchdog) {
-    dispatch_block_cancel(self.seekWatchdog);
-    self.seekWatchdog = nil;
-  }
-}
-
-- (void)emitProgressAtMs:(int64_t)positionMs {
-  int64_t durationMs = [self getDurationMs];
-  if (self.progressHandler) {
-    self.progressHandler(MAX(0, positionMs), durationMs, self.lastBufferedMs);
-  }
-}
-
-- (BOOL)isSeekable {
-  return [_player seekable];
+  return self.controller.volume <= 0;
 }
 
 - (void)setRenderMode:(NSInteger)mode {
+  _renderMode = mode;
+  for (CALayer *layer in self.surface.layer.sublayers) {
+    if ([layer isKindOfClass:AVSampleBufferDisplayLayer.class]) {
+      ((AVSampleBufferDisplayLayer *)layer).videoGravity = mode == 0 ? AVLayerVideoGravityResizeAspect : mode == 1 ? AVLayerVideoGravityResizeAspectFill : AVLayerVideoGravityResize;
+    }
+  }
   switch (mode) {
     case 0:
-      _player.videoRenderer.scalingMode = SGScalingModeResizeAspect;
+      self.player.videoRenderer.scalingMode = SGScalingModeResizeAspect;
       break;
     case 1:
-      _player.videoRenderer.scalingMode = SGScalingModeResizeAspectFill;
+      self.player.videoRenderer.scalingMode = SGScalingModeResizeAspectFill;
       break;
     default:
-      _player.videoRenderer.scalingMode = SGScalingModeResize;
+      self.player.videoRenderer.scalingMode = SGScalingModeResize;
       break;
   }
 }
 
 - (void)setDisplayMode:(NSInteger)mode {
+  self.session.requiresFFmpeg = mode != 0;
+  if (mode != 0 && self.controller.kernel != SGPlaybackKernelFFmpeg) {
+    __weak typeof(self) weakSelf = self;
+    [self.session switchToKernel:SGPlaybackKernelFFmpeg completion:^(BOOL success) {
+      if (success) [weakSelf setDisplayMode:mode];
+    }];
+    return;
+  }
   switch (mode) {
     case 1:
-      _player.videoRenderer.displayMode = SGDisplayModeVR;
+      self.player.videoRenderer.displayMode = SGDisplayModeVR;
       break;
     case 2:
-      _player.videoRenderer.displayMode = SGDisplayModeVRBox;
+      self.player.videoRenderer.displayMode = SGDisplayModeVRBox;
       break;
     default:
-      _player.videoRenderer.displayMode = SGDisplayModePlane;
+      self.player.videoRenderer.displayMode = SGDisplayModePlane;
       break;
   }
 }
 
 - (NSInteger)displayMode {
-  switch (_player.videoRenderer.displayMode) {
+  switch (self.player.videoRenderer.displayMode) {
     case SGDisplayModeVR:
       return 1;
     case SGDisplayModeVRBox:
@@ -561,7 +499,7 @@
 }
 
 - (void)setVrViewport:(NSDictionary *)viewport {
-  SGVRViewport *vp = _player.videoRenderer.viewport;
+  SGVRViewport *vp = self.player.videoRenderer.viewport;
   if (!vp) {
     return;
   }
@@ -592,7 +530,7 @@
 }
 
 - (NSDictionary *)vrViewport {
-  SGVRViewport *vp = _player.videoRenderer.viewport;
+  SGVRViewport *vp = self.player.videoRenderer.viewport;
   if (!vp) {
     return @{};
   }
@@ -639,16 +577,16 @@
 #if TARGET_OS_IOS || TARGET_OS_TV
   NSNumber *interrupted = policy[@"pausesWhenInterrupted"];
   if ([interrupted isKindOfClass:[NSNumber class]]) {
-    _player.pausesWhenInterrupted = interrupted.boolValue;
+    self.player.pausesWhenInterrupted = interrupted.boolValue;
   }
   NSNumber *bg = policy[@"pausesWhenEnteredBackground"];
   if ([bg isKindOfClass:[NSNumber class]]) {
-    _player.pausesWhenEnteredBackground = bg.boolValue;
+    self.player.pausesWhenEnteredBackground = bg.boolValue;
     self.wantsBackgroundPlayback = !bg.boolValue;
   }
   NSNumber *bgNoAudio = policy[@"pausesWhenEnteredBackgroundIfNoAudioTrack"];
   if ([bgNoAudio isKindOfClass:[NSNumber class]]) {
-    _player.pausesWhenEnteredBackgroundIfNoAudioTrack = bgNoAudio.boolValue;
+    self.player.pausesWhenEnteredBackgroundIfNoAudioTrack = bgNoAudio.boolValue;
   }
   if (self.wantsBackgroundPlayback) {
     [self configurePlaybackAudioSessionIfNeeded];
@@ -661,27 +599,16 @@
 - (NSDictionary *)backgroundPlaybackPolicy {
 #if TARGET_OS_IOS || TARGET_OS_TV
   return @{
-    @"pausesWhenInterrupted" : @(_player.pausesWhenInterrupted),
-    @"pausesWhenEnteredBackground" : @(_player.pausesWhenEnteredBackground),
+    @"pausesWhenInterrupted" : @(self.player.pausesWhenInterrupted),
+    @"pausesWhenEnteredBackground" : @(self.player.pausesWhenEnteredBackground),
     @"pausesWhenEnteredBackgroundIfNoAudioTrack" :
-        @(_player.pausesWhenEnteredBackgroundIfNoAudioTrack),
+        @(self.player.pausesWhenEnteredBackgroundIfNoAudioTrack),
   };
 #else
   return @{};
 #endif
 }
 
-- (void)releasePlayer {
-  [self cancelSeekWatchdog];
-  self.seekInFlight = NO;
-  self.needsVideoDisplayRefresh = NO;
-  [_player pause];
-  _player = nil;
-}
-
-#pragma mark - Audio session / display
-
-/// Required for real background playback together with UIBackgroundModes=audio.
 - (void)configurePlaybackAudioSessionIfNeeded {
 #if TARGET_OS_IOS || TARGET_OS_TV
   NSError *error = nil;
@@ -696,171 +623,6 @@
     NSLog(@"[SgNativePlayerBridge] AVAudioSession setActive failed: %@", error);
   }
 #endif
-}
-
-- (void)kickMetalDisplay {
-  if (!_player) {
-    return;
-  }
-  SGVideoRenderer *renderer = _player.videoRenderer;
-  id metalView = [renderer valueForKey:@"metalView"];
-  if ([metalView respondsToSelector:@selector(setPaused:)]) {
-    [metalView setValue:@NO forKey:@"paused"];
-  }
-  if ([metalView respondsToSelector:@selector(setNeedsDisplay)]) {
-    [metalView setNeedsDisplay];
-  }
-  id fetchTimer = [renderer valueForKey:@"fetchTimer"];
-  if ([fetchTimer respondsToSelector:@selector(setPaused:)]) {
-    [fetchTimer setValue:@NO forKey:@"paused"];
-  }
-}
-
-#pragma mark - Notifications
-
-- (void)handleDidEnterBackground:(NSNotification *)notification {
-  (void)notification;
-  self.needsVideoDisplayRefresh = YES;
-}
-
-- (void)handleDidBecomeActive:(NSNotification *)notification {
-  (void)notification;
-  if (!self.needsVideoDisplayRefresh) {
-    return;
-  }
-  self.needsVideoDisplayRefresh = NO;
-  [self refreshVideoDisplayAfterForeground];
-}
-
-/// SGPlayer uses MTKView; background audio can keep the clock moving while Metal freezes.
-/// Rebind the renderer and soft-seek to the current clock so the picture catches up.
-- (void)refreshVideoDisplayAfterForeground {
-  if (!_player) {
-    return;
-  }
-  __weak typeof(self) weakSelf = self;
-  dispatch_async(dispatch_get_main_queue(), ^{
-    __strong typeof(weakSelf) strongSelf = weakSelf;
-    if (!strongSelf || !strongSelf->_player) {
-      return;
-    }
-
-    if (strongSelf.wantsBackgroundPlayback) {
-      [strongSelf configurePlaybackAudioSessionIfNeeded];
-    }
-
-    SGVideoRenderer *renderer = strongSelf->_player.videoRenderer;
-    SgPlatformView *host = strongSelf->_containerView;
-    renderer.view = nil;
-    renderer.view = host;
-    [strongSelf kickMetalDisplay];
-#if TARGET_OS_OSX
-    [host setNeedsLayout:YES];
-    [host layoutSubtreeIfNeeded];
-#else
-    [host setNeedsLayout];
-    [host layoutIfNeeded];
-#endif
-
-    BOOL shouldResume = strongSelf->_player.wantsToPlay;
-    SGTimeInfo timeInfo = [strongSelf->_player timeInfo];
-    CMTime playback = timeInfo.playback;
-    if (shouldResume && CMTIME_IS_NUMERIC(playback)) {
-      // Soft seek forces a fresh decoded frame at the audio clock after metal resumes.
-      [strongSelf->_player seekToTime:playback
-                       toleranceBefor:kCMTimeZero
-                        toleranceAfter:kCMTimePositiveInfinity
-                               result:^(CMTime time, NSError *error) {
-                                 (void)time;
-                                 (void)error;
-                                 __strong typeof(weakSelf) inner = weakSelf;
-                                 if (!inner || !inner->_player) {
-                                   return;
-                                 }
-                                 [inner kickMetalDisplay];
-                                 if (inner->_player.wantsToPlay) {
-                                   [inner->_player play];
-                                   [inner applySavedVolume];
-                                 }
-                               }];
-    } else if (shouldResume) {
-      [strongSelf->_player play];
-      [strongSelf applySavedVolume];
-    }
-  });
-}
-
-- (void)handleInfoChanged:(NSNotification *)notification {
-  SGTimeInfo timeInfo = [SGPlayer timeInfoFromUserInfo:notification.userInfo];
-  SGStateInfo stateInfo = [SGPlayer stateInfoFromUserInfo:notification.userInfo];
-  SGInfoAction action = [SGPlayer infoActionFromUserInfo:notification.userInfo];
-
-  if (action & SGInfoActionState) {
-    NSInteger mapped = [self mapCommonState:stateInfo];
-    [self emitState:mapped];
-    if (stateInfo.player == SGPlayerStateFailed) {
-      NSError *error = [_player error] ?: [_player currentItem].error;
-      [self publishError:error];
-    }
-    if (stateInfo.playback & SGPlaybackStatePlaying) {
-      [self applySavedVolume];
-      _player.audioRenderer.pitch = _savedPitch;
-    }
-    if ((stateInfo.playback & SGPlaybackStateFinished) && self.looping) {
-      [self replayFromBeginning];
-    }
-  }
-
-  if (action & SGInfoActionTime) {
-    // Suppress stale playhead while an async seek is in flight (prevents UI bounce).
-    if (self.seekInFlight || (stateInfo.playback & SGPlaybackStateSeeking)) {
-      return;
-    }
-    int64_t positionMs = 0;
-    int64_t durationMs = 0;
-    int64_t bufferedMs = 0;
-    if (CMTIME_IS_NUMERIC(timeInfo.playback)) {
-      positionMs = (int64_t)(CMTimeGetSeconds(timeInfo.playback) * 1000.0);
-    }
-    if (CMTIME_IS_NUMERIC(timeInfo.duration)) {
-      durationMs = (int64_t)(CMTimeGetSeconds(timeInfo.duration) * 1000.0);
-    }
-    if (CMTIME_IS_NUMERIC(timeInfo.cached)) {
-      // SGTimeInfo.cached is the buffered timeline position / end.
-      bufferedMs = (int64_t)(CMTimeGetSeconds(timeInfo.cached) * 1000.0);
-    }
-    self.lastBufferedMs = MAX(0, bufferedMs);
-    if (self.progressHandler) {
-      self.progressHandler(positionMs, durationMs, self.lastBufferedMs);
-    }
-  }
-}
-
-#pragma mark - Mapping
-
-- (NSInteger)mapCommonState:(SGStateInfo)state {
-  if (state.player == SGPlayerStateFailed) {
-    return 6;
-  }
-  if (state.player == SGPlayerStatePreparing) {
-    return 1;
-  }
-  if (state.playback & SGPlaybackStateFinished) {
-    return 5;
-  }
-  if (state.playback & SGPlaybackStatePlaying) {
-    return 3;
-  }
-  if (state.loading == SGLoadingStateStalled) {
-    return 1;
-  }
-  if (state.player == SGPlayerStateReady) {
-    if (self.player.wantsToPlay) {
-      return 4;
-    }
-    return 2;
-  }
-  return 0;
 }
 
 - (void)emitState:(NSInteger)state {

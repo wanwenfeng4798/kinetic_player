@@ -178,9 +178,9 @@ void ApplyCreateOptions(kinetic::MpvPlayer* player, FlValue* args) {
   player->SetLooping(FlMapBool(src, "looping", false));
   player->SetKeepLastFrame(FlMapBool(src, "keepLastFrameWhenComplete", false));
   player->SetSeekOnStartMs(FlMapInt(src, "seekOnStartMs", -1));
-  player->SetAutoPlayNext(FlMapBool(src, "autoPlayNext", true));
+  player->SetAutoPlayNext(FlMapBool(args, "autoPlayNext", FlMapBool(src, "autoPlayNext", true)));
   ApplyHttpRequestOptions(player, args);
-  const bool auto_play = FlMapBool(src, "startAfterPrepared", true);
+  const bool auto_play = FlMapBool(args, "autoPlay", FlMapBool(src, "startAfterPrepared", true));
   auto playlist = FlMapStringList(args, "playlist");
   if (!playlist.empty()) {
     player->SetPlaylist(
@@ -409,6 +409,10 @@ class PlayerSlot {
             fl_value_new_uint8_list(png.data(), png.size());
         response = FL_METHOD_RESPONSE(fl_method_success_response_new(bytes));
       }
+    } else if (g_strcmp0(method, "mpvEnterFullscreen") == 0) {
+      GtkWindow* win = HostWindow(registrar_);
+      if (win) gtk_window_fullscreen(win);
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
     } else if (g_strcmp0(method, "mpvStartFullscreen") == 0) {
       GtkWindow* win = HostWindow(registrar_);
       if (win) {

@@ -75,6 +75,10 @@ export type ArtplayerWithStream = Artplayer & {
 export interface KineticArtplayerConfig {
   container: HTMLDivElement;
   url?: string;
+  playlist?: string[];
+  playlistStartIndex?: number;
+  autoPlay?: boolean;
+  autoPlayNext?: boolean;
   /** Mapped from KineticUiConfig / creationParams.ui */
   ui?: ArtplayerUiConfig;
   /** Custom User-Agent (best-effort; browsers often forbid overriding). */
