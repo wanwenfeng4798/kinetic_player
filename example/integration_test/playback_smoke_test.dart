@@ -213,7 +213,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 600));
       final controls = await sg.native.call<Map>('controls.status');
-      expect(controls?['hidden'], true);
+      expect(controls?['hidden'], false); // Pure mode retains play/pause.
       expect(controls?['keepLastFrameWhenComplete'], true);
       await sg.native.configureControls(enabled: true);
       expect(await sg.native.showFloating(width: 280, height: 180), true);

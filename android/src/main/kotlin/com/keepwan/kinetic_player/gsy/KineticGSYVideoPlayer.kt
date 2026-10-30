@@ -1904,21 +1904,13 @@ open class KineticGSYVideoPlayer : ListGSYVideoPlayer {
     private fun fitFullscreenToHost() {
         val full = fullWindowPlayer as? KineticGSYVideoPlayer ?: return
         if (!full.isIfCurrentIsFullscreen) return
-        // GSY screen metrics can include navigation/cutout space outside Flutter's
-        // Activity content. Fit the entire control layout to its actual window host.
+        // Cover the complete Activity content. Subtracting navigation/cutout
+        // insets here exposed Flutter's AppBar/list action beside the player.
+        // Insets belong to the controls, not to the fullscreen window background.
         (full.parent as? View)?.let { host ->
-            val visible = android.graphics.Rect()
-            if ((host.parent as? View)?.getGlobalVisibleRect(visible) == true && !visible.isEmpty) {
-                host.layoutParams = host.layoutParams.apply {
-                    val insets = if (android.os.Build.VERSION.SDK_INT >= 30) {
-                        host.rootWindowInsets?.getInsetsIgnoringVisibility(
-                            android.view.WindowInsets.Type.navigationBars() or
-                                android.view.WindowInsets.Type.displayCutout(),
-                        )
-                    } else null
-                    width = (visible.width() - (insets?.left ?: 0) - (insets?.right ?: 0)).coerceAtLeast(1)
-                    height = (visible.height() - (insets?.top ?: 0) - (insets?.bottom ?: 0)).coerceAtLeast(1)
-                }
+            host.layoutParams = host.layoutParams.apply {
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+                height = ViewGroup.LayoutParams.MATCH_PARENT
             }
         }
         full.layoutParams = full.layoutParams.apply {

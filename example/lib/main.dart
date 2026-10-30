@@ -582,6 +582,19 @@ class _ControlPanelState extends State<_ControlPanel> {
     await widget.onSourceChanged(source);
   }
 
+  Future<void> _enterDemoVr(
+    SGVideoControllerImpl controller,
+    SgDisplayMode mode,
+  ) async {
+    // A flat clip projected onto a sphere only looks zoomed. Use the bundled
+    // 360-degree scene so the demo actually exercises looking around.
+    final panorama = _DemoMedia.sources.firstWhere(
+      (source) => source.label == '[本地] Google Help VR',
+    );
+    await widget.onSourceChanged(panorama);
+    await controller.sgSetDisplayMode(mode);
+  }
+
   Future<void> _onRenderCoreChanged(GsyRenderCore? core) async {
     if (core == null || core == _selectedRenderCore) return;
     final gsy = widget.controller;
@@ -1660,11 +1673,11 @@ class _ControlPanelState extends State<_ControlPanel> {
                   child: const Text('音高复位'),
                 ),
                 FilledButton.tonal(
-                  onPressed: () => active.sgSetDisplayMode(SgDisplayMode.vr),
+                  onPressed: () => _enterDemoVr(active, SgDisplayMode.vr),
                   child: const Text('VR'),
                 ),
                 FilledButton.tonal(
-                  onPressed: () => active.sgSetDisplayMode(SgDisplayMode.vrBox),
+                  onPressed: () => _enterDemoVr(active, SgDisplayMode.vrBox),
                   child: const Text('VRBox'),
                 ),
                 FilledButton.tonal(
@@ -1725,7 +1738,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                 ),
                 FilledButton.tonal(
                   onPressed: () => active.sgSetVrViewport(
-                    const SgVrViewport(degrees: 75, sensorEnable: true),
+                    const SgVrViewport(degrees: 90, sensorEnable: true),
                   ),
                   child: const Text('VR 视口'),
                 ),
@@ -1743,7 +1756,7 @@ class _ControlPanelState extends State<_ControlPanel> {
             ),
             const SizedBox(height: 4),
             const Text(
-              '缓冲/错误见上方。macOS 无滑动手势与后台策略；VR/sensor 请用真机。',
+              '缓冲/错误见上方。全景 VR 使用随包 360° 片段；拖动画面转动视角，iPhone 可配合陀螺仪。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],

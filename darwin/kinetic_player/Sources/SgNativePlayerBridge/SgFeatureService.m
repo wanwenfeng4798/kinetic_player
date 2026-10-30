@@ -276,7 +276,7 @@ static NSMapTable<NSString *, SgFeatureService *> *SgHLSOwners;
   } else if ([op isEqual:@"subtitles.select"]) {
     BOOL ok = [a[@"secondary"] boolValue] ? [controller selectSecondarySubtitleTrack:[a[@"index"] integerValue]] : [controller selectSubtitleTrack:[a[@"index"] integerValue]]; done(@(ok),nil); return;
   } else if ([op isEqual:@"effects.configure"]) {
-    for (NSString *key in @[@"watermarksEnabled",@"subtitlesEnabled",@"subtitleOffset",@"secondarySubtitleOffset",@"subtitleVerticalPosition",@"secondarySubtitleVerticalPosition",@"danmakuEnabled",@"maximumDanmakuCount",@"textSize",@"overlayOpacity",@"softwareRendering",@"stickerStart"]) if (a[key]) [effects setValue:a[key] forKey:key];
+    for (NSString *key in @[@"watermarksEnabled",@"subtitlesEnabled",@"subtitleOffset",@"secondarySubtitleOffset",@"subtitleVerticalPosition",@"secondarySubtitleVerticalPosition",@"danmakuEnabled",@"maximumDanmakuCount",@"textSize",@"textColorRGB",@"textBackgroundEnabled",@"textBackgroundColorRGB",@"textBackgroundOpacity",@"overlayOpacity",@"softwareRendering",@"stickerStart"]) if (a[key]) [effects setValue:a[key] forKey:key];
     if (a[@"subtitleFallbackFontURL"]) effects.subtitleFallbackFontURL = SgURL(a[@"subtitleFallbackFontURL"]);
     if (a[@"stickerRect"]) effects.stickerRect = SgRect(a[@"stickerRect"]);
   } else if ([op isEqual:@"effects.filter"]) {

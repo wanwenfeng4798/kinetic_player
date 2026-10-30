@@ -36,7 +36,7 @@ class SgMediaSegment {
 /// VR viewport parameters (maps to SGVRViewport).
 class SgVrViewport {
   const SgVrViewport({
-    this.degrees = 60,
+    this.degrees = 90,
     this.x = 0,
     this.y = 0,
     this.flipX = false,
