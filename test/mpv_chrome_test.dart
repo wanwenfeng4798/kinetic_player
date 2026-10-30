@@ -53,7 +53,80 @@ void main() {
   ) async {
     await tester.pumpWidget(player(width: 320));
     expect(tester.takeException(), isNull);
-    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsNothing);
+    expect(find.byIcon(Icons.lock_open), findsOneWidget);
+    expect(find.byIcon(Icons.settings), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('common toolbar and panels fit compact and wide windows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    for (final width in [240.0, 280.0, 360.0, 720.0, 1280.0]) {
+      await tester.pumpWidget(player(width: width));
+      await tester.pump();
+      final bounds = tester.getRect(find.byType(MpvChromeOverlay));
+      for (final icon in [
+        Icons.settings,
+        Icons.volume_up,
+        Icons.fullscreen,
+        Icons.lock_open,
+      ]) {
+        final target = find.byIcon(icon);
+        expect(target, findsOneWidget);
+        final rect = tester.getRect(target);
+        expect(
+          bounds.contains(rect.topLeft) && bounds.contains(rect.bottomRight),
+          true,
+          reason: '$icon clipped at $width',
+        );
+      }
+      await tester.tap(find.byIcon(Icons.settings));
+      await tester.pump();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'Settings overflow at $width',
+      );
+      await tester.tap(find.byIcon(Icons.settings));
+      await tester.pump();
+      await tester.tap(find.text('1.0x'));
+      await tester.pump();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'Rate panel overflow at $width',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }
+  });
+
+  testWidgets('right side lock hides toolbar and unlock restores controls', (
+    tester,
+  ) async {
+    await tester.pumpWidget(player(width: 360));
+    await tester.tap(find.byIcon(Icons.lock_open));
+    await tester.pump();
+    expect(find.byIcon(Icons.settings), findsNothing);
+    expect(find.byIcon(Icons.lock), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.lock));
+    await tester.pump();
+    expect(find.byIcon(Icons.settings), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('fractional rate stays accurate in the common toolbar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(player());
+    await controller.setRate(1.25);
+    await tester.pump();
+    expect(find.text('1.25x'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

@@ -23,6 +23,7 @@ export interface ArtplayerUiConfig {
   showFullscreenButton?: boolean;
   showVolumeToolbar?: boolean;
   showSettingsButton?: boolean;
+  showLockButton?: boolean;
   pictureInPictureEnabled?: boolean;
   dismissControlTime?: number;
   videoTitle?: string;

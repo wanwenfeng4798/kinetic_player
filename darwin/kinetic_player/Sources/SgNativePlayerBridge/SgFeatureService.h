@@ -13,6 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithSession:(SGPlaybackSession *)session controls:(SGPlaybackControls *)controls surface:(SgFeatureView *)surface container:(SgFeatureView *)container;
 + (BOOL)handleBackgroundSession:(NSString *)identifier completion:(void (^)(void))completion;
 @property(nonatomic, copy, nullable) void (^eventHandler)(NSDictionary *event);
+- (void)setPresentationView:(SgFeatureView *)view;
 - (void)perform:(NSString *)operation arguments:(NSDictionary *)arguments completion:(void (^)(id _Nullable, NSError * _Nullable))completion;
 - (void)close;
 @end

@@ -15,6 +15,7 @@ struct SgUiConfig {
     let keepLastFrameWhenComplete: Bool
     /// Cover / poster image URL.
     let coverUrl: String?
+    let previewVttUrl: String?
     /// Initial playback rate from shared `KineticUiConfig.speed`.
     let speed: Float
     /// Initial looping from shared `KineticUiConfig.looping`.
@@ -27,7 +28,13 @@ struct SgUiConfig {
     var strings: [String: String]
 
     /// SGPlayer 2 provides native/sample-buffer PiP; availability depends on the host.
-    static var isPictureInPictureSupported: Bool { AVPictureInPictureController.isPictureInPictureSupported() }
+    static var isPictureInPictureSupported: Bool {
+#if os(macOS)
+        return true
+#else
+        return AVPictureInPictureController.isPictureInPictureSupported()
+#endif
+    }
 
     static let defaultAccentColor: Int = 0xFFFB7299
 
@@ -88,6 +95,7 @@ struct SgUiConfig {
             coverUrl:
                 ui?["coverUrl"] as? String
                 ?? params?["coverUrl"] as? String,
+            previewVttUrl: ui?["previewVttUrl"] as? String ?? params?["previewVttUrl"] as? String,
             speed: speedNumber?.floatValue ?? 1,
             looping:
                 ui?["looping"] as? Bool

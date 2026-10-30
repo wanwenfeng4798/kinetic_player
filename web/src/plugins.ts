@@ -86,7 +86,7 @@ function softStreamControl(
 function wrapHlsControl(
   option: Parameters<typeof artplayerPluginHlsControl>[0],
 ): PluginFactory {
-  const factory = artplayerPluginHlsControl(option);
+  const factory = artplayerPluginHlsControl({quality:{control:false,setting:true,...option.quality},audio:{control:false,setting:true,...option.audio}});
   return (art) => {
     const installed = factory(art) as NamedPlugin;
     return softStreamControl(art, installed, (a) => {
@@ -99,7 +99,7 @@ function wrapHlsControl(
 function wrapDashControl(
   option: Parameters<typeof artplayerPluginDashControl>[0],
 ): PluginFactory {
-  const factory = artplayerPluginDashControl(option);
+  const factory = artplayerPluginDashControl({quality:{control:false,setting:true,...option.quality},audio:{control:false,setting:true,...option.audio}});
   return (art) => {
     const installed = factory(art) as NamedPlugin;
     return softStreamControl(art, installed, (a) => {
@@ -170,6 +170,7 @@ export async function resolveArtPlugins(
     plugins.push(
       artplayerPluginDanmuku({
         danmuku: option['danmuku'] ?? [],
+        width: 0,
         ...option,
       } as Parameters<typeof artplayerPluginDanmuku>[0]),
     );

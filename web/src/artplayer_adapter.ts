@@ -1,3 +1,4 @@
+import { installPlayerChrome, updateChromeUi } from './player_chrome';
 import Artplayer, { type Option as ArtplayerOption } from 'artplayer';
 import { ART_PLUGIN_KEYS, getPluginInstance, resolveArtPlugins } from './plugins';
 import {
@@ -77,6 +78,7 @@ export class KineticArtplayerAdapter {
   private readonly config: KineticArtplayerConfig;
   private disposed = false;
   private chromeStyle: HTMLStyleElement | null = null;
+  private disposePlayerChrome?: () => void;
   private customTypeOverrides: CustomTypeMap | undefined;
   private lastPositionEmit = 0;
   private state: PlayerState = PlayerState.idle;
@@ -155,7 +157,7 @@ export class KineticArtplayerAdapter {
     const option: ArtplayerOption = {
       container: config.container,
       url,
-      poster: ui.coverUrl,
+      poster: ui.coverUrl ?? '',
       volume: 1,
       autoplay: config.autoPlay === true,
       muted: false,
@@ -200,6 +202,7 @@ export class KineticArtplayerAdapter {
     };
 
     this.art = new Artplayer(option);
+    this.disposePlayerChrome = installPlayerChrome(this.art, config.container, ui);
     if (typeof ui.speed === 'number' && ui.speed > 0) {
       this.art.playbackRate = ui.speed;
     }
@@ -613,6 +616,8 @@ export class KineticArtplayerAdapter {
 
   applyUiConfig(ui: KineticArtplayerConfig['ui']): void {
     if (!ui) return;
+    updateChromeUi(this.config.container, ui);
+    if (typeof ui.accentColor === 'number') this.art.theme = argbToCssHex(ui.accentColor);
     this.applyLocale(ui.locale, ui.strings);
     if (typeof ui.looping === 'boolean') this.setLooping(ui.looping);
     if (typeof ui.speed === 'number' && ui.speed > 0) {
@@ -690,6 +695,8 @@ export class KineticArtplayerAdapter {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.disposePlayerChrome?.();
+    this.disposePlayerChrome = undefined;
     this.chromeStyle?.remove();
     this.chromeStyle = null;
     this.config.container.classList.remove('kinetic-art-nocontrols');

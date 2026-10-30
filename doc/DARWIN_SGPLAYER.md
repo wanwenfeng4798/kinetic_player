@@ -24,7 +24,7 @@ final started = await controller.startPictureInPicture();
 await controller.stopPictureInPicture();
 ```
 
-PiP 受系统与宿主后台音频配置限制；返回 false 时读取 playerError。分段拼接仍走 FFmpeg，不能获得自动选核策略。
+iOS PiP 使用 AVKit，受系统与宿主后台音频配置限制；macOS 使用 SGPlayer 内的原生 AppKit 浮动面板（`pictureInPictureBackend=appKitPanel`、`systemPictureInPicture=false`）。返回 false 时读取 playerError。分段拼接仍走 FFmpeg，不能获得自动选核策略。
 
 ## UI 与平台差异
 
@@ -39,7 +39,7 @@ SGPlayer 2 没有暴露控制栏运行时语言、主题、单个按钮显隐的
 
 ## 验证边界
 
-本次仅执行静态检查和单元测试，不运行真机、模拟器或桌面播放器。明日手动检查：自动选核与失败回退、带鉴权请求头、拖动与倍速、音轨与循环、播放列表、原生设置、全屏恢复、PiP/后台返回、销毁重建。Windows/Linux 需在对应系统验证纹理、全屏与依赖安装，Web 检查浏览器 CORS/PiP。
+已有真机和 macOS 集成测试，具体已测项及当前阻塞见文末。Windows/Linux 仍需在对应系统验证纹理、全屏与依赖安装；浏览器测试通过不代表所有媒体跨域策略均可用。
 
 ## SGPlayer 2 原生功能接入清单（3.0.0）
 
@@ -55,10 +55,12 @@ SGPlayer 2 没有暴露控制栏运行时语言、主题、单个按钮显隐的
 | AVPlayer ABR、缓冲偏好、访问日志指标 | setNativePolicy / nativeMetrics |
 | 外挂/内嵌 SRT、WebVTT、ASS、位图、双字幕 | loadSubtitles / readSubtitles / subtitleTracks / selectSubtitle(secondary) / setSubtitleCues |
 | 字幕延时、位置、字体、大小、透明度、合成限制 | configureEffects |
-| 弹幕、水印、GIF 动画贴纸 | setDanmaku / setWatermarks / setSticker / removeSticker |
+| XML 弹幕、水印开关、GIF 动画贴纸 | loadDanmakuXml / setDanmaku / configureEffects(watermarksEnabled/danmakuEnabled) / setWatermarks / setSticker / removeSticker |
 | 灰度、亮度、对比度、饱和度、翻转、模糊、曲线、3D LUT、Bloom | setFilter；cubeText 可直接传入 .cube 文本 |
 | 独立图像效果合成、状态和缓存清理 | composeImage / effectsStatus / flushEffects |
-| 原生控制栏、锁定、内核调试选项、封面 | configureControls / revealControls / seekBy / setCover |
+| 原生控制栏、纯播放、锁定、封面、最后一帧、后台 PiP | configureControls(enabled/keepLastFrameWhenComplete/automaticPictureInPictureEnabled) / revealControls / seekBy / setCover |
+| 原生片头/中插/跳过广告，恢复正片位置和暂停状态 | playAdvertisement / scheduleAdvertisements / skipAdvertisement / advertisementStatus |
+| 原生进度条 WebVTT 精灵预览 | KineticUiConfig.previewVttUrl / loadTimelineSprites / timelinePreviewImage |
 | 同一播放器浮窗、窗口内全屏、还原 | showFloating / showFullscreenInWindow / restorePresentation / presentationMode |
 | 系统窗口全屏 | 公共 enterFullscreen / exitFullscreen / isFullscreen |
 | PiP 及恢复宿主界面 | startPictureInPicture / stopPictureInPicture；native.onRestorePictureInPicture |
@@ -69,7 +71,7 @@ SGPlayer 2 没有暴露控制栏运行时语言、主题、单个按钮显隐的
 | 长任务进度、结果、取消、释放历史记录 | jobStatus / cancelJob / removeJob；native.onEvent 接收完成事件 |
 | 传统 FFmpeg VR、视口、变调、分段组合、后台策略、视频轨 | 保留 SGVideoControllerImpl 已有 sg* 方法 |
 
-所有 `Duration` 参数在通道中统一为毫秒；`configureEffects` 对应 SDK 原始字段，例如 `subtitleOffset`、`stickerStart` 仍用秒。弹幕 map：`text/startMs/durationMs/mode`，mode 为滚动/顶部/底部的 0/1/2。水印 map：`text/imageURL/rect/opacity`，rect 为归一化 `x/y/width/height`。位图、水印及 GIF 贴纸文件须由宿主先下载到本地，避免主线程进行远程图像读取。
+所有 `Duration` 参数在通道中统一为毫秒；`configureEffects` 对应 SDK 原始字段，例如 `subtitleOffset`、`stickerStart` 仍用秒。弹幕 map：`text/startMs/durationMs/mode`，mode 为滚动/顶部/底部/反向的 0/1/2/3，可选 color（RGB 整数）与 fontSize。XML 文件支持常规滚动、固定顶部/底部和反向弹幕；B 站高级/代码弹幕（模式 7/8）不作为普通文字执行。水印 map：`text/imageURL/rect/opacity`，rect 为归一化 `x/y/width/height`。位图、水印及 GIF 贴纸文件须由宿主先下载到本地，避免主线程进行远程图像读取。
 
 ```dart
 final sg = controller as SGVideoControllerImpl;
@@ -100,3 +102,46 @@ HLS 下载仅在 SDK 的 hlsSupported 返回 true 时可用（iOS 18/macOS 14 �
 本机联调源使用 `/Users/mdw/Desktop/SGPlayer`。可通过环境变量 `KINETIC_PLAYER_SGPLAYER_LOCAL_ROOT`，或本机未跟踪文件 `darwin/sgplayer/.local-root` 指定路径。设置后 `ensure_sgplayer.sh` 只接入该目录的 `build/Package-iOS/Artifacts/SGPlayer.xcframework` 和 `build/Package-macOS/Artifacts/SGPlayer.xcframework`，不存在时直接失败，不回退下载 GitHub 产物。
 
 SGPlayer 的源码或打包缺陷应在 SGPlayer 项目修复，消费端不修补 Framework 内容。切换到本地产物后必须重新执行设备回归，旧发布包的测试结果不能作为新产物的验证结果。全部调试和验证完成后再上传 tag 产物。
+
+## 原生工具栏风格对齐
+
+iOS/macOS 的 SGPlaybackControls 已在 SGPlayer 源码项目中改为播放器底栏：黑色半透明背景、白色图标、粉色进度、播放/时间/进度/倍速/设置/音量/全屏顺序，锁定按钮位于右侧。高级原生操作通过设置菜单访问，音量有原生滑块弹层。窄窗口分为进度行和操作行，Apple 平台保留 AirPlay。插件继续直接使用 SG 原生控件，无 Flutter 覆盖工具栏。
+
+原生 AppKit 布局回归检查了 240/280/360/720/1280 五种宽度，并验证锁定和音量滑块；这些是窗口尺寸检查，不代表多台设备均已验收。iPhone/macOS 本地播放、列表及全屏集成回归已通过。
+
+
+## Apple 功能回归（本地产物）
+
+悬浮呈现保存并恢复原有 Auto Layout 约束，播放器与工具栏整体移动；恢复时同步完成嵌套视频布局，避免内部视图暂留画中画宽度。macOS 画中画使用 SGPlayer 内的 AppKit 原生浮动面板，移动同一个视频/工具栏/变换容器，按实际视频宽高比调整尺寸。它是应用管理的窗口，不是系统 AVKit PiP；iOS 继续使用 AVKit。对应修改位于本机 SGPlayer 源码。
+
+原生回归覆盖：XML 实体/颜色/方向、WebVTT 相对精灵路径及裁切与可见拖动预览、工具栏 240/280/360/720/1280 宽度、锁定/音量、比例/镜像/循环/截图/纯播放/封面/最后一帧、悬浮约束恢复、广告倒计时/跳过/中插只触发一次/失败恢复。最新 macOS 双内核生命周期回归验证反复开启/退出、播放进度、三种缩放模式、尺寸比例、布局恢复和最小化自动进入；锁屏下不执行像素检查。
+
+macOS 与 iPhone 应用集成回归覆盖本地播放、暂停、seek、截图、字幕、弹幕、WebVTT 预览、水印开关、纯播放、悬浮/恢复、广告跳过、列表与全屏。iPhone 还实际切换到后台验证自动 PiP 与继续播放。上述结果不代表所有网络媒体格式、所有尺寸设备，以及 Windows/Linux 目标系统已验收；发布上传仍待整体调试完成。
+
+
+```dart
+await sg.native.loadDanmakuXml(xmlUrl);
+await sg.native.loadTimelineSprites(previewVttUrl); // null 清除预览
+await sg.native.configureEffects({'watermarksEnabled': false});
+await sg.native.configureControls(enabled: false); // 外部入口传 true 恢复
+await sg.native.configureControls(
+  automaticPictureInPictureEnabled: true,
+  keepLastFrameWhenComplete: true,
+);
+await sg.native.playAdvertisement(adUrl,
+  fromBeginning: true, skipAfter: const Duration(seconds: 3));
+await sg.native.scheduleAdvertisements([
+  {'positionMs': 8000, 'url': adUrl, 'skipAfterMs': 3000},
+]);
+final skipped = await sg.native.skipAdvertisement(); // 未达到可跳过时间返回 false
+```
+
+广告 map 的 `positionMs`、`skipAfterMs` 都是毫秒；调度、倒计时、完成/失败恢复和暂停状态均由 SGPlayer 会话执行。
+
+
+当前验收限制：Mac 自动锁屏，最新浮动面板的可见边界检查尚待解锁后重跑 `scripts/test-pip-layout.py`；锁屏会返回 77。`--logic-only` 已分别通过原生/FFmpeg 内核的真实窗口生命周期测试，但不代表画面通过。iPhone 最新截图显示系统“无法验证 App”弹窗；尝试 UI 自动化时还要求设备密码，不能远程代输或绕过。临时自动化 Runner 已卸载，正常 App 已恢复，bundle id 仍为 `com.omnilink.fufucard`。需要系统验证完成后补跑最新 iPhone 界面/后台测试。此前通过的后台 PiP 结果不能替代最新构建验收。
+
+纯播放返回：macOS 原生工具栏入口保留 Escape 关闭呈现；iOS 宿主全屏提供左侧边缘右滑返回，退出纯播放可使用全屏外的公共按钮。
+
+
+最新本地交付状态：Apple 三个编译目标（macOS 通用、iOS 真机、iOS 模拟器）均编译成功；原生策略/工具栏回归通过；macOS 应用集成 2/2、Flutter 回归 32/32、静态分析通过。最新 iPhone 与 macOS 正常 release 演示入口 `lib/main.dart` 均构建成功，iPhone 已重新安装并尝试启动，截图仍显示上述系统验证阻塞；iOS bundle id 保持 `com.omnilink.fufucard`，应用版本 3.0.0。所有 Apple 产物来自本地 SGPlayer 目录；未上传 tag。Android 设备离线，当前轮未补跑其真机回归。

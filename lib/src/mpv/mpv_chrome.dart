@@ -401,7 +401,22 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, bounds) => _buildChrome(context, bounds),
+  );
+
+  Widget _buildChrome(BuildContext context, BoxConstraints bounds) {
+    final popupBottom = bounds.maxWidth < 560 ? 100.0 : 56.0;
+    Widget popup(Widget child) => ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: (bounds.maxWidth - 24).clamp(0, double.infinity),
+        maxHeight: (bounds.maxHeight - popupBottom - 8).clamp(
+          0,
+          double.infinity,
+        ),
+      ),
+      child: child,
+    );
     final watermark = _c.watermarkUrl.value;
     final purePlay = _c.purePlayMode.value;
     final showChrome = _config.enableNativeControls && !purePlay && !_locked;
@@ -495,44 +510,57 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                     ),
                   ),
                   Positioned(
-                    left: 8,
-                    right: 8,
-                    bottom: 8,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
                     child: _bottomBar(playing, accent),
                   ),
                   if (_volumeOpen && _config.showVolumeToolbar)
                     Positioned(
                       right: _config.showFullscreenButton ? 96 : 56,
-                      bottom: 56,
-                      child: _volumePopup(accent),
+                      bottom: popupBottom,
+                      child: popup(_volumePopup(accent)),
                     ),
                   if (_settingsOpen && _config.showSettingsButton)
                     Positioned(
                       right: 12,
-                      bottom: 56,
-                      child: _settingsPopup(accent),
+                      bottom: popupBottom,
+                      child: popup(_settingsPopup(accent)),
                     ),
                   if (_rateOpen)
                     Positioned(
                       right: _config.showFullscreenButton ? 48 : 8,
-                      bottom: 56,
-                      child: _ratePopup(accent),
+                      bottom: popupBottom,
+                      child: popup(_ratePopup(accent)),
                     ),
                   if (_qualityOpen)
                     Positioned(
                       right: 12,
-                      bottom: 56,
-                      child: _qualityPopup(accent),
+                      bottom: popupBottom,
+                      child: popup(_qualityPopup(accent)),
                     ),
                 ],
-                if (_locked && _config.showLockButton)
-                  Positioned(
-                    left: 12,
-                    top: 12,
-                    child: _barIcon(
-                      Icons.lock,
-                      'Unlock (L)',
-                      () => setState(() => _locked = false),
+                if (_config.enableNativeControls &&
+                    !purePlay &&
+                    _config.showLockButton &&
+                    (_locked || _controlsVisible))
+                  Positioned.fill(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 20),
+                        child: _barIcon(
+                          _locked ? Icons.lock : Icons.lock_open,
+                          _locked ? 'Unlock (L)' : 'Lock (L)',
+                          () => setState(() {
+                            _locked = !_locked;
+                            _volumeOpen = false;
+                            _settingsOpen = false;
+                            _rateOpen = false;
+                            _qualityOpen = false;
+                          }),
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -581,139 +609,145 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   }
 
   Widget _bottomBar(bool playing, Color accent) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ValueListenableBuilder<Duration>(
-          valueListenable: _c.position,
-          builder: (context, pos, _) {
-            final dur = _c.duration.value;
-            final max = dur.inMilliseconds <= 0
-                ? 1.0
-                : dur.inMilliseconds.toDouble();
-            final value = (_dragPosition ?? pos.inMilliseconds.toDouble())
-                .clamp(0, max)
-                .toDouble();
-            return SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 3,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                overlayShape: SliderComponentShape.noOverlay,
-                activeTrackColor: accent,
-                inactiveTrackColor: Colors.white24,
-                thumbColor: accent,
-              ),
-              child: Slider(
-                min: 0,
-                max: max,
-                value: value,
-                onChangeStart: (_) => _hideTimer?.cancel(),
-                onChanged: dur <= Duration.zero
-                    ? null
-                    : (v) => setState(() => _dragPosition = v),
-                onChangeEnd: (v) async {
-                  await _c.seekTo(Duration(milliseconds: v.round()));
-                  if (mounted) setState(() => _dragPosition = null);
-                  _scheduleHide();
-                },
-              ),
-            );
-          },
-        ),
-        LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: constraints.maxWidth < 640 ? 640 : constraints.maxWidth,
-              child: Row(
-                children: [
-                  _barIcon(
-                    playing ? Icons.pause : Icons.play_arrow,
-                    _t('kinetic_play_pause_icon'),
-                    _togglePlay,
+    Widget time(Duration value) => Text(
+      _fmt(value),
+      style: const TextStyle(color: Colors.white, fontSize: 12),
+    );
+    Widget timeline() => ValueListenableBuilder<Duration>(
+      valueListenable: _c.position,
+      builder: (context, pos, _) {
+        final duration = _c.duration.value;
+        final max = duration.inMilliseconds <= 0
+            ? 1.0
+            : duration.inMilliseconds.toDouble();
+        final value = (_dragPosition ?? pos.inMilliseconds.toDouble())
+            .clamp(0, max)
+            .toDouble();
+        return Row(
+          children: [
+            time(pos),
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 3,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 6,
                   ),
-                  ValueListenableBuilder<Duration>(
-                    valueListenable: _c.position,
-                    builder: (_, pos, _) => Text(
-                      '${_fmt(pos)} / ${_fmt(_c.duration.value)}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (_config.showVolumeToolbar)
-                    _barIcon(
-                      _muted || _volume <= 0
-                          ? Icons.volume_off
-                          : Icons.volume_up,
-                      _t('kinetic_volume_icon'),
-                      () {
-                        if (!mounted) return;
-                        setState(() {
-                          _volumeOpen = !_volumeOpen;
-                          _settingsOpen = false;
-                          _rateOpen = false;
-                          _qualityOpen = false;
-                        });
-                        _scheduleHide();
-                      },
-                    ),
-                  _barIcon(
-                    _c.subtitleEnabled.value
-                        ? Icons.subtitles
-                        : Icons.subtitles_off,
-                    _t('kinetic_subtitle_toggle'),
-                    _toggleSubtitle,
-                  ),
-                  _barIcon(
-                    Icons.high_quality,
-                    _t('kinetic_quality_icon'),
-                    _openQuality,
-                  ),
-                  _barIcon(Icons.speed, _t('kinetic_rate_icon'), () {
-                    if (!mounted) return;
-                    setState(() {
-                      _rateOpen = !_rateOpen;
-                      _volumeOpen = false;
-                      _settingsOpen = false;
-                      _qualityOpen = false;
-                    });
+                  overlayShape: SliderComponentShape.noOverlay,
+                  activeTrackColor: accent,
+                  inactiveTrackColor: Colors.white24,
+                  thumbColor: accent,
+                ),
+                child: Slider(
+                  min: 0,
+                  max: max,
+                  value: value,
+                  onChangeStart: (_) => _hideTimer?.cancel(),
+                  onChanged: duration <= Duration.zero
+                      ? null
+                      : (v) => setState(() => _dragPosition = v),
+                  onChangeEnd: (v) async {
+                    await _c.seekTo(Duration(milliseconds: v.round()));
+                    if (mounted) setState(() => _dragPosition = null);
                     _scheduleHide();
-                  }),
-                  if (_config.showSettingsButton)
-                    _barIcon(
-                      Icons.settings,
-                      _t('kinetic_settings_icon'),
-                      _openSettings,
-                    ),
-                  if (_config.showLockButton)
-                    _barIcon(
-                      Icons.lock_open,
-                      'Lock (L)',
-                      () => setState(() => _locked = true),
-                    ),
-                  if (_config.showFullscreenButton)
-                    _barIcon(
-                      _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                      _t('kinetic_fullscreen_icon'),
-                      _toggleFullscreen,
-                    ),
-                ],
+                  },
+                ),
               ),
             ),
+            time(duration),
+          ],
+        );
+      },
+    );
+    Widget play() => _barIcon(
+      playing ? Icons.pause : Icons.play_arrow,
+      _t('kinetic_play_pause_icon'),
+      _togglePlay,
+    );
+    List<Widget> actions() => [
+      SizedBox(
+        width: 44,
+        height: 44,
+        child: TextButton(
+          style: TextButton.styleFrom(
+            minimumSize: const Size(44, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+          ),
+          onPressed: () {
+            setState(() {
+              _rateOpen = !_rateOpen;
+              _volumeOpen = false;
+              _settingsOpen = false;
+              _qualityOpen = false;
+            });
+            _scheduleHide();
+          },
+          child: Text(
+            '${_rate.toStringAsFixed((_rate * 10).roundToDouble() == _rate * 10 ? 1 : 2)}x',
+            style: const TextStyle(color: Colors.white, fontSize: 12),
           ),
         ),
-      ],
+      ),
+      if (_config.showSettingsButton)
+        _barIcon(Icons.settings, _t('kinetic_settings_icon'), _openSettings),
+      if (_config.showVolumeToolbar)
+        _barIcon(
+          _muted || _volume <= 0 ? Icons.volume_off : Icons.volume_up,
+          _t('kinetic_volume_icon'),
+          () {
+            setState(() {
+              _volumeOpen = !_volumeOpen;
+              _settingsOpen = false;
+              _rateOpen = false;
+              _qualityOpen = false;
+            });
+            _scheduleHide();
+          },
+        ),
+      if (_config.showFullscreenButton)
+        _barIcon(
+          _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+          _t('kinetic_fullscreen_icon'),
+          _toggleFullscreen,
+        ),
+    ];
+    return ColoredBox(
+      color: const Color(0x99000000),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: LayoutBuilder(
+          builder: (context, box) => box.maxWidth < 544
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(height: 44, child: timeline()),
+                    Row(children: [play(), const Spacer(), ...actions()]),
+                  ],
+                )
+              : Row(
+                  children: [
+                    play(),
+                    Expanded(child: timeline()),
+                    ...actions(),
+                  ],
+                ),
+        ),
+      ),
     );
   }
 
   Widget _barIcon(IconData icon, String tooltip, VoidCallback onPressed) {
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon, color: Colors.white, size: 22),
-      iconSize: 36,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon, color: Colors.white, size: 22),
+        iconSize: 36,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      ),
     );
   }
 
@@ -780,23 +814,27 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
 
   Widget _ratePopup(Color accent) {
     return _panel(
-      Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _t('kinetic_rate_title'),
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-          for (final rate in _rates)
-            TextButton(
-              onPressed: () => _setRate(rate),
-              child: Text(
-                '${rate}x',
-                style: TextStyle(color: _rate == rate ? accent : Colors.white),
-              ),
+      SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _t('kinetic_rate_title'),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
-        ],
+            for (final rate in _rates)
+              TextButton(
+                onPressed: () => _setRate(rate),
+                child: Text(
+                  '${rate}x',
+                  style: TextStyle(
+                    color: _rate == rate ? accent : Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -824,6 +862,22 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               const SizedBox(height: 8),
+              if (!_settingsMore) ...[
+                TextButton(
+                  onPressed: _toggleSubtitle,
+                  child: Text(
+                    _t('kinetic_subtitle_toggle'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _openQuality,
+                  child: Text(
+                    _t('kinetic_quality_icon'),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
               if (_settingsMore) ...[
                 Text(
                   _t('kinetic_settings_playback_mode'),
@@ -966,36 +1020,40 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
 
   Widget _qualityPopup(Color accent) {
     return _panel(
-      Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _t('kinetic_quality_title'),
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-          TextButton(
-            onPressed: () => _selectVideoTrack(-1),
-            child: Text(
-              _t('kinetic_quality_auto'),
-              style: TextStyle(
-                color: _videoTracks.every((t) => !t.selected)
-                    ? accent
-                    : Colors.white,
-              ),
+      SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _t('kinetic_quality_title'),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
-          ),
-          for (final track in _videoTracks)
             TextButton(
-              onPressed: () => _selectVideoTrack(track.index),
+              onPressed: () => _selectVideoTrack(-1),
               child: Text(
-                _ellipsis(
-                  track.label.isEmpty ? '#${track.index}' : track.label,
+                _t('kinetic_quality_auto'),
+                style: TextStyle(
+                  color: _videoTracks.every((t) => !t.selected)
+                      ? accent
+                      : Colors.white,
                 ),
-                style: TextStyle(color: track.selected ? accent : Colors.white),
               ),
             ),
-        ],
+            for (final track in _videoTracks)
+              TextButton(
+                onPressed: () => _selectVideoTrack(track.index),
+                child: Text(
+                  _ellipsis(
+                    track.label.isEmpty ? '#${track.index}' : track.label,
+                  ),
+                  style: TextStyle(
+                    color: track.selected ? accent : Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

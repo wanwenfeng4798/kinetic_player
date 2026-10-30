@@ -91,6 +91,22 @@ class SgNativeFeatures {
       }) ??
       false;
   Future<void> clearLoopRange() => call<void>('session.clearLoop');
+  Future<bool> playAdvertisement(
+    String url, {
+    Duration skipAfter = const Duration(seconds: 3),
+    bool fromBeginning = false,
+  }) async =>
+      await call<bool>('ads.play', {
+        'url': url,
+        'fromBeginning': fromBeginning,
+        'skipAfterMs': skipAfter.inMilliseconds,
+      }) ??
+      false;
+  Future<void> scheduleAdvertisements(List<Map<String, Object?>> items) =>
+      call<void>('ads.schedule', {'items': items});
+  Future<bool> skipAdvertisement() async =>
+      await call<bool>('ads.skip') ?? false;
+  Future<Map<Object?, Object?>> advertisementStatus() => _map('ads.status');
   Future<void> retry() => call<void>('session.retry');
   Future<void> saveResumePosition() => call<void>('session.saveResume');
   Future<Map<Object?, Object?>> diagnostics() => _map('session.diagnostics');
@@ -150,6 +166,8 @@ class SgNativeFeatures {
       call<void>('effects.filter', options);
   Future<void> setSubtitleCues(List<Map<String, Object?>> cues) =>
       call<void>('effects.subtitles', {'cues': cues});
+  Future<int> loadDanmakuXml(String url) async =>
+      await call<int>('effects.danmakuLoad', {'url': url}) ?? 0;
   Future<void> setDanmaku(List<Map<String, Object?>> items) =>
       call<void>('effects.danmaku', {'items': items});
   Future<void> setWatermarks(List<Map<String, Object?>> items) =>
@@ -163,15 +181,27 @@ class SgNativeFeatures {
   Future<void> flushEffects() => call<void>('effects.flush');
   Future<Map<Object?, Object?>> effectsStatus() => _map('effects.status');
   Future<void> configureControls({
+    bool? enabled,
+    bool? keepLastFrameWhenComplete,
+    bool? automaticPictureInPictureEnabled,
     bool? locked,
     bool? showsKernelSelection,
     Duration? autoHideInterval,
   }) => call<void>('controls.configure', {
+    'enabled': ?enabled,
+    'keepLastFrameWhenComplete': ?keepLastFrameWhenComplete,
+    'automaticPictureInPictureEnabled': ?automaticPictureInPictureEnabled,
     'locked': ?locked,
     'showsKernelSelection': ?showsKernelSelection,
     if (autoHideInterval != null)
       'autoHideInterval': autoHideInterval.inMilliseconds / 1000,
   });
+  Future<void> loadTimelineSprites(String? url) =>
+      call<void>('controls.preview.load', {'url': ?url});
+  Future<Uint8List?> timelinePreviewImage(Duration time) => call<Uint8List>(
+    'controls.preview.image',
+    {'timeMs': time.inMilliseconds},
+  );
   Future<void> revealControls() => call<void>('controls.reveal');
   Future<bool> seekBy(Duration offset) async =>
       await call<bool>('controls.seekBy', {

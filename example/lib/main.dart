@@ -324,7 +324,7 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
     _DemoMedia.prepareSources()
         .then((_) async {
           String? preview;
-          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          if (!kIsWeb) {
             preview = await _DemoMedia.preparePreviewVttUri();
           }
           if (mounted) {
@@ -509,6 +509,8 @@ class _ControlPanelState extends State<_ControlPanel> {
   String? _danmakuXmlUri;
   bool _watermarkEnabled = false;
   bool _purePlay = false;
+  bool _automaticPip = true;
+  final _overlayUrlController = TextEditingController();
   bool _gifRecording = false;
   Uint8List? _lastCaptureBytes;
   String? _lastGifPath;
@@ -518,7 +520,7 @@ class _ControlPanelState extends State<_ControlPanel> {
   bool _coverEnabled = true;
   GsyRenderCore _selectedRenderCore = GsyRenderCore.ijk;
   final TextEditingController _subtitleTextController = TextEditingController(
-    text: 'Hello from Flutter — gsySetEmbeddedSubtitleText',
+    text: 'Hello subtitles!',
   );
   final TextEditingController _danmakuTextController = TextEditingController(
     text: 'Hello Danmaku!',
@@ -529,7 +531,7 @@ class _ControlPanelState extends State<_ControlPanel> {
     super.initState();
     _bindScreenshotCallback(widget.controller);
     _loadFilters();
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    if (!kIsWeb) {
       _DemoMedia.prepareSubtitleVttUri().then((uri) {
         if (mounted) setState(() => _subtitleVttUri = uri);
       });
@@ -542,6 +544,7 @@ class _ControlPanelState extends State<_ControlPanel> {
   @override
   void dispose() {
     widget.controller?.onScreenshotCaptured = null;
+    _overlayUrlController.dispose();
     _subtitleTextController.dispose();
     _danmakuTextController.dispose();
     super.dispose();
@@ -632,16 +635,93 @@ class _ControlPanelState extends State<_ControlPanel> {
     }
   }
 
-  Future<void> _loadWebVttSubtitles(GSYVideoControllerImpl gsy) async {
+  Future<void> _loadOverlaySource(
+    CommonVideoController player, {
+    required bool danmaku,
+    bool preview = false,
+  }) async {
+    final input = _overlayUrlController;
+    input.clear();
+    final url = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          preview
+              ? '加载预览 WebVTT'
+              : danmaku
+              ? '加载弹幕 XML'
+              : '加载字幕',
+        ),
+        content: TextField(
+          controller: input,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: '网络 URL 或本地文件路径'),
+          onSubmitted: (value) => Navigator.pop(context, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, input.text.trim()),
+            child: const Text('加载'),
+          ),
+        ],
+      ),
+    );
+    if (url == null || url.isEmpty) return;
+    final source = Uri.tryParse(url)?.hasScheme == true
+        ? url
+        : Uri.file(url).toString();
+    try {
+      if (preview && player is SGVideoControllerImpl) {
+        await player.native.loadTimelineSprites(source);
+      } else if (preview && player is GSYVideoControllerImpl) {
+        await player.gsySetPreviewVttUrl(source);
+      } else if (danmaku && player is SGVideoControllerImpl) {
+        await player.native.loadDanmakuXml(source);
+      } else if (danmaku && player is GSYVideoControllerImpl) {
+        await player.gsySetDanmakuUrl(source);
+        await player.gsyToggleDanmaku(enabled: true);
+      } else {
+        await player.setSubtitleSource(source);
+        await player.setSubtitlesEnabled(true);
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('加载失败：$error')));
+      }
+    }
+  }
+
+  Future<void> _loadWebVttSubtitles(CommonVideoController gsy) async {
     final uri = _subtitleVttUri ?? await _DemoMedia.prepareSubtitleVttUri();
     if (!mounted) return;
     setState(() => _subtitleVttUri = uri);
-    await gsy.gsySetSubtitleUrl(uri, mimeType: 'text/vtt');
-    await gsy.gsySetSubtitleEnabled(enabled: true);
+    await gsy.setSubtitleSource(uri, mimeType: 'text/vtt');
+    await gsy.setSubtitlesEnabled(true);
   }
 
-  Future<void> _sendEmbeddedSubtitle(GSYVideoControllerImpl gsy) async {
+  Future<void> _sendEmbeddedSubtitle(CommonVideoController gsy) async {
     final text = _subtitleTextController.text.trim();
+    if (gsy is SGVideoControllerImpl) {
+      await gsy.native.setSubtitleCues(
+        text.isEmpty
+            ? []
+            : [
+                {
+                  'startMs': gsy.position.value.inMilliseconds,
+                  'durationMs': 5000,
+                  'text': text,
+                },
+              ],
+      );
+      await gsy.setSubtitlesEnabled(text.isNotEmpty);
+      return;
+    }
+    if (gsy is! GSYVideoControllerImpl) return;
     if (text.isEmpty) {
       await gsy.gsySetEmbeddedSubtitleText(null);
     } else {
@@ -650,50 +730,106 @@ class _ControlPanelState extends State<_ControlPanel> {
     await gsy.gsySetSubtitleEnabled(enabled: true);
   }
 
-  Future<void> _clearSubtitles(GSYVideoControllerImpl gsy) async {
+  Future<void> _clearSubtitles(CommonVideoController gsy) async {
+    if (gsy is SGVideoControllerImpl) {
+      await gsy.native.setSubtitleCues([]);
+      await gsy.setSubtitlesEnabled(false);
+      return;
+    }
+    if (gsy is! GSYVideoControllerImpl) return;
     await gsy.gsySetEmbeddedSubtitleText(null);
     await gsy.gsySetSubtitleEnabled(enabled: false);
   }
 
-  Future<void> _loadDemoDanmaku(GSYVideoControllerImpl gsy) async {
+  Future<void> _loadDemoDanmaku(CommonVideoController gsy) async {
     final uri = await _DemoMedia.prepareDanmakuXmlUri();
     if (!mounted) return;
     setState(() => _danmakuXmlUri = uri);
-    await gsy.gsySetDanmakuUrl(uri);
-    await gsy.gsyToggleDanmaku(enabled: true);
+    if (gsy is SGVideoControllerImpl) {
+      await gsy.native.loadDanmakuXml(uri);
+      return;
+    }
+    if (gsy is GSYVideoControllerImpl) {
+      await gsy.gsySetDanmakuUrl(uri);
+      await gsy.gsyToggleDanmaku(enabled: true);
+    }
   }
 
-  Future<void> _toggleWatermark(GSYVideoControllerImpl gsy) async {
-    final next = !_watermarkEnabled;
-    await gsy.gsySetWatermarkUrl(next ? _DemoMedia.coverUrl : null);
+  Future<void> _toggleWatermark(CommonVideoController gsy) async {
+    final status = gsy is SGVideoControllerImpl
+        ? await gsy.native.effectsStatus()
+        : null;
+    final next = status == null
+        ? !_watermarkEnabled
+        : !(status['watermarksEnabled'] == true &&
+              (status['watermarkCount'] as num? ?? 0) > 0);
+    if (gsy is SGVideoControllerImpl) {
+      await gsy.native.setWatermarks(
+        next
+            ? [
+                {
+                  'imageURL': _DemoMedia.coverUrl,
+                  'rect': {'x': 0.65, 'y': 0.08, 'width': 0.3, 'height': 0.12},
+                  'opacity': 0.85,
+                },
+              ]
+            : [],
+      );
+    } else if (gsy is GSYVideoControllerImpl) {
+      await gsy.gsySetWatermarkUrl(next ? _DemoMedia.coverUrl : null);
+    }
     if (mounted) setState(() => _watermarkEnabled = next);
   }
 
-  Future<void> _togglePurePlay(GSYVideoControllerImpl gsy) async {
-    final next = !_purePlay;
-    await gsy.gsySetPurePlayMode(enabled: next);
+  Future<void> _togglePurePlay(CommonVideoController gsy) async {
+    final next = gsy is SGVideoControllerImpl
+        ? ((await gsy.native.call<Map>('controls.status'))?['enabled'] == true)
+        : !_purePlay;
+    if (gsy is SGVideoControllerImpl) {
+      await gsy.native.configureControls(enabled: !next);
+    } else if (gsy is GSYVideoControllerImpl) {
+      await gsy.gsySetPurePlayMode(enabled: next);
+    }
     if (mounted) setState(() => _purePlay = next);
   }
 
-  Future<void> _playPreRollAd(GSYVideoControllerImpl gsy) async {
+  Future<void> _playPreRollAd(CommonVideoController gsy) async {
     final messenger = ScaffoldMessenger.of(context);
-    await gsy.gsyPlayWithPreRollAd(
-      adUrl: _DemoMedia.sources[1].url,
-      contentUrl: widget.selectedSource.url,
-      skipAfter: const Duration(seconds: 3),
-    );
+    if (gsy is SGVideoControllerImpl) {
+      final ok = await gsy.native.playAdvertisement(
+        _DemoMedia.sources[1].url,
+        fromBeginning: true,
+      );
+      if (!ok) return;
+    } else if (gsy is GSYVideoControllerImpl) {
+      await gsy.gsyPlayWithPreRollAd(
+        adUrl: _DemoMedia.sources[1].url,
+        contentUrl: widget.selectedSource.url,
+        skipAfter: const Duration(seconds: 3),
+      );
+    }
     if (!mounted) return;
     messenger.showSnackBar(const SnackBar(content: Text('片头广告：约 3 秒后可跳过')));
   }
 
-  Future<void> _armMidRollAds(GSYVideoControllerImpl gsy) async {
-    await gsy.gsySetMidRollAds([
-      {
-        'positionMs': 8000,
-        'adUrl': _DemoMedia.sources[1].url,
-        'contentUrl': widget.selectedSource.url,
-      },
-    ]);
+  Future<void> _armMidRollAds(CommonVideoController gsy) async {
+    if (gsy is SGVideoControllerImpl) {
+      await gsy.native.scheduleAdvertisements([
+        {
+          'positionMs': 8000,
+          'url': _DemoMedia.sources[1].url,
+          'skipAfterMs': 3000,
+        },
+      ]);
+    } else if (gsy is GSYVideoControllerImpl) {
+      await gsy.gsySetMidRollAds([
+        {
+          'positionMs': 8000,
+          'adUrl': _DemoMedia.sources[1].url,
+          'contentUrl': widget.selectedSource.url,
+        },
+      ]);
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('已设置中插：约 8s 触发广告')));
@@ -737,8 +873,13 @@ class _ControlPanelState extends State<_ControlPanel> {
   }
 
   Future<void> _toggleKeepLastFrame() async {
-    final next = !_keepLastFrame;
     final controller = widget.controller;
+    final next = controller is SGVideoControllerImpl
+        ? ((await controller.native.call<Map>(
+                'controls.status',
+              ))?['keepLastFrameWhenComplete'] !=
+              true)
+        : !_keepLastFrame;
     if (controller is GSYVideoControllerImpl) {
       await controller.gsySetKeepLastFrameWhenComplete(enabled: next);
     } else if (controller is SGVideoControllerImpl) {
@@ -752,9 +893,14 @@ class _ControlPanelState extends State<_ControlPanel> {
   }
 
   Future<void> _toggleCover() async {
-    final next = !_coverEnabled;
-    final url = next ? _DemoMedia.coverUrl : null;
     final controller = widget.controller;
+    final next = controller is SGVideoControllerImpl
+        ? ((await controller.native.call<Map>(
+                'controls.status',
+              ))?['coverEnabled'] !=
+              true)
+        : !_coverEnabled;
+    final url = next ? _DemoMedia.coverUrl : null;
     if (controller == null) return;
     await controller.setCoverUrl(url);
     if (mounted) setState(() => _coverEnabled = next);
@@ -956,7 +1102,7 @@ class _ControlPanelState extends State<_ControlPanel> {
               ],
             ),
           ],
-          if (isAndroidGsy) ...[
+          if (isAndroidGsy || isAppleSg) ...[
             const SizedBox(height: 12),
             const Text('字幕', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
@@ -975,24 +1121,47 @@ class _ControlPanelState extends State<_ControlPanel> {
               runSpacing: 8,
               children: [
                 FilledButton.tonal(
+                  onPressed: () => _loadOverlaySource(active!, danmaku: false),
+                  child: const Text('加载字幕文件 / URL'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _loadOverlaySource(
+                    active!,
+                    danmaku: false,
+                    preview: true,
+                  ),
+                  child: const Text('加载预览 WebVTT'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    if (active is SGVideoControllerImpl) {
+                      await active.native.loadTimelineSprites(null);
+                    } else if (active is GSYVideoControllerImpl) {
+                      await active.gsySetPreviewVttUrl(null);
+                    }
+                  },
+                  child: const Text('关闭预览'),
+                ),
+
+                FilledButton.tonal(
                   onPressed: _subtitleVttUri == null
                       ? null
-                      : () => _loadWebVttSubtitles(active),
+                      : () => _loadWebVttSubtitles(active!),
                   child: const Text('加载 WebVTT'),
                 ),
                 FilledButton.tonal(
-                  onPressed: () => _sendEmbeddedSubtitle(active),
+                  onPressed: () => _sendEmbeddedSubtitle(active!),
                   child: const Text('推送字幕文本'),
                 ),
                 FilledButton.tonal(
-                  onPressed: () => _clearSubtitles(active),
+                  onPressed: () => _clearSubtitles(active!),
                   child: const Text('清除字幕'),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             const Text(
-              '开关字幕请用底栏 CC 图标。「加载 WebVTT」挂外挂轨；「推送字幕文本」走 gsySetEmbeddedSubtitleText。',
+              '在原生设置中选择字幕轨；支持加载 WebVTT 和推送临时字幕。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 12),
@@ -1003,9 +1172,13 @@ class _ControlPanelState extends State<_ControlPanel> {
               runSpacing: 8,
               children: [
                 FilledButton.tonal(
+                  onPressed: () => _loadOverlaySource(active!, danmaku: true),
+                  child: const Text('加载弹幕文件 / URL'),
+                ),
+                FilledButton.tonal(
                   onPressed: _danmakuXmlUri == null
                       ? null
-                      : () => _loadDemoDanmaku(active),
+                      : () => _loadDemoDanmaku(active!),
                   child: const Text('加载弹幕 XML'),
                 ),
               ],
@@ -1015,9 +1188,105 @@ class _ControlPanelState extends State<_ControlPanel> {
               '开关 / 发送弹幕请用底栏弹幕图标与输入框。此处仅演示加载 B 站 XML。',
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
+          ],
+          if (isAndroidGsy || isAppleSg) ...[
+            const SizedBox(height: 12),
+            const Text('播放显示', style: TextStyle(fontWeight: FontWeight.w600)),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: () => _toggleWatermark(active!),
+                  child: Text(_watermarkEnabled ? '水印: 开' : '水印: 关'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _togglePurePlay(active!),
+                  child: Text(_purePlay ? '纯播放: 开' : '纯播放: 关'),
+                ),
+              ],
+            ),
+          ],
+          if (isAndroidGsy || isAppleSg) ...[
+            const SizedBox(height: 12),
+            const Text('广告', style: TextStyle(fontWeight: FontWeight.w600)),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: () => _playPreRollAd(active!),
+                  child: const Text('片头广告'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _armMidRollAds(active!),
+                  child: const Text('设置中插(8s)'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    if (active is SGVideoControllerImpl) {
+                      final ok = await active.native.skipAdvertisement();
+                      if (!ok && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('尚未达到可跳过时间，或当前没有广告')),
+                        );
+                      }
+                    } else if (active is GSYVideoControllerImpl) {
+                      await active.gsySkipAd();
+                    }
+                  },
+                  child: const Text('跳过广告'),
+                ),
+              ],
+            ),
+          ],
+          if (active is SGVideoControllerImpl) ...[
             const SizedBox(height: 12),
             const Text(
-              'Android · 水印 / 广告 / GIF / 其它',
+              '窗口 / 画中画',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: () => active.native.showFloating(),
+                  child: const Text('悬浮播放'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.native.restorePresentation(),
+                  child: const Text('恢复播放窗口'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.startPictureInPicture(),
+                  child: const Text('画中画'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => active.stopPictureInPicture(),
+                  child: const Text('退出画中画'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    final current = await active.native.call<Map>(
+                      'controls.status',
+                    );
+                    final next =
+                        current?['automaticPictureInPictureEnabled'] != true;
+                    await active.native.configureControls(
+                      automaticPictureInPictureEnabled: next,
+                    );
+                    if (mounted) setState(() => _automaticPip = next);
+                  },
+                  child: Text(_automaticPip ? '后台画中画: 开' : '后台画中画: 关'),
+                ),
+              ],
+            ),
+          ],
+          if (isAndroidGsy) ...[
+            const SizedBox(height: 12),
+            const Text(
+              '广告 / GIF / 其它',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
@@ -1025,26 +1294,6 @@ class _ControlPanelState extends State<_ControlPanel> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                FilledButton.tonal(
-                  onPressed: () => _toggleWatermark(active),
-                  child: Text(_watermarkEnabled ? '水印: 开' : '水印: 关'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _togglePurePlay(active),
-                  child: Text(_purePlay ? '纯播放: 开' : '纯播放: 关'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _playPreRollAd(active),
-                  child: const Text('片头广告'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => _armMidRollAds(active),
-                  child: const Text('设置中插(8s)'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => active.gsySkipAd(),
-                  child: const Text('跳过广告'),
-                ),
                 FilledButton.tonal(
                   onPressed: () => _toggleGif(active),
                   child: Text(_gifRecording ? '停止 GIF' : '开始 GIF'),
@@ -1378,9 +1627,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                   child: Text(_coverEnabled ? '封面: 开' : '封面: 关'),
                 ),
                 FilledButton.tonal(
-                  onPressed: active is SGVideoControllerImpl
-                      ? null
-                      : _toggleKeepLastFrame,
+                  onPressed: _toggleKeepLastFrame,
                   child: Text(_keepLastFrame ? '保留最后一帧: 开' : '保留最后一帧: 关'),
                 ),
               ],

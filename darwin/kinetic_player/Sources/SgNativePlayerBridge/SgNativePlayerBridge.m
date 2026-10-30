@@ -98,8 +98,9 @@
   return self;
 }
 - (SgPlatformView *)view { return self.containerView; }
+- (void)setPresentationView:(SgPlatformView *)view { [self.features setPresentationView:view]; }
 - (void)configureControls:(BOOL)enabled autoHide:(double)seconds fullscreen:(void (^)(void))fullscreen {
-  self.controls.hidden = !enabled;
+  self.controls.controlsEnabled = enabled;
 #if TARGET_OS_OSX
   [self.controls attachKeyboardToView:enabled ? self.surface : nil];
 #else
@@ -108,6 +109,7 @@
   self.controls.autoHideInterval = seconds;
   __weak typeof(self) weakSelf = self;
   self.controls.toggleFullScreen = ^{
+    [weakSelf.controller stopPictureInPicture];
     [weakSelf.features perform:@"presentation.restore" arguments:@{} completion:^(id result, NSError *error) { fullscreen(); }];
   };
 }
@@ -187,6 +189,7 @@
 - (void)setDismissFullscreenHandler:(void (^)(void))handler {
   __weak typeof(self) weakSelf = self;
   self.controls.dismissPresentation = ^{
+    [weakSelf.controller stopPictureInPicture];
     [weakSelf.features perform:@"presentation.restore" arguments:@{} completion:^(id result, NSError *error) { handler(); }];
   };
 }
@@ -443,22 +446,7 @@
 
 - (void)setRenderMode:(NSInteger)mode {
   _renderMode = mode;
-  for (CALayer *layer in self.surface.layer.sublayers) {
-    if ([layer isKindOfClass:AVSampleBufferDisplayLayer.class]) {
-      ((AVSampleBufferDisplayLayer *)layer).videoGravity = mode == 0 ? AVLayerVideoGravityResizeAspect : mode == 1 ? AVLayerVideoGravityResizeAspectFill : AVLayerVideoGravityResize;
-    }
-  }
-  switch (mode) {
-    case 0:
-      self.player.videoRenderer.scalingMode = SGScalingModeResizeAspect;
-      break;
-    case 1:
-      self.player.videoRenderer.scalingMode = SGScalingModeResizeAspectFill;
-      break;
-    default:
-      self.player.videoRenderer.scalingMode = SGScalingModeResize;
-      break;
-  }
+  self.controller.videoGravity = mode == 0 ? AVLayerVideoGravityResizeAspect : mode == 1 ? AVLayerVideoGravityResizeAspectFill : AVLayerVideoGravityResize;
 }
 
 - (void)setDisplayMode:(NSInteger)mode {

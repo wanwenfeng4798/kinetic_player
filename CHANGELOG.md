@@ -1,5 +1,7 @@
 ## 3.0.0
 
+- Fix Apple floating layout and macOS PiP edge gaps/cropping; add native XML danmaku, WebVTT scrub previews, ad scheduling, shared settings and verified automatic PiP on iPhone/macOS.
+- Align Web and Windows/Linux common toolbar styling with native players; add width/lock/panel and real Chrome plugin-combination checks, and fix initialization without a poster.
 - Refresh material_ui to ^1.8.0, web to ^1.1.2 and hls.js to 1.7.4; add device playback/fullscreen tests and fix native state forwarding, fullscreen exit and SPM lifecycle exports.
 - Add the full SGPlayer 2 high-level feature adapter, native task/HLS/PiP lifecycle, bundled fonts, shared typed Flutter config/actions, native GSY playlists, and desktop UI/keyboard/state regression fixes.
 - Pin iOS/macOS to official SGPlayer v2.0.0 release archives and checksums; minimum iOS 15 / macOS 12.
@@ -7,7 +9,7 @@
 - Expose native PiP and session diagnostics through SGVideoControllerImpl.
 - Support nested release archives, versioned caches and explicit source-build fallback. SwiftPM requires the documented preparation step before first resolution.
 - Keep GSY native playback on Android and independent libmpv/Artplayer UI on Windows/Linux/Web. Document platform/UI differences and Darwin localization limits.
-- Validate without launching devices or simulators; runtime playback remains for manual verification.
+- Run selected core regressions on Android, iPhone and macOS; Windows/Linux native window, driver and decoder validation still requires target systems.
 
 ## 2.1.2
 

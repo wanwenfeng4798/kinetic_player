@@ -44,6 +44,12 @@ final class SgVideoPlatformView: NSObject {
         super.init()
 
         channelCallbacks.attach(host: self)
+#if os(iOS)
+        fullscreenPresenter.didExit = { [weak self] in
+            self?.forceContainerLayout()
+            self?.player.applyRenderTransform()
+        }
+#endif
         player.setDismissFullscreenHandler { [weak self] in
             guard let self, self.fullscreenPresenter.isFullscreen else { return }
             self.fullscreenPresenter.exitFullscreen()
@@ -93,6 +99,7 @@ final class SgVideoPlatformView: NSObject {
         } else if let url = params?["url"] as? String, !url.isEmpty {
             player.switchVideoSource(url, autoPlay: autoPlay)
         }
+        applyNativeControlPolicy(uiConfig)
         player.setLooping(uiConfig.looping)
         if abs(uiConfig.speed - 1) > 0.001 {
             player.setRate(Double(uiConfig.speed))
@@ -130,6 +137,21 @@ final class SgVideoPlatformView: NSObject {
     func onPlayerStateChanged(_ state: CommonPlayerState) {
         latestState = state
         isPlaying = state == .playing
+    }
+
+    private func applyNativeControlPolicy(_ ui: SgUiConfig) {
+        player.performOperation("controls.configure", arguments: [
+            "enabled": ui.enableNativeControls,
+            "previewVttUrl": ui.previewVttUrl as Any? ?? NSNull(),
+            "keepLastFrameWhenComplete": ui.keepLastFrameWhenComplete,
+            "automaticPictureInPictureEnabled": ui.pictureInPictureEnabled,
+            "showVolumeToolbar": ui.showVolumeToolbar,
+            "showSettingsButton": ui.showSettingsButton,
+            "showFullscreenButton": ui.showFullscreenButton,
+            "showLockButton": ui.showLockButton,
+        ]) { _, error in
+            if let error { NSLog("SGPlayer control policy: %@", error.localizedDescription) }
+        }
     }
 
     private func setPlaylist(_ urls: [String], startIndex: Int, autoPlay: Bool) {
@@ -250,8 +272,10 @@ final class SgVideoPlatformView: NSObject {
             player.setLooping(config.looping)
             player.setCoverUrl(config.coverUrl)
             keepLastFrameWhenComplete = config.keepLastFrameWhenComplete
+            applyNativeControlPolicy(config)
             result(nil)
         case "sgEnterFullscreen", "sgStartFullscreen":
+            player.stopPictureInPicture()
             if !fullscreenPresenter.isFullscreen {
                 fullscreenPresenter.enterFullscreen(container: container)
                 forceContainerLayout()
@@ -344,7 +368,11 @@ final class SgVideoPlatformView: NSObject {
             player.setMirrorVertical(enabled: enabled)
             result(nil)
         case "sgSetKeepLastFrameWhenComplete":
-            result(FlutterError(code: "UNSUPPORTED", message: "Completion cover policy belongs to SGPlayer native controls", details: nil))
+            let enabled = (call.arguments as? [String: Any])?["enabled"] as? Bool ?? false
+            player.performOperation("controls.configure", arguments: ["keepLastFrameWhenComplete": enabled]) { _, error in
+                if let error { result(FlutterError(code: "SG_CONTROLS", message: error.localizedDescription, details: nil)) }
+                else { self.keepLastFrameWhenComplete = enabled; result(nil) }
+            }
         case "sgSetCoverUrl":
             let args = call.arguments as? [String: Any]
             player.setCoverUrl(args?["url"] as? String)
@@ -464,6 +492,10 @@ private final class SgChannelCallbacks: SgPlayerCallbacks {
     }
 
     func onNativeFeatureEvent(_ event: [AnyHashable: Any]) {
+        if event["type"] as? String == "screenshot", let bytes = event["bytes"] as? Data {
+            channel.invokeMethod("onScreenshotCaptured", arguments: ["bytes": FlutterStandardTypedData(bytes: bytes)])
+            return
+        }
         channel.invokeMethod("onSgFeatureEvent", arguments: event)
     }
 

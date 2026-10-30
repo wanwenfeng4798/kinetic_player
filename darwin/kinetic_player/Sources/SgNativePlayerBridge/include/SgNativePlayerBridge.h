@@ -17,8 +17,10 @@ typedef void (^SgErrorChangedBlock)(NSString *_Nullable message, NSInteger code)
 
 #if TARGET_OS_OSX
 @property (nonatomic, readonly) NSView *view;
+- (void)setPresentationView:(NSView *)view;
 #else
 @property (nonatomic, readonly) UIView *view;
+- (void)setPresentationView:(UIView *)view;
 #endif
 
 - (instancetype)initWithStateHandler:(SgStateChangedBlock)stateHandler

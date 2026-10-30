@@ -65,6 +65,7 @@ final class SgNativePlayer: NSObject {
             renderView.topAnchor.constraint(equalTo: transformHost.contentView.topAnchor),
             renderView.bottomAnchor.constraint(equalTo: transformHost.contentView.bottomAnchor),
         ])
+        bridge.setPresentationView(transformHost)
     }
 
 #if os(iOS)

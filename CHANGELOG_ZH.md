@@ -1,13 +1,15 @@
 ## 3.0.0
 
+- 修复 Apple 悬浮布局与 macOS PiP 左侧留缝/裁切；补齐原生 XML 弹幕、WebVTT 拖动预览、广告调度及统一设置开关，验证 iPhone/macOS 自动后台 PiP。
+- 对齐 Web、Windows/Linux 与原生端的公共工具栏风格，补充多宽度/锁定/弹层和真实 Chrome 插件组合测试；修复 Web 未传封面时的初始化错误。
 - 更新 material_ui 至 ^1.8.0、web 至 ^1.1.2、hls.js 至 1.7.4；新增真机播放/全屏测试，修复原生状态转发、全屏退出及 SPM 生命周期导出。
 - 补齐 SGPlayer 2 原生高层功能、任务/HLS/PiP 生命周期与字体资源；统一 Flutter 配置/操作，改用 GSY 原生列表，并修复桌面 UI/快捷键/状态同步。
-- iOS/macOS 固定使用 SGPlayer v2.0.0 官方 tag 产物与校验值，最低系统升级至 iOS 15 / macOS 12。
+- iOS/macOS 支持 SGPlayer v2.0.0 官方 tag 产物；本机联调仅使用指定 SGPlayer 目录的新编译产物，最低系统升级至 iOS 15 / macOS 12。
 - 自动选核、播放列表、循环、跳转、音轨和控制栏复用原生 SDK；移除重复的 Darwin 控制栏、手势及设置面板。
 - 新增原生 PiP 与播放会话诊断入口。
 - 支持嵌套发布包、版本缓存与显式源码回退；SPM 首次解析前需执行准备脚本。
 - Android 保持 GSY 原生能力；Windows/Linux/Web 保留独立 UI，记录跨端配置差异与原生 UI 本地化限制。
-- 未启动真机或模拟器；播放回归由使用者手动验证。
+- Android/iPhone/macOS 已执行部分核心真机回归；Windows/Linux 原生窗口、驱动和解码仍需目标系统验收。
 
 ## 2.1.2
 

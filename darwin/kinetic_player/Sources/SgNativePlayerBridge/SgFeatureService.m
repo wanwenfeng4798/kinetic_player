@@ -53,6 +53,7 @@ static NSData *SgPNG(CIImage *image) {
 @property(nonatomic) BOOL closed;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, void (^)(BOOL)> *restoreRequests;
 @property(nonatomic) NSUInteger coverRevision;
+@property(nonatomic) NSUInteger danmakuRevision;
 @property(nonatomic, strong) NSURLSessionDataTask *coverTask;
 @end
 
@@ -90,6 +91,7 @@ static NSMapTable<NSString *, SgFeatureService *> *SgHLSOwners;
 - (instancetype)initWithSession:(SGPlaybackSession *)session controls:(SGPlaybackControls *)controls surface:(SgFeatureView *)surface container:(SgFeatureView *)container {
   if ((self = [super init])) {
     _session = session; _controls = controls; _surface = surface;
+    session.controller.pictureInPictureView=container;
     __weak typeof(self) eventSelf = self;
     session.controller.pictureInPictureChanged = ^(BOOL active, NSError *failure) {
       [eventSelf emit:@{@"type":@"pip",@"active":@(active),@"error":failure.localizedDescription ?: NSNull.null}];
@@ -112,9 +114,24 @@ static NSMapTable<NSString *, SgFeatureService *> *SgHLSOwners;
     _previews = [NSMutableDictionary dictionary]; _sprites = [NSMutableDictionary dictionary];
     [[self.class coordinator] registerSession:session];
     __weak typeof(self) weakSelf = self;
+    controls.screenshotCaptured = ^(SGPLFImage *image) {
+#if TARGET_OS_OSX
+      CGImageRef cg = [image CGImageForProposedRect:NULL context:nil hints:nil];
+#else
+      CGImageRef cg = image.CGImage;
+#endif
+      NSData *png = cg ? SgPNG([CIImage imageWithCGImage:cg]) : nil;
+      if (png) [weakSelf emit:@{@"type":@"screenshot",@"bytes":png}];
+    };
     controls.toggleFloatingWindow = ^{ [weakSelf toggleFloating]; };
     controls.dismissPresentation = ^{ [weakSelf.presentation restore]; };
   } return self;
+}
+- (void)setPresentationView:(SgFeatureView *)view {
+  [self.session.controller stopPictureInPicture];
+  [self.presentation restore];
+  self.presentation=[[SGPlaybackPresentation alloc]initWithSurface:view];
+  self.session.controller.pictureInPictureView=view;
 }
 - (SgFeatureView *)windowContent {
 #if TARGET_OS_OSX
@@ -193,6 +210,22 @@ static NSMapTable<NSString *, SgFeatureService *> *SgHLSOwners;
     if (a[@"resumeEnabled"]) self.session.resumeEnabled = [a[@"resumeEnabled"] boolValue];
     if (a[@"automaticAdvance"]) self.session.automaticAdvance = [a[@"automaticAdvance"] boolValue];
     if (a[@"loadingTimeout"]) self.session.loadingTimeout = [a[@"loadingTimeout"] doubleValue];
+  } else if ([op isEqual:@"ads.play"]) {
+    NSURL *url = SgURL(a[@"url"]); double skip = [a[@"skipAfterMs"] doubleValue] / 1000;
+    if (!url || !isfinite(skip) || skip < 0) { done(nil,SgFeatureError(@"Ad requires URL and nonnegative skip delay")); return; }
+    BOOL started = [a[@"fromBeginning"] boolValue] ? [self.session playPreRollAdvertisementWithURL:url skipAfter:skip] : [self.session playAdvertisementWithURL:url skipAfter:skip];
+    done(started ? @YES : @NO,nil); return;
+  } else if ([op isEqual:@"ads.schedule"]) {
+    NSMutableArray *ads = [NSMutableArray array];
+    for (NSDictionary *value in a[@"items"]) {
+      NSURL *url = SgURL(value[@"url"]); double time = [value[@"positionMs"] doubleValue] / 1000, skip = [value[@"skipAfterMs"] doubleValue] / 1000;
+      if (!url || !isfinite(time) || time < 0 || !isfinite(skip) || skip < 0) { done(nil,SgFeatureError(@"Invalid advertisement schedule")); return; }
+      [ads addObject:[[SGPlaybackAdvertisement alloc] initWithURL:url atTime:CMTimeMakeWithSeconds(time,1000) skipAfter:skip]];
+    }
+    self.session.advertisements = ads;
+  } else if ([op isEqual:@"ads.skip"]) { done(@([self.session skipAdvertisement]),nil); return;
+  } else if ([op isEqual:@"ads.status"]) {
+    done(@{@"active":@(self.session.advertisementActive),@"canSkip":@(self.session.canSkipAdvertisement),@"skipRemaining":@(self.session.advertisementSkipRemaining)},nil); return;
   } else if ([op isEqual:@"session.selectItem"]) { done(@([self.session selectItemAtIndex:[a[@"index"] integerValue]]),nil); return;
   } else if ([op isEqual:@"session.next"]) { done(@([self.session next]),nil); return;
   } else if ([op isEqual:@"session.previous"]) { done(@([self.session previous]),nil); return;
@@ -243,7 +276,7 @@ static NSMapTable<NSString *, SgFeatureService *> *SgHLSOwners;
   } else if ([op isEqual:@"subtitles.select"]) {
     BOOL ok = [a[@"secondary"] boolValue] ? [controller selectSecondarySubtitleTrack:[a[@"index"] integerValue]] : [controller selectSubtitleTrack:[a[@"index"] integerValue]]; done(@(ok),nil); return;
   } else if ([op isEqual:@"effects.configure"]) {
-    for (NSString *key in @[@"subtitlesEnabled",@"subtitleOffset",@"secondarySubtitleOffset",@"subtitleVerticalPosition",@"secondarySubtitleVerticalPosition",@"danmakuEnabled",@"maximumDanmakuCount",@"textSize",@"overlayOpacity",@"softwareRendering",@"stickerStart"]) if (a[key]) [effects setValue:a[key] forKey:key];
+    for (NSString *key in @[@"watermarksEnabled",@"subtitlesEnabled",@"subtitleOffset",@"secondarySubtitleOffset",@"subtitleVerticalPosition",@"secondarySubtitleVerticalPosition",@"danmakuEnabled",@"maximumDanmakuCount",@"textSize",@"overlayOpacity",@"softwareRendering",@"stickerStart"]) if (a[key]) [effects setValue:a[key] forKey:key];
     if (a[@"subtitleFallbackFontURL"]) effects.subtitleFallbackFontURL = SgURL(a[@"subtitleFallbackFontURL"]);
     if (a[@"stickerRect"]) effects.stickerRect = SgRect(a[@"stickerRect"]);
   } else if ([op isEqual:@"effects.filter"]) {
@@ -263,16 +296,25 @@ static NSMapTable<NSString *, SgFeatureService *> *SgHLSOwners;
       if (value[@"bitmapURL"]) { NSURL *url = SgURL(value[@"bitmapURL"]); if (!url.isFileURL) { done(nil,SgFeatureError(@"Subtitle bitmap must be local")); return; } cue.bitmap = [CIImage imageWithContentsOfURL:url]; }
       [cues addObject:cue];
     }
+    [controller selectSubtitleTrack:-1];[controller selectSecondarySubtitleTrack:-1];
     effects.subtitles = cues;
+  } else if ([op isEqual:@"effects.danmakuLoad"]) {
+    NSURL *url = SgURL(a[@"url"]); if (!url) { done(nil,SgFeatureError(@"Danmaku URL required")); return; }
+    NSUInteger revision=++self.danmakuRevision;
+    [controller loadDanmakuFromURL:url completion:^(NSError *failure) {
+      if(self.closed||revision!=self.danmakuRevision){done(nil,SgFeatureError(@"Danmaku load superseded"));return;}
+      done(failure ? nil : @(effects.danmaku.count),failure);
+    }];return;
   } else if ([op isEqual:@"effects.danmaku"]) {
+    self.danmakuRevision++;
     NSMutableArray *items = [NSMutableArray array];
-    for (NSDictionary *value in a[@"items"]) { SGDanmakuItem *item = [SGDanmakuItem new]; item.text = value[@"text"] ?: @""; item.start = SgTime(value[@"startMs"]); item.duration = [value[@"durationMs"] doubleValue]/1000; item.mode = [value[@"mode"] integerValue]; [items addObject:item]; }
+    for (NSDictionary *value in a[@"items"]) { SGDanmakuItem *item = [SGDanmakuItem new]; item.text = value[@"text"] ?: @""; item.start = SgTime(value[@"startMs"]); item.duration = [value[@"durationMs"] doubleValue]/1000; item.mode = [value[@"mode"] integerValue]; if(value[@"color"])item.rgbColor=[value[@"color"] unsignedIntegerValue]&0xffffff; if(value[@"fontSize"])item.fontSize=[value[@"fontSize"] doubleValue]; [items addObject:item]; }
     effects.danmaku = items; effects.danmakuEnabled = YES;
   } else if ([op isEqual:@"effects.watermarks"]) {
     NSMutableArray *items = [NSMutableArray array];
     for (NSDictionary *value in a[@"items"]) { SGWatermark *item = [SGWatermark new]; item.text = value[@"text"] ?: @""; item.rect = SgRect(value[@"rect"]); item.opacity = value[@"opacity"] ? [value[@"opacity"] doubleValue] : 1;
       if (value[@"imageURL"]) { NSURL *url = SgURL(value[@"imageURL"]); if (!url.isFileURL) { done(nil,SgFeatureError(@"Watermark image must be downloaded to a local file")); return; } item.image = [CIImage imageWithContentsOfURL:url]; if (!item.image) { done(nil,SgFeatureError(@"Invalid watermark image")); return; } } [items addObject:item]; }
-    effects.watermarks = items;
+    effects.watermarks = items; effects.watermarksEnabled = YES;
   } else if ([op isEqual:@"effects.sticker"]) {
     if (!a[@"url"]) { effects.sticker = nil; done(nil,nil); return; }
     NSURL *url = SgURL(a[@"url"]); if (!url.isFileURL) { done(nil,SgFeatureError(@"Sticker must be a local file")); return; }
@@ -289,11 +331,42 @@ static NSMapTable<NSString *, SgFeatureService *> *SgHLSOwners;
       dispatch_async(dispatch_get_main_queue(), ^{ done(png,png ? nil : SgFeatureError(@"Image composition failed")); });
     }); return;
   } else if ([op isEqual:@"effects.flush"]) { [effects flush];
-  } else if ([op isEqual:@"effects.status"]) { done(@{@"active":@(effects.active),@"error":effects.lastError.localizedDescription ?: NSNull.null},nil); return;
+  } else if ([op isEqual:@"effects.status"]) { done(@{@"active":@(effects.active),@"subtitlesEnabled":@(effects.subtitlesEnabled),@"subtitleCount":@(effects.subtitles.count),@"danmakuEnabled":@(effects.danmakuEnabled),@"danmakuCount":@(effects.danmaku.count),@"watermarksEnabled":@(effects.watermarksEnabled),@"watermarkCount":@(effects.watermarks.count),@"error":effects.lastError.localizedDescription ?: NSNull.null},nil); return;
+  } else if ([op isEqual:@"controls.preview.load"]) {
+    [self.controls loadTimelineSpritesFromURL:SgURL(a[@"url"]) completion:^(NSError *failure) { done(nil,failure); }]; return;
+  } else if ([op isEqual:@"controls.preview.image"]) {
+    [self.controls timelineImageAtTime:SgTime(a[@"timeMs"]) completion:^(SGPLFImage *image,NSError *failure) {
+#if TARGET_OS_OSX
+      CGImageRef cg = image ? [image CGImageForProposedRect:NULL context:nil hints:nil] : nil;
+#else
+      CGImageRef cg = image.CGImage;
+#endif
+      done(cg ? SgPNG([CIImage imageWithCGImage:cg]) : nil,failure);
+    }]; return;
   } else if ([op isEqual:@"controls.configure"]) {
+    if (a[@"previewVttUrl"]) [self.controls loadTimelineSpritesFromURL:SgURL(a[@"previewVttUrl"]) completion:^(NSError *failure) { if (failure) [self emit:@{@"type":@"previewError",@"error":failure.localizedDescription}]; }];
+    if (a[@"enabled"]) self.controls.controlsEnabled = [a[@"enabled"] boolValue];
+    if (a[@"keepLastFrameWhenComplete"]) self.controls.keepLastFrameWhenComplete = [a[@"keepLastFrameWhenComplete"] boolValue];
+    if (a[@"automaticPictureInPictureEnabled"]) controller.automaticPictureInPictureEnabled = [a[@"automaticPictureInPictureEnabled"] boolValue];
+    if (a[@"showVolumeToolbar"]) self.controls.showsVolumeControl = [a[@"showVolumeToolbar"] boolValue];
+    if (a[@"showSettingsButton"]) self.controls.showsSettingsControl = [a[@"showSettingsButton"] boolValue];
+    if (a[@"showFullscreenButton"]) self.controls.showsFullscreenControl = [a[@"showFullscreenButton"] boolValue];
+    if (a[@"showLockButton"]) self.controls.showsLockControl = [a[@"showLockButton"] boolValue];
+
     if (a[@"locked"]) self.controls.controlsLocked = [a[@"locked"] boolValue];
     if (a[@"showsKernelSelection"]) self.controls.showsKernelSelection = [a[@"showsKernelSelection"] boolValue];
     if (a[@"autoHideInterval"]) self.controls.autoHideInterval = [a[@"autoHideInterval"] doubleValue];
+  } else if ([op isEqual:@"controls.status"]) {
+    SgFeatureView *host = [self windowContent];
+    NSMutableArray *ancestors=[NSMutableArray array];
+    for(SgFeatureView *view=self.surface;view;view=view.superview)[ancestors addObject:@{@"class":NSStringFromClass(view.class),@"frame":SgRectMap(view.frame)}];
+    CGRect safe = host.bounds;
+    NSInteger appState=-1;
+#if !TARGET_OS_OSX
+    appState=UIApplication.sharedApplication.applicationState;
+    safe = UIEdgeInsetsInsetRect(safe,host.safeAreaInsets);
+#endif
+    done(@{@"enabled":@(self.controls.controlsEnabled),@"hidden":@(self.controls.hidden),@"keepLastFrameWhenComplete":@(self.controls.keepLastFrameWhenComplete),@"coverEnabled":@(self.controls.coverEnabled),@"automaticPictureInPictureEnabled":@(controller.automaticPictureInPictureEnabled),@"applicationState":@(appState),@"ancestors":ancestors,@"hostBounds":SgRectMap(host.bounds),@"hostSafeBounds":SgRectMap(safe),@"surfaceHasParent":(self.surface.superview ? @YES : @NO),@"surfaceBounds":SgRectMap(self.surface.bounds),@"windowAttached":(self.surface.window ? @YES : @NO)},nil); return;
   } else if ([op isEqual:@"controls.reveal"]) { [self.controls revealControls];
   } else if ([op isEqual:@"controls.seekBy"]) { done(@([self.controls seekBySeconds:[a[@"seconds"] doubleValue]]),nil); return;
   } else if ([op isEqual:@"controls.cover"]) {
@@ -493,7 +566,7 @@ static NSMapTable<NSString *, SgFeatureService *> *SgHLSOwners;
   [self.restoreRequests removeAllObjects];
   for (id worker in self.workers.allValues) if ([worker respondsToSelector:@selector(cancel)]) [worker cancel];
   for (SGTimelinePreview *preview in self.previews.allValues) [preview cancel];
-  [self.cache close]; [self releaseHlsOwnership]; [self.presentation restore];
+  [self.cache close]; [self releaseHlsOwnership]; [self.session.controller stopPictureInPicture]; [self.presentation restore];
   [[self.class coordinator] unregisterSession:self.session];
   [self.workers removeAllObjects]; [self.jobs removeAllObjects]; [self.previews removeAllObjects]; [self.sprites removeAllObjects];
 }

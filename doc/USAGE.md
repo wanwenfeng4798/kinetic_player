@@ -42,13 +42,13 @@ Android/iOS/macOS/Windows/Linux/Web 使用同一配置和操作参数；平台�
 | 播放、暂停、跳转、倍速、音量、音轨、循环、PNG | GSY 原生 | SGPlayer 原生 | libmpv | Artplayer；音轨/截图受流格式/CORS 限制 |
 | playlist/startIndex/autoPlay/autoPlayNext | 统一入口，GSY 原生列表 | 统一入口，SG 原生 session | 统一入口，mpv 适配 | 统一入口，新增列表适配 |
 | 全屏进入/退出/状态 | 原生 | 原生宿主窗口适配 | 原生宿主窗口适配 | 浏览器全屏；需用户手势 |
-| 快捷键与锁定 | 触控为主 | iOS 手势/macOS 原生键盘 | 新增键盘、锁定、窄窗口滚动工具栏 | Artplayer 自带交互 |
+| 快捷键与锁定 | 触控为主 | iOS 手势/macOS 原生键盘 | 新增键盘、锁定、窄窗口折行工具栏 | Artplayer 自带交互 |
 | 运行时公共 UI 配置 | GSY 可更新，无换源重置 | SDK 暴露的配置可更新 | 已修复动态 UI/控制器状态同步 | SDK 暴露的配置可更新 |
 | 本地化、颜色、逐按钮配置 | 支持公共配置 | SDK 未暴露部分字段，不能完全对齐 | 公共本地化/颜色/按钮；桌面专用布局 | Artplayer 自身支持范围 |
 | 系统 PiP | Android 系统 | SG 原生；受宿主/系统限制 | 无系统 PiP 适配，不能声明一致 | 浏览器 Video/Document PiP |
 | SG 高级字幕/滤镜/离线缓存/媒体导出 | 使用 GSY 自己的专有能力 | 通过 native 扩展完整接入高层 API | 无 SG 等价入口，保持独立能力 | 使用 Artplayer 插件 |
 
-因此共同播放逻辑与参数已经统一，但全端的原生功能和 UI **并非完全一致**。桌面保留独立 UI；平台不支持的能力不会用空实现伪装成功。Darwin 运行时 setLocale 和旧的完成封面策略会明确返回 UNSUPPORTED。
+因此共同播放逻辑与参数已经统一，但全端的原生功能和 UI **并非完全一致**。桌面保留平台实现，但公共工具栏遵循统一视觉规范；平台不支持的能力不会用空实现伪装成功。Darwin 运行时 setLocale 仍会明确返回 UNSUPPORTED；完成封面和最后一帧策略由 SGPlayer 原生实现。
 
 2026-10-29：Android 真机已通过 SGPlayer 公网视频和本地视频的播放/暂停/跳转/倍速/音量/循环/视频尺寸/PNG 截图测试，本地播放列表切换及重复进入/退出全屏也通过。iOS 本地视频及原项目 W3Schools 公网视频均已通过同组基本播放测试；公网媒体确认输出视频帧。此前的 DNS 失败发生于 App 无线数据权限未开启的阶段。Android 另外通过不同本地视频互相切换，以及暂停画面添加本地水印后的截图差异检查。Windows/Linux 仍未在目标系统编译原生插件。
 
@@ -423,7 +423,7 @@ if (controller is SGVideoControllerImpl) {
 | `sgGetVideoTracks` / `sgSelectVideoTrack` | 视频轨 |
 | `sgSetBackgroundPlaybackPolicy` | 后台 / 中断策略 |
 
-`creationParams` / `ui` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（Apple 端读取但不生效）、`coverUrl`、`keepLastFrameWhenComplete`、`locale`。
+`creationParams` / `ui` 字段：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`dismissControlTime`、`pictureInPictureEnabled`（允许后台自动 PiP）、`coverUrl`、`keepLastFrameWhenComplete`、`locale`。
 
 ### Windows / Linux — MpvVideoControllerImpl
 
@@ -477,10 +477,10 @@ if (controller is ArtplayerVideoControllerImpl) {
 | 设置内截图 / GIF | 二级截图（`onScreenshotCaptured`）+ GIF | 仅截图（`onScreenshotCaptured`） | — |
 | 换源 | 重建播放器 | `replaceWithURL` / `sgReplaceWithSegments` | `art.switchUrl` |
 | 全屏 | `gsyStartFullscreen()` | `sgStartFullscreen()`（应用内 overlay） | Artplayer `fullscreen` 控件 |
-| 画中画 | 默认开启，需 Manifest + `onUserLeaveHint` | 不支持 | `togglePip()` / Document PiP（见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)） |
-| 弹幕 | `gsySetDanmakuUrl` / `gsyToggleDanmaku`（含全屏） | ❌ | `artPlugins.danmuku` |
-| 字幕 | `gsySetSubtitleUrl` 等（含全屏） | ❌ | `multipleSubtitles` / `jassub` 等插件 |
-| 水印 / 滤镜 / GIF / 广告 | 见 [GSY_FEATURES.md](GSY_FEATURES.md) | ❌ | 广告等见 Web 插件 |
+| 画中画 | 默认开启，需 Manifest + `onUserLeaveHint` | 原生 sample-buffer PiP；后台自动进入，macOS 支持最小化自动进入 | `togglePip()` / Document PiP（见 [WEB_ARTPLAYER.md](WEB_ARTPLAYER.md)） |
+| 弹幕 | `gsySetDanmakuUrl` / `gsyToggleDanmaku`（含全屏） | `native.loadDanmakuXml` / 原生弹幕开关 | `artPlugins.danmuku` |
+| 字幕 | `gsySetSubtitleUrl` 等（含全屏） | 公共 `setSubtitleSource`；原生文件选择、WebVTT/SRT/ASS/双字幕 | `multipleSubtitles` / `jassub` 等插件 |
+| 水印 / 滤镜 / GIF / 广告 | 见 [GSY_FEATURES.md](GSY_FEATURES.md) | 原生水印开关、滤镜、GIF 导出、片头/中插/跳过；见 [Darwin 功能](DARWIN_SGPLAYER.md) | 广告等见 Web 插件 |
 | 列表滑动自动播放 | `GsyAutoPlayVideoList` | ❌ | 自行实现 |
 | 音轨 UI | 齿轮设置面板 | 齿轮设置面板 | `AudioTrack` API（浏览器支持时） |
 | 音量 UI | 喇叭竖向弹窗 | 喇叭竖向弹窗 | Artplayer 音量控件 |
@@ -491,7 +491,7 @@ if (controller is ArtplayerVideoControllerImpl) {
 | 缓冲 / 错误详情 | — | `buffered` / `playerError` | `error` 状态 |
 | 部署注意 | IJK 默认 arm64；混淆需宿主 ProGuard 规则；需转发 `handleBackPressed` | iOS：真机；macOS 12+；沙盒需 `network.client` | Chrome / Safari / 移动 Web；注意自动播放策略 |
 
-`KineticUiConfig` 字段中，Darwin（SG）实际生效的主要有：`enableNativeControls`、`showVolumeToolbar`、`showSettingsButton`、`showFullscreenButton`、`showLockButton`、`dismissControlTime`、`coverUrl`、`keepLastFrameWhenComplete`、`speed`、`looping`、`accentColor`、`locale`。创建时语言走 `ui.locale` / `ui.strings`；运行时热切换用 `setLocale`，不是 `gsySetUiConfig`。`pictureInPictureEnabled` 在 Apple 端**无效**（无系统 PiP）。`previewVttUrl` / `cacheWithPlay` / `rotateViewAuto` / `thumbPlay` 等为 **Android 专用**。
+Darwin（SG）支持公共配置 `enableNativeControls`、工具栏显示开关、`dismissControlTime`、`coverUrl`、`keepLastFrameWhenComplete`、`speed`、`looping`、`pictureInPictureEnabled` 和 `previewVttUrl`。WebVTT 缩略图解析、裁切与拖动显示均在原生 SDK 内执行。默认设置菜单提供字幕/弹幕文件加载、字幕/弹幕/水印开关、比例、镜像、循环、截图、纯播放、封面、最后一帧和后台 PiP；示例外部控制面板提供相同功能入口，纯播放后可从外部按钮恢复工具栏。Darwin 当前原生菜单使用统一中文文案；运行时 `setLocale` 尚未实现。`cacheWithPlay`、`rotateViewAuto`、`thumbPlay` 等仍属于 Android 特有配置。
 
 
 ## 监听状态
@@ -532,3 +532,14 @@ Web 已通过 Chrome 的动态参数 JS 转换回归，覆盖 playlist、startIn
 本地 SGPlayer 的 iPhone 离线整套播放、列表、下一集与全屏回归通过。samplelib 网络回归出现 DNS 解析失败，不能计为通过。
 
 本地 SGPlayer 产物回归更新：iPhone 与 macOS 均通过单次启动的离线基本播放、截图、列表、下一集与全屏用例（各 2 项）。网络用例若预检失败，不再继续创建原生媒体播放器；先显示授权/连接提示，并在有限等待期间重试预检，成功后才加载媒体。调试网络测试入口会自动尝试联网，不能把该入口当作正常示例启动行为；正常示例默认本地视频及本地封面。
+
+
+### 公共工具栏视觉规范
+
+Web 与 Windows/Linux 共用界面已对齐原生端的底栏风格：黑色半透明背景、白色图标、粉色进度与圆形滑块，播放/当前时间/进度/总时长/倍速/设置/音量/全屏按同一顺序排列，锁定按钮居右。窄窗口采用折行布局，设置与倍速弹层限制在播放器边界内。字幕和清晰度等高级功能通过设置访问。
+
+Web 复用 Artplayer 的播放、跳转、音量、选择器和插件 API；时间标签来自 SDK 已格式化的内容，不维护第二套时钟。弹幕发送行保留独立行，HLS/DASH 音轨及清晰度默认归入设置；网页 PiP 与视频 PiP 也保留设置入口。显示开关和主题色支持运行时同步。
+
+验证范围：Chrome 使用真实本地 MP4，在无插件和示例插件组合下分别检查 240/280/360/720/1280 五种宽度、进度条实际高度、点击跳转、锁定阻止跳转、1.25x 倍速及菜单边界。Windows/Linux 共用组件通过同组宽度及弹层、锁定测试，但未在 Windows/Linux 目标系统实测原生窗口与解码。
+
+Web 浏览器回归入口：先在 web/ 运行 `npm run build`，再运行 `npm run test:browser`；非默认 Chrome 路径可通过 `CHROME_EXECUTABLE` 指定。测试只访问本机临时服务器和随项目提供的 MP4。

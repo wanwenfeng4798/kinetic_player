@@ -2,7 +2,7 @@
 import UIKit
 
 /// Moves the player container into a window-level overlay for immersive playback.
-final class SgFullscreenPresenter {
+final class SgFullscreenPresenter: NSObject {
     private(set) var isFullscreen = false
 
     private weak var hostedContainer: UIView?
@@ -10,6 +10,7 @@ final class SgFullscreenPresenter {
     private var originalFrame: CGRect = .zero
     private var originalAutoresizingMask: UIView.AutoresizingMask = []
     private var overlayView: UIView?
+    var didExit: (() -> Void)?
 
     func enterFullscreen(container: UIView) {
         guard !isFullscreen, let window = container.window ?? SgFullscreenPresenter.keyWindow else {
@@ -24,6 +25,9 @@ final class SgFullscreenPresenter {
         let overlay = UIView(frame: window.bounds)
         overlay.backgroundColor = .black
         overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        let dismiss = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(dismissFromEdge(_:)))
+        dismiss.edges = .left
+        overlay.addGestureRecognizer(dismiss)
         window.addSubview(overlay)
 
         container.removeFromSuperview()
@@ -33,6 +37,14 @@ final class SgFullscreenPresenter {
 
         overlayView = overlay
         isFullscreen = true
+    }
+
+    @objc private func dismissFromEdge(_ gesture: UIScreenEdgePanGestureRecognizer) {
+        guard gesture.state == .ended, let overlay = overlayView else { return }
+        let movement = gesture.translation(in: overlay)
+        if movement.x > min(120, overlay.bounds.width * 0.25), movement.x > abs(movement.y) {
+            exitFullscreen()
+        }
     }
 
     func exitFullscreen() {
@@ -50,6 +62,7 @@ final class SgFullscreenPresenter {
         overlayView?.removeFromSuperview()
         overlayView = nil
         isFullscreen = false
+        didExit?()
     }
 
     func toggleFullscreen(container: UIView) {
