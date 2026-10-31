@@ -22,6 +22,8 @@ struct SgUiConfig {
     let looping: Bool
     /// ARGB accent color (default Bilibili pink).
     let accentColor: Int
+    let progressColor: Int
+    let volumeColor: Int
     /// Chrome language from `KineticUiConfig.locale` (`ui.locale`).
     var locale: String
     /// Resolved chrome copy from Dart `KineticChromeStrings` (`ui.strings`).
@@ -102,6 +104,8 @@ struct SgUiConfig {
                 ?? params?["looping"] as? Bool
                 ?? false,
             accentColor: accentNumber?.intValue ?? defaultAccentColor,
+            progressColor: (ui?["progressColor"] as? NSNumber)?.intValue ?? accentNumber?.intValue ?? defaultAccentColor,
+            volumeColor: (ui?["volumeColor"] as? NSNumber)?.intValue ?? accentNumber?.intValue ?? defaultAccentColor,
             locale: ui?["locale"] as? String ?? "zh",
             strings: parseStrings(ui?["strings"]),
         )

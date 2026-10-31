@@ -45,6 +45,8 @@ class KineticUiConfig {
     this.coverUrl,
     this.thumbPlay = true,
     this.ijkEnableAccurateSeek = true,
+    this.progressColor,
+    this.volumeColor,
     this.accentColor = const Color(kKineticDefaultAccentColor),
     this.locale = 'zh',
   });
@@ -109,6 +111,10 @@ class KineticUiConfig {
   /// Chrome accent (seek bar, selected options, danmaku send). Default Bilibili pink.
   final Color accentColor;
 
+  /// Apple native seek and volume track colors; fall back to accentColor.
+  final Color? progressColor;
+  final Color? volumeColor;
+
   /// Chrome language: `zh`, `en`, `vi`, `ms`, `id`, `fil`. Unknown codes fall back to `zh`.
   final String locale;
 
@@ -151,6 +157,8 @@ class KineticUiConfig {
         'thumbPlay': thumbPlay,
         'ijkEnableAccurateSeek': ijkEnableAccurateSeek,
         'accentColor': accentColor.toARGB32(),
+        'progressColor': (progressColor ?? accentColor).toARGB32(),
+        'volumeColor': (volumeColor ?? accentColor).toARGB32(),
         'locale': resolvedLocale,
         'strings': KineticChromeStrings.forLocale(resolvedLocale),
       },

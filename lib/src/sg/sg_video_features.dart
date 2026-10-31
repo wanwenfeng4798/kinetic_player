@@ -54,7 +54,7 @@ class SgVrViewport {
 
   factory SgVrViewport.fromMap(Map<Object?, Object?> map) {
     return SgVrViewport(
-      degrees: (map['degrees'] as num?)?.toDouble() ?? 60,
+      degrees: (map['degrees'] as num?)?.toDouble() ?? 90,
       x: (map['x'] as num?)?.toDouble() ?? 0,
       y: (map['y'] as num?)?.toDouble() ?? 0,
       flipX: map['flipX'] as bool? ?? false,

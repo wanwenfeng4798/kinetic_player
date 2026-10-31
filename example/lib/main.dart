@@ -564,7 +564,21 @@ class _ControlPanelState extends State<_ControlPanel> {
     }
   }
 
+  Future<void> _prepareAppleWatermark(SGVideoControllerImpl controller) async {
+    final status = await controller.native.effectsStatus();
+    if ((status['watermarkCount'] as num? ?? 0) > 0) return;
+    await controller.native.setWatermarks([
+      {
+        'imageURL': _DemoMedia.coverUrl,
+        'rect': {'x': 0.65, 'y': 0.08, 'width': 0.3, 'height': 0.12},
+        'opacity': 0.85,
+      },
+    ]);
+    await controller.native.configureEffects({'watermarksEnabled': false});
+  }
+
   void _bindScreenshotCallback(CommonVideoController? controller) {
+    if (controller is SGVideoControllerImpl) _prepareAppleWatermark(controller);
     controller?.onScreenshotCaptured = (bytes) {
       if (!mounted) return;
       setState(() => _lastCaptureBytes = bytes);
@@ -777,17 +791,10 @@ class _ControlPanelState extends State<_ControlPanel> {
         : !(status['watermarksEnabled'] == true &&
               (status['watermarkCount'] as num? ?? 0) > 0);
     if (gsy is SGVideoControllerImpl) {
-      await gsy.native.setWatermarks(
-        next
-            ? [
-                {
-                  'imageURL': _DemoMedia.coverUrl,
-                  'rect': {'x': 0.65, 'y': 0.08, 'width': 0.3, 'height': 0.12},
-                  'opacity': 0.85,
-                },
-              ]
-            : [],
-      );
+      if ((status?['watermarkCount'] as num? ?? 0) == 0) {
+        await _prepareAppleWatermark(gsy);
+      }
+      await gsy.native.configureEffects({'watermarksEnabled': next});
     } else if (gsy is GSYVideoControllerImpl) {
       await gsy.gsySetWatermarkUrl(next ? _DemoMedia.coverUrl : null);
     }
@@ -1703,15 +1710,23 @@ class _ControlPanelState extends State<_ControlPanel> {
                   child: const Text('后台继续播'),
                 ),
                 FilledButton.tonal(
-                  onPressed: () => active.sgSetDemuxerOptions(
-                    const SgDemuxerOptions(
-                      timeout: Duration(seconds: 20),
-                      reconnect: true,
-                      userAgent: 'KineticPlayer-Example',
-                      headers: {'Referer': 'https://example.com/'},
-                    ),
-                  ),
-                  child: const Text('Demuxer 选项'),
+                  onPressed: () async {
+                    await active.sgSetDemuxerOptions(
+                      const SgDemuxerOptions(
+                        timeout: Duration(seconds: 20),
+                        reconnect: true,
+                        userAgent: 'KineticPlayer-Example',
+                        headers: {'Referer': 'https://example.com/'},
+                      ),
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('已保存解封装参数：影响网络请求和探测，下次打开媒体生效，不改变画面效果。'),
+                      ),
+                    );
+                  },
+                  child: const Text('Demuxer：下次打开生效'),
                 ),
                 FilledButton.tonal(
                   onPressed: () async {
@@ -1738,9 +1753,13 @@ class _ControlPanelState extends State<_ControlPanel> {
                 ),
                 FilledButton.tonal(
                   onPressed: () => active.sgSetVrViewport(
-                    const SgVrViewport(degrees: 90, sensorEnable: true),
+                    const SgVrViewport(
+                      degrees: 100,
+                      x: 45,
+                      sensorEnable: false,
+                    ),
                   ),
-                  child: const Text('VR 视口'),
+                  child: const Text('VR 视口：转向 45°'),
                 ),
                 FilledButton.tonal(
                   onPressed: () async {

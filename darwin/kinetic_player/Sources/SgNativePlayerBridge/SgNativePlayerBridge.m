@@ -11,6 +11,7 @@
 #endif
 
 @interface SgNativePlayerBridge ()
+@property(nonatomic,copy) NSDictionary *pendingVrViewport;
 @property(nonatomic, copy) SgStateChangedBlock stateHandler;
 @property(nonatomic, copy) SgProgressChangedBlock progressHandler;
 @property(nonatomic, copy) SgErrorChangedBlock errorHandler;
@@ -469,6 +470,7 @@
       self.player.videoRenderer.displayMode = SGDisplayModePlane;
       break;
   }
+  if(self.pendingVrViewport)[self setVrViewport:self.pendingVrViewport];
 }
 
 - (NSInteger)displayMode {
@@ -487,6 +489,7 @@
 }
 
 - (void)setVrViewport:(NSDictionary *)viewport {
+  self.pendingVrViewport=viewport.copy;
   SGVRViewport *vp = self.player.videoRenderer.viewport;
   if (!vp) {
     return;
@@ -520,7 +523,7 @@
 - (NSDictionary *)vrViewport {
   SGVRViewport *vp = self.player.videoRenderer.viewport;
   if (!vp) {
-    return @{};
+    return self.pendingVrViewport ?: @{};
   }
   return @{
     @"degrees" : @(vp.degress),

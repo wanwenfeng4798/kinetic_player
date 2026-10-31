@@ -142,6 +142,8 @@ final class SgVideoPlatformView: NSObject {
     private func applyNativeControlPolicy(_ ui: SgUiConfig) {
         player.performOperation("controls.configure", arguments: [
             "enabled": ui.enableNativeControls,
+            "progressColor": ui.progressColor,
+            "volumeColor": ui.volumeColor,
             "previewVttUrl": ui.previewVttUrl as Any? ?? NSNull(),
             "keepLastFrameWhenComplete": ui.keepLastFrameWhenComplete,
             "automaticPictureInPictureEnabled": ui.pictureInPictureEnabled,

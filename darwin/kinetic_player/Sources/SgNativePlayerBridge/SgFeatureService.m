@@ -356,6 +356,9 @@ static NSMapTable<NSString *, SgFeatureService *> *SgHLSOwners;
     if (a[@"locked"]) self.controls.controlsLocked = [a[@"locked"] boolValue];
     if (a[@"showsKernelSelection"]) self.controls.showsKernelSelection = [a[@"showsKernelSelection"] boolValue];
     if (a[@"autoHideInterval"]) self.controls.autoHideInterval = [a[@"autoHideInterval"] doubleValue];
+    if(a[@"progressColor"]) self.controls.progressColorARGB=[a[@"progressColor"] unsignedIntegerValue];
+    if(a[@"volumeColor"]) self.controls.volumeColorARGB=[a[@"volumeColor"] unsignedIntegerValue];
+    [self.controls refresh];
   } else if ([op isEqual:@"controls.status"]) {
     SgFeatureView *host = [self windowContent];
     NSMutableArray *ancestors=[NSMutableArray array];
