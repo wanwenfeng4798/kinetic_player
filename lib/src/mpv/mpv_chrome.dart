@@ -467,6 +467,15 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                       child: CircularProgressIndicator(strokeWidth: 3),
                     ),
                   ),
+                if (_config.enableNativeControls && purePlay && !_locked)
+                  Center(
+                    child: _iconButton(
+                      playing ? Icons.pause : Icons.play_arrow,
+                      size: 56,
+                      tooltip: _t('kinetic_play_pause_icon'),
+                      onPressed: _togglePlay,
+                    ),
+                  ),
                 if (showChrome && _controlsVisible) ...[
                   IgnorePointer(
                     child: DecoratedBox(
@@ -513,13 +522,13 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: _bottomBar(playing, accent),
+                    child: _bottomBar(playing, _config.progressColor ?? accent),
                   ),
                   if (_volumeOpen && _config.showVolumeToolbar)
                     Positioned(
                       right: _config.showFullscreenButton ? 96 : 56,
                       bottom: popupBottom,
-                      child: popup(_volumePopup(accent)),
+                      child: popup(_volumePopup(_config.volumeColor ?? accent)),
                     ),
                   if (_settingsOpen && _config.showSettingsButton)
                     Positioned(

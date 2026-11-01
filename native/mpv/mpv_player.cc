@@ -159,6 +159,7 @@ void MpvPlayer::Shutdown() {
   }
   file_loaded_ = false;
   eof_ = false;
+  eof_handled_ = false;
   state_ = kStateIdle;
 }
 
@@ -169,6 +170,7 @@ void MpvPlayer::LoadCurrentUnlocked(bool auto_play) {
   }
   auto_play_ = auto_play;
   eof_ = false;
+  eof_handled_ = false;
   file_loaded_ = false;
   paused_ = !auto_play;
   const char* cmd[] = {"loadfile", playlist_[playlist_index_].c_str(), "replace",
@@ -221,6 +223,7 @@ void MpvPlayer::Play() {
   if (eof_ || state_ == kStateCompleted) {
     Cmd({"seek", "0", "absolute"});
     eof_ = false;
+    eof_handled_ = false;
   }
   SetPropertyFlag("pause", false);
   paused_ = false;
@@ -238,6 +241,7 @@ void MpvPlayer::Stop() {
   if (!mpv_) return;
   Cmd({"stop"});
   eof_ = false;
+  eof_handled_ = false;
   file_loaded_ = false;
   paused_ = true;
   EmitState(kStateIdle);
@@ -654,6 +658,7 @@ void MpvPlayer::HandleEvent(mpv_event* event) {
     case MPV_EVENT_FILE_LOADED:
       file_loaded_ = true;
       eof_ = false;
+      eof_handled_ = false;
       if (seek_on_start_ms_ >= 0) {
         const double sec = static_cast<double>(seek_on_start_ms_) / 1000.0;
         char buf[64];
@@ -689,15 +694,7 @@ void MpvPlayer::HandleEvent(mpv_event* event) {
           });
         }
       } else if (end->reason == MPV_END_FILE_REASON_EOF) {
-        eof_ = true;
-        if (looping_) {
-          break;
-        }
-        if (TryPlayNextUnlocked()) {
-          eof_ = false;
-          break;
-        }
-        EmitState(kStateCompleted);
+        HandleEofUnlocked();
       } else if (end->reason == MPV_END_FILE_REASON_STOP) {
         file_loaded_ = false;
         EmitState(kStateIdle);
@@ -722,6 +719,7 @@ void MpvPlayer::HandleProperty(mpv_event* event) {
   } else if (std::strcmp(name, "eof-reached") == 0 &&
              prop->format == MPV_FORMAT_FLAG) {
     eof_ = prop->data && *static_cast<int*>(prop->data);
+    if (!eof_) eof_handled_ = false;
     RecomputeState();
   } else if (std::strcmp(name, "paused-for-cache") == 0 &&
              prop->format == MPV_FORMAT_FLAG) {
@@ -745,10 +743,21 @@ void MpvPlayer::HandleProperty(mpv_event* event) {
   }
 }
 
+void MpvPlayer::HandleEofUnlocked() {
+  if (!file_loaded_ || eof_handled_) return;
+  eof_handled_ = true;
+  eof_ = true;
+  if (looping_) return;
+  // keep-open retains the last frame without emitting END_FILE. The
+  // eof-reached property must advance our playlist as well.
+  if (TryPlayNextUnlocked()) return;
+  EmitState(kStateCompleted);
+}
+
 void MpvPlayer::RecomputeState() {
   if (state_ == kStateError || state_ == kStateIdle) return;
   if (eof_ && !looping_) {
-    EmitState(kStateCompleted);
+    HandleEofUnlocked();
     return;
   }
   if (seeking_ || paused_for_cache_) {

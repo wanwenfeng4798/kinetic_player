@@ -48,6 +48,58 @@ void main() {
     ),
   );
 
+  testWidgets(
+    'progress and vertical volume use independent configured colors',
+    (tester) async {
+      await tester.pumpWidget(player());
+      await controller.setUiConfig(
+        const KineticUiConfig(
+          progressColor: Color(0xff12ab34),
+          volumeColor: Color(0xffab3412),
+        ),
+      );
+      await tester.pump();
+      SliderThemeData themeFor(Finder slider) => tester
+          .widget<SliderTheme>(
+            find.ancestor(of: slider, matching: find.byType(SliderTheme)).first,
+          )
+          .data;
+      expect(
+        themeFor(find.byType(Slider).first).activeTrackColor,
+        const Color(0xff12ab34),
+      );
+      await tester.tap(find.byIcon(Icons.volume_up));
+      await tester.pump();
+      final volumeSlider = find.byType(Slider).last;
+      expect(themeFor(volumeSlider).activeTrackColor, const Color(0xffab3412));
+      expect(
+        find.ancestor(of: volumeSlider, matching: find.byType(RotatedBox)),
+        findsOneWidget,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets('pure playback retains an actionable play and pause button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(player());
+    await controller.mpvSetPurePlayMode(enabled: true);
+    await tester.pump();
+    expect(find.byIcon(Icons.settings), findsNothing);
+    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.pump();
+    expect(calls.last.method, 'play');
+    controller.playerState.value = CommonPlayerState.playing;
+    await tester.pump();
+    expect(find.byIcon(Icons.pause), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.pause));
+    await tester.pump();
+    expect(calls.last.method, 'pause');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('small desktop view keeps all toolbar actions without overflow', (
     tester,
   ) async {

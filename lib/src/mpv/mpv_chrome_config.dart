@@ -17,6 +17,8 @@ class MpvChromeConfig {
     this.speed = 1,
     this.looping = false,
     this.accentColor = const Color(kKineticDefaultAccentColor),
+    this.progressColor,
+    this.volumeColor,
     this.locale = 'zh',
     this.videoTitle = '',
     this.thumbPlay = true,
@@ -33,6 +35,8 @@ class MpvChromeConfig {
   final double speed;
   final bool looping;
   final Color accentColor;
+  final Color? progressColor;
+  final Color? volumeColor;
   final String locale;
   final String videoTitle;
   final bool thumbPlay;
@@ -67,6 +71,8 @@ class MpvChromeConfig {
       speed: read<double>('speed') ?? 1,
       looping: read<bool>('looping') ?? false,
       accentColor: Color(accent),
+      progressColor: Color(read<int>('progressColor') ?? accent),
+      volumeColor: Color(read<int>('volumeColor') ?? accent),
       locale: locale,
       videoTitle: read<String>('videoTitle') ?? '',
       thumbPlay: read<bool>('thumbPlay') ?? true,

@@ -63,15 +63,17 @@ if(NOT EXISTS "${KINETIC_MPV_DLL}")
 endif()
 
 set(KINETIC_MPV_IMPLIB "${CMAKE_CURRENT_BINARY_DIR}/mpv.lib")
-find_program(MSVC_LIB lib HINTS
-  ENV VCToolsInstallDir
-  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\SxS\\VS7]")
-# lib.exe is on PATH in a VS developer environment (flutter build windows).
-if(NOT MSVC_LIB)
-  set(MSVC_LIB lib)
+if(MSVC AND CMAKE_AR)
+  # Visual Studio resolves lib.exe even outside a VS developer terminal.
+  set(MSVC_LIB "${CMAKE_AR}")
+else()
+  find_program(MSVC_LIB NAMES lib lib.exe)
+  if(NOT MSVC_LIB)
+    message(FATAL_ERROR "MSVC lib.exe is required to create the libmpv import library")
+  endif()
 endif()
 execute_process(
-  COMMAND ${MSVC_LIB} /nologo
+  COMMAND "${MSVC_LIB}" /nologo
           /def:${CMAKE_CURRENT_SOURCE_DIR}/mpv/libmpv.def
           /machine:x64
           /out:${KINETIC_MPV_IMPLIB}
@@ -79,7 +81,8 @@ execute_process(
   OUTPUT_VARIABLE _lib_out
   ERROR_VARIABLE _lib_err)
 if(NOT _lib_res EQUAL 0)
-  message(WARNING "lib.exe could not create mpv.lib (${_lib_err}). Linking may fail.")
+  message(FATAL_ERROR
+    "Could not create mpv.lib with ${MSVC_LIB}: ${_lib_res}\n${_lib_out}\n${_lib_err}")
 endif()
 
 list(APPEND PLUGIN_SOURCES
@@ -101,9 +104,7 @@ target_include_directories(${PLUGIN_NAME} PRIVATE
   "${KINETIC_NATIVE_MPV_DIR}"
   "${KINETIC_NATIVE_MPV_DIR}/include")
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin)
-if(EXISTS "${KINETIC_MPV_IMPLIB}")
-  target_link_libraries(${PLUGIN_NAME} PRIVATE "${KINETIC_MPV_IMPLIB}")
-endif()
+target_link_libraries(${PLUGIN_NAME} PRIVATE "${KINETIC_MPV_IMPLIB}")
 
 set(kinetic_player_bundled_libraries
   "${KINETIC_MPV_DLL}"

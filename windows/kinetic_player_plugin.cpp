@@ -387,7 +387,7 @@ class PlayerSlot {
     } else if (method == "mpvSetPlaylist") {
       player_->SetPlaylist(GetStringList(map, "urls"),
                            static_cast<int>(GetInt(map, "startIndex", 0)),
-                           true);
+                           GetBool(map, "autoPlay", true));
       result->Success();
     } else if (method == "mpvPlayNextInPlaylist") {
       result->Success(EncodableValue(player_->PlayNextInPlaylist()));
@@ -442,14 +442,9 @@ class PlayerSlot {
       return nullptr;
     }
     std::lock_guard<std::mutex> lock(pixel_mu_);
-    bgra_.resize(rgba.size());
-    for (size_t i = 0; i < rgba.size(); i += 4) {
-      bgra_[i + 0] = rgba[i + 2];
-      bgra_[i + 1] = rgba[i + 1];
-      bgra_[i + 2] = rgba[i + 0];
-      bgra_[i + 3] = rgba[i + 3];
-    }
-    pixel_buffer_.buffer = bgra_.data();
+    // Flutter PixelBufferTexture consumes RGBA bytes, matching the core.
+    rgba_ = std::move(rgba);
+    pixel_buffer_.buffer = rgba_.data();
     pixel_buffer_.width = static_cast<size_t>(w);
     pixel_buffer_.height = static_cast<size_t>(h);
     pixel_buffer_.release_callback = nullptr;
@@ -466,7 +461,7 @@ class PlayerSlot {
   int64_t texture_id_ = -1;
   bool destroyed_ = false;
   std::mutex pixel_mu_;
-  std::vector<uint8_t> bgra_;
+  std::vector<uint8_t> rgba_;
   FlutterDesktopPixelBuffer pixel_buffer_{};
 };
 
@@ -522,7 +517,11 @@ class KineticPlayerPlugin : public flutter::Plugin {
 
     if (method == "create") {
       const int view_id = next_id_++;
-      auto slot = std::make_unique<PlayerSlot>(view_id, registrar_, hwnd_);
+      // Registration can precede parenting the Flutter child view. Resolve the
+      // host now so posted events reach the top-level delegate and fullscreen
+      // changes the application window rather than only its child surface.
+      HWND host = hwnd_ ? GetAncestor(hwnd_, GA_ROOT) : nullptr;
+      auto slot = std::make_unique<PlayerSlot>(view_id, registrar_, host);
       if (!slot->Init(registrar_)) {
         result->Error("MPV", "Failed to initialize libmpv");
         return;

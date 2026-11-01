@@ -467,7 +467,7 @@ class PlayerSlot {
     } else if (g_strcmp0(method, "mpvSetPlaylist") == 0) {
       player_->SetPlaylist(FlMapStringList(args, "urls"),
                            static_cast<int>(FlMapInt(args, "startIndex", 0)),
-                           true);
+                           FlMapBool(args, "autoPlay", true));
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
     } else if (g_strcmp0(method, "mpvPlayNextInPlaylist") == 0) {
       g_autoptr(FlValue) v = fl_value_new_bool(player_->PlayNextInPlaylist());

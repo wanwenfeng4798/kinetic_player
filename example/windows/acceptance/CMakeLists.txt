@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.14)
+project(kinetic_acceptance_tools LANGUAGES CXX)
+add_executable(kinetic_audio_meter audio_meter.cpp)
+target_compile_features(kinetic_audio_meter PRIVATE cxx_std_17)
+target_link_libraries(kinetic_audio_meter PRIVATE ole32 uuid)

@@ -123,6 +123,7 @@ class MpvPlayer {
   int64_t GetPropertyInt64(const char* name, int64_t fallback = 0);
   void Cmd(const std::initializer_list<const char*>& args);
   void RecomputeState();
+  void HandleEofUnlocked();
   void LoadCurrentUnlocked(bool auto_play);
   bool TryPlayNextUnlocked(bool automatic = true);
   void ApplyVfUnlocked();
@@ -157,6 +158,7 @@ class MpvPlayer {
   int64_t seek_on_start_ms_ = -1;
   bool file_loaded_ = false;
   bool eof_ = false;
+  bool eof_handled_ = false;
   bool paused_ = true;
   bool seeking_ = false;
   bool paused_for_cache_ = false;

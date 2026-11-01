@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/widgets.dart';
+import 'package:material_ui/material_ui.dart' show MaterialApp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:kinetic_player/kinetic_player.dart';
@@ -43,9 +44,8 @@ void main() {
       await waitForMediaAccess(tester, url);
     }
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Center(
+      MaterialApp(
+        home: Center(
           child: SizedBox(
             width: 360,
             height: 240,
