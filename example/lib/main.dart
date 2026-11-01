@@ -371,6 +371,9 @@ class _PlayerDemoPageState extends State<PlayerDemoPage> {
       startIndex: index >= 0 ? index : 0,
       autoPlay: true,
     );
+    if (controller is MpvVideoControllerImpl) {
+      controller.videoTitle.value = source.label;
+    }
   }
 
   KineticPlayerConfig _playerConfig() {
@@ -530,6 +533,7 @@ class _ControlPanelState extends State<_ControlPanel> {
   void initState() {
     super.initState();
     _bindScreenshotCallback(widget.controller);
+    _bindDesktopSettings(widget.controller);
     _loadFilters();
     if (!kIsWeb) {
       _DemoMedia.prepareSubtitleVttUri().then((uri) {
@@ -543,6 +547,7 @@ class _ControlPanelState extends State<_ControlPanel> {
 
   @override
   void dispose() {
+    _bindDesktopSettings(widget.controller, remove: true);
     widget.controller?.onScreenshotCaptured = null;
     _overlayUrlController.dispose();
     _subtitleTextController.dispose();
@@ -554,14 +559,50 @@ class _ControlPanelState extends State<_ControlPanel> {
   void didUpdateWidget(covariant _ControlPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
+      _bindDesktopSettings(oldWidget.controller, remove: true);
       oldWidget.controller?.onScreenshotCaptured = null;
       _bindScreenshotCallback(widget.controller);
       _renderRotation = 0;
       _keepLastFrame = false;
       _coverEnabled = true;
       _selectedRenderCore = GsyRenderCore.ijk;
+      _bindDesktopSettings(widget.controller);
       _loadFilters();
     }
+  }
+
+  void _readDesktopSettings() {
+    final controller = widget.controller;
+    if (controller is! MpvVideoControllerImpl) return;
+    _watermarkEnabled = (controller.watermarkUrl.value ?? '').isNotEmpty;
+    _purePlay = controller.purePlayMode.value;
+    _coverEnabled = (controller.coverUrl.value ?? '').isNotEmpty;
+    _keepLastFrame = controller.keepLastFrame.value;
+  }
+
+  void _onDesktopSettings() {
+    if (mounted) setState(_readDesktopSettings);
+  }
+
+  void _bindDesktopSettings(
+    CommonVideoController? controller, {
+    bool remove = false,
+  }) {
+    if (controller is! MpvVideoControllerImpl) return;
+    for (final setting in <Listenable>[
+      controller.watermarkUrl,
+      controller.purePlayMode,
+      controller.coverUrl,
+      controller.keepLastFrame,
+      controller.subtitleEnabled,
+    ]) {
+      if (remove) {
+        setting.removeListener(_onDesktopSettings);
+      } else {
+        setting.addListener(_onDesktopSettings);
+      }
+    }
+    if (!remove) _readDesktopSettings();
   }
 
   Future<void> _prepareAppleWatermark(SGVideoControllerImpl controller) async {
@@ -927,13 +968,13 @@ class _ControlPanelState extends State<_ControlPanel> {
   }
 
   Future<void> _toggleDesktopWatermark(MpvVideoControllerImpl mpv) async {
-    final next = !_watermarkEnabled;
+    final next = (mpv.watermarkUrl.value ?? '').isEmpty;
     await mpv.mpvSetWatermarkUrl(next ? _DemoMedia.coverUrl : null);
     if (mounted) setState(() => _watermarkEnabled = next);
   }
 
   Future<void> _toggleDesktopPurePlay(MpvVideoControllerImpl mpv) async {
-    final next = !_purePlay;
+    final next = !mpv.purePlayMode.value;
     await mpv.mpvSetPurePlayMode(enabled: next);
     if (mounted) setState(() => _purePlay = next);
   }

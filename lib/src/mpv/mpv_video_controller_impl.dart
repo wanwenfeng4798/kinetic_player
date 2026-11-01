@@ -46,6 +46,11 @@ class MpvVideoControllerImpl
   final ValueNotifier<bool> looping = ValueNotifier(false);
   final ValueNotifier<bool> mirrorHorizontal = ValueNotifier(false);
   final ValueNotifier<bool> autoPlayNext = ValueNotifier(true);
+  final ValueNotifier<bool> keepLastFrame = ValueNotifier(false);
+  final ValueNotifier<bool> videoTrackAuto = ValueNotifier(true);
+  final ValueNotifier<GsyShowType> showType = ValueNotifier(
+    GsyShowType.defaultRatio,
+  );
 
   @override
   Future<void> setRate(double rate) async {
@@ -152,8 +157,12 @@ class MpvVideoControllerImpl
       _invoke('seekTo', {'position': position.inMilliseconds});
 
   @override
-  Future<void> setScaleMode(CommonScaleMode mode) =>
-      _invoke('setScaleMode', {'mode': mode.index});
+  Future<void> setScaleMode(CommonScaleMode mode) async {
+    await _invoke('setScaleMode', {'mode': mode.index});
+    if (!_isDisposed) {
+      showType.value = GsyShowType.values[mode.gsyShowTypeIndex];
+    }
+  }
 
   @override
   Future<void> setLocale(String locale) {
@@ -179,8 +188,10 @@ class MpvVideoControllerImpl
   Future<void> mpvCommand(List<String> args) =>
       _invoke('mpvCommand', {'args': args});
 
-  Future<void> mpvSetKeepLastFrameWhenComplete({required bool enabled}) =>
-      _invoke('mpvSetKeepLastFrameWhenComplete', {'enabled': enabled});
+  Future<void> mpvSetKeepLastFrameWhenComplete({required bool enabled}) async {
+    await _invoke('mpvSetKeepLastFrameWhenComplete', {'enabled': enabled});
+    if (!_isDisposed) keepLastFrame.value = enabled;
+  }
 
   Future<void> mpvSetCoverUrl(String? url) async {
     coverUrl.value = url;
@@ -224,8 +235,10 @@ class MpvVideoControllerImpl
       _invoke('mpvSetMirrorVertical', {'enabled': enabled});
 
   /// Aspect / crop modes matching Android [GsyShowType].
-  Future<void> mpvSetShowType(GsyShowType type) =>
-      _invoke('mpvSetShowType', {'mode': type.gsyIndex});
+  Future<void> mpvSetShowType(GsyShowType type) async {
+    await _invoke('mpvSetShowType', {'mode': type.gsyIndex});
+    if (!_isDisposed) showType.value = type;
+  }
 
   Future<void> mpvSetPlaylist(List<String> urls, {int startIndex = 0}) =>
       _invoke('mpvSetPlaylist', {'urls': urls, 'startIndex': startIndex});
@@ -264,7 +277,9 @@ class MpvVideoControllerImpl
     final result = await _channel.invokeMethod<bool>('mpvSelectVideoTrack', {
       'index': index,
     });
-    return result ?? false;
+    final selected = result ?? false;
+    if (selected && !_isDisposed) videoTrackAuto.value = index < 0;
+    return selected;
   }
 
   Future<bool> mpvSetVideoTrackAuto() => mpvSelectVideoTrack(-1);
@@ -297,6 +312,9 @@ class MpvVideoControllerImpl
     looping.dispose();
     mirrorHorizontal.dispose();
     autoPlayNext.dispose();
+    keepLastFrame.dispose();
+    videoTrackAuto.dispose();
+    showType.dispose();
     playerState.dispose();
     position.dispose();
     duration.dispose();

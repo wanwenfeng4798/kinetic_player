@@ -50,6 +50,8 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   bool _autoPlayNext = true;
   bool _settingsMore = false;
   int _aspectMode = 0;
+  String? _savedWatermarkUrl;
+  String? _savedCoverUrl;
   double _volume = 1;
   double _rate = 1;
   Timer? _hideTimer;
@@ -61,8 +63,15 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   @override
   void initState() {
     super.initState();
-    _looping = _config.looping;
-    _rate = _config.speed;
+    _looping = _c.looping.value;
+    _rate = _c.playbackRate.value;
+    _savedWatermarkUrl = _c.watermarkUrl.value;
+    _savedCoverUrl = _c.coverUrl.value;
+    _aspectMode = _c.showType.value.index;
+    _mirror = _c.mirrorHorizontal.value;
+    _autoPlayNext = _c.autoPlayNext.value;
+    _volume = _c.volume.value;
+    _muted = _c.muted.value;
     _c.chromeConfig.addListener(_onConfig);
     for (final state in [
       _c.playbackRate,
@@ -71,6 +80,9 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
       _c.looping,
       _c.mirrorHorizontal,
       _c.autoPlayNext,
+      _c.keepLastFrame,
+      _c.showType,
+      _c.videoTrackAuto,
     ]) {
       state.addListener(_onPlaybackSettings);
     }
@@ -96,6 +108,9 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
       _c.looping,
       _c.mirrorHorizontal,
       _c.autoPlayNext,
+      _c.keepLastFrame,
+      _c.showType,
+      _c.videoTrackAuto,
     ]) {
       state.removeListener(_onPlaybackSettings);
     }
@@ -125,6 +140,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
       _looping = _c.looping.value;
       _mirror = _c.mirrorHorizontal.value;
       _autoPlayNext = _c.autoPlayNext.value;
+      _aspectMode = _c.showType.value.index;
     });
   }
 
@@ -184,6 +200,12 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   }
 
   void _onChromeData() {
+    final watermark = _c.watermarkUrl.value;
+    final cover = _c.coverUrl.value;
+    if (watermark != null && watermark.isNotEmpty) {
+      _savedWatermarkUrl = watermark;
+    }
+    if (cover != null && cover.isNotEmpty) _savedCoverUrl = cover;
     if (mounted) setState(() {});
   }
 
@@ -392,7 +414,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
       case CommonPlayerState.paused:
         return false;
       case CommonPlayerState.completed:
-        return !_config.keepLastFrameWhenComplete;
+        return !_c.keepLastFrame.value;
       case CommonPlayerState.idle:
       case CommonPlayerState.ready:
       case CommonPlayerState.error:
@@ -776,9 +798,14 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
 
   Widget _panel(Widget child) {
     return Material(
-      color: const Color(0xE6101010),
-      borderRadius: BorderRadius.circular(8),
-      elevation: 8,
+      color: const Color(0xF21C1D24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      elevation: 16,
+      shadowColor: Colors.black.withValues(alpha: 0.55),
       child: Padding(padding: const EdgeInsets.all(12), child: child),
     );
   }
@@ -821,205 +848,403 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
     );
   }
 
-  Widget _ratePopup(Color accent) {
-    return _panel(
-      SingleChildScrollView(
+  Widget _ratePopup(Color accent) => _panel(
+    SizedBox(
+      width: 180,
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              _t('kinetic_rate_title'),
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
+            _settingsSection(_t('kinetic_rate_title')),
             for (final rate in _rates)
-              TextButton(
-                onPressed: () => _setRate(rate),
-                child: Text(
-                  '${rate}x',
-                  style: TextStyle(
-                    color: _rate == rate ? accent : Colors.white,
-                  ),
-                ),
+              _settingsRow(
+                id: 'rate-$rate',
+                icon: Icons.speed_rounded,
+                title: '${rate}x',
+                accent: accent,
+                selected: _rate == rate,
+                onTap: () => _setRate(rate),
               ),
           ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _settingsSection(String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(10, 12, 10, 6),
+    child: Text(
+      title,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: .45),
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        letterSpacing: .6,
+      ),
+    ),
+  );
+
+  Widget _settingsRow({
+    required String id,
+    required IconData icon,
+    required String title,
+    required Color accent,
+    VoidCallback? onTap,
+    bool selected = false,
+    Widget? trailing,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: selected ? accent.withValues(alpha: .12) : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(
+            color: selected
+                ? accent.withValues(alpha: .24)
+                : Colors.transparent,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: ValueKey('mpv-settings-$id'),
+          onTap: onTap,
+          hoverColor: Colors.white.withValues(alpha: .06),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 40),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 17,
+                    color: selected ? accent : Colors.white54,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: onTap == null
+                            ? Colors.white38
+                            : selected
+                            ? accent
+                            : Colors.white.withValues(alpha: .92),
+                        fontSize: 12,
+                        height: 1.3,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  if (trailing != null) ...[
+                    const SizedBox(width: 8),
+                    trailing,
+                  ] else if (selected)
+                    Icon(Icons.check_rounded, color: accent, size: 17),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
+  Widget _settingsToggle({
+    required String id,
+    required IconData icon,
+    required String title,
+    required bool value,
+    required Color accent,
+    VoidCallback? toggle,
+  }) => _settingsRow(
+    id: id,
+    icon: icon,
+    title: title,
+    accent: accent,
+    onTap: toggle,
+    trailing: SizedBox(
+      width: 34,
+      height: 22,
+      child: FittedBox(
+        child: Switch(
+          value: value,
+          onChanged: toggle == null ? null : (_) => toggle(),
+          activeThumbColor: Colors.white,
+          activeTrackColor: accent,
+          inactiveThumbColor: Colors.white70,
+          inactiveTrackColor: Colors.white.withValues(alpha: .12),
+          trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+        ),
+      ),
+    ),
+  );
+
   Widget _settingsPopup(Color accent) {
+    final hasWatermark = (_c.watermarkUrl.value ?? '').isNotEmpty;
+    final hasCover = (_c.coverUrl.value ?? '').isNotEmpty;
+    final watermarkSource = _savedWatermarkUrl ?? _savedCoverUrl;
+    final separator = Divider(
+      height: 16,
+      indent: 8,
+      endIndent: 8,
+      color: Colors.white.withValues(alpha: .08),
+    );
     return _panel(
       ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 240, maxHeight: 320),
-        child: SingleChildScrollView(
+        constraints: const BoxConstraints(maxWidth: 284, maxHeight: 360),
+        child: SizedBox(
+          width: 284,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_settingsMore)
-                TextButton(
-                  onPressed: () => setState(() => _settingsMore = false),
-                  child: Text(
-                    _t('kinetic_settings_more_back'),
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                )
-              else
-                Text(
-                  _t('kinetic_settings_title'),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-              const SizedBox(height: 8),
-              if (!_settingsMore) ...[
-                TextButton(
-                  onPressed: _toggleSubtitle,
-                  child: Text(
-                    _t('kinetic_subtitle_toggle'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                TextButton(
-                  onPressed: _openQuality,
-                  child: Text(
-                    _t('kinetic_quality_icon'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-              if (_settingsMore) ...[
-                Text(
-                  _t('kinetic_settings_playback_mode'),
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    _autoPlayNext = false;
-                    await _c.mpvSetAutoPlayNext(enabled: false);
-                    if (!mounted) return;
-                    setState(() {});
-                  },
-                  child: Text(
-                    _t('kinetic_settings_mode_pause'),
-                    style: TextStyle(
-                      color: !_autoPlayNext ? accent : Colors.white,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    _looping = false;
-                    await _c.setLooping(false);
-                    _autoPlayNext = true;
-                    await _c.mpvSetAutoPlayNext(enabled: true);
-                    if (!mounted) return;
-                    setState(() {});
-                  },
-                  child: Text(
-                    _t('kinetic_settings_mode_next'),
-                    style: TextStyle(
-                      color: _autoPlayNext ? accent : Colors.white,
-                    ),
-                  ),
-                ),
-                Text(
-                  _t('kinetic_settings_aspect'),
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                ),
-                TextButton(
-                  onPressed: () => _setAspect(0),
-                  child: Text(
-                    _t('kinetic_settings_aspect_auto'),
-                    style: TextStyle(
-                      color: _aspectMode == 0 ? accent : Colors.white,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => _setAspect(1),
-                  child: Text(
-                    _t('kinetic_settings_aspect_16_9'),
-                    style: TextStyle(
-                      color: _aspectMode == 1 ? accent : Colors.white,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => _setAspect(2),
-                  child: Text(
-                    _t('kinetic_settings_aspect_4_3'),
-                    style: TextStyle(
-                      color: _aspectMode == 2 ? accent : Colors.white,
-                    ),
-                  ),
-                ),
-              ] else ...[
-                Text(
-                  _t('kinetic_audio_tracks'),
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                ),
-                if (_tracks.isEmpty)
-                  Text(
-                    _t('kinetic_no_audio_tracks'),
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
-                  )
-                else
-                  for (final track in _tracks)
-                    TextButton(
-                      onPressed: () => _selectTrack(track.index),
-                      child: Text(
-                        _ellipsis(
-                          track.label.isEmpty
-                              ? (track.language ?? '#${track.index}')
-                              : track.label,
+              Row(
+                children: [
+                  if (_settingsMore)
+                    SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: IconButton(
+                        key: const ValueKey('mpv-settings-back'),
+                        tooltip: _t('kinetic_settings_more_back'),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          size: 17,
+                          color: Colors.white70,
                         ),
-                        style: TextStyle(
-                          color: track.selected ? accent : Colors.white,
-                        ),
+                        onPressed: () => setState(() => _settingsMore = false),
+                      ),
+                    )
+                  else ...[
+                    Icon(Icons.tune_rounded, color: accent, size: 18),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: Text(
+                      _settingsMore
+                          ? _t('kinetic_settings_more')
+                                .replaceAll('›', '')
+                                .trim()
+                          : _t('kinetic_settings_title'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(
-                    _t('kinetic_settings_mirror'),
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
                   ),
-                  value: _mirror,
-                  activeThumbColor: accent,
-                  onChanged: (_) => _toggleMirror(),
+                  SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: IconButton(
+                      key: const ValueKey('mpv-settings-close'),
+                      tooltip: _t('kinetic_settings_close'),
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white54,
+                        size: 17,
+                      ),
+                      onPressed: () => setState(() => _settingsOpen = false),
+                    ),
+                  ),
+                ],
+              ),
+              separator,
+              Flexible(
+                child: SingleChildScrollView(
+                  key: ValueKey('mpv-settings-scroll-$_settingsMore'),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!_settingsMore) ...[
+                        _settingsToggle(
+                          id: 'subtitle',
+                          icon: Icons.subtitles_outlined,
+                          title: _t('kinetic_subtitle_toggle'),
+                          value: _c.subtitleEnabled.value,
+                          accent: accent,
+                          toggle: _toggleSubtitle,
+                        ),
+                        _settingsRow(
+                          id: 'quality',
+                          icon: Icons.high_quality_outlined,
+                          title: _t('kinetic_quality_icon'),
+                          accent: accent,
+                          onTap: _openQuality,
+                          trailing: const Icon(
+                            Icons.chevron_right_rounded,
+                            color: Colors.white38,
+                            size: 18,
+                          ),
+                        ),
+                        _settingsToggle(
+                          id: 'mirror',
+                          icon: Icons.flip_rounded,
+                          title: _t('kinetic_settings_mirror'),
+                          value: _mirror,
+                          accent: accent,
+                          toggle: _toggleMirror,
+                        ),
+                        _settingsToggle(
+                          id: 'loop',
+                          icon: Icons.repeat_rounded,
+                          title: _t('kinetic_settings_loop'),
+                          value: _looping,
+                          accent: accent,
+                          toggle: _toggleLoop,
+                        ),
+                        _settingsSection(_t('kinetic_audio_tracks')),
+                        if (_tracks.isEmpty)
+                          _settingsRow(
+                            id: 'audio-empty',
+                            icon: Icons.audiotrack_rounded,
+                            title: _t('kinetic_no_audio_tracks'),
+                            accent: accent,
+                          )
+                        else
+                          for (final track in _tracks)
+                            _settingsRow(
+                              id: 'audio-${track.index}',
+                              icon: Icons.audiotrack_rounded,
+                              title: track.label.isEmpty
+                                  ? (track.language ?? '#${track.index}')
+                                  : track.label,
+                              accent: accent,
+                              selected: track.selected,
+                              onTap: () => _selectTrack(track.index),
+                            ),
+                        separator,
+                        _settingsRow(
+                          id: 'more',
+                          icon: Icons.tune_rounded,
+                          title: _t('kinetic_settings_more')
+                              .replaceAll('›', '')
+                              .trim(),
+                          accent: accent,
+                          onTap: () => setState(() => _settingsMore = true),
+                          trailing: const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: Colors.white38,
+                          ),
+                        ),
+                        _settingsRow(
+                          id: 'screenshot',
+                          icon: Icons.photo_camera_outlined,
+                          title: _t('kinetic_settings_screenshot'),
+                          accent: accent,
+                          onTap: _screenshot,
+                        ),
+                      ] else ...[
+                        _settingsSection(_t('kinetic_settings_playback_mode')),
+                        _settingsRow(
+                          id: 'mode-pause',
+                          icon: Icons.pause_circle_outline_rounded,
+                          title: _t('kinetic_settings_mode_pause'),
+                          accent: accent,
+                          selected: !_autoPlayNext && !_looping,
+                          onTap: () async {
+                            await _c.setLooping(false);
+                            await _c.mpvSetAutoPlayNext(enabled: false);
+                          },
+                        ),
+                        _settingsRow(
+                          id: 'mode-next',
+                          icon: Icons.skip_next_rounded,
+                          title: _t('kinetic_settings_mode_next'),
+                          accent: accent,
+                          selected: _autoPlayNext && !_looping,
+                          onTap: () async {
+                            await _c.setLooping(false);
+                            await _c.mpvSetAutoPlayNext(enabled: true);
+                          },
+                        ),
+                        _settingsSection(_t('kinetic_settings_aspect')),
+                        for (final type in GsyShowType.values)
+                          _settingsRow(
+                            id: 'aspect-${type.index}',
+                            icon: Icons.aspect_ratio_rounded,
+                            title: switch (type) {
+                              GsyShowType.defaultRatio => _t(
+                                'kinetic_settings_aspect_auto',
+                              ),
+                              GsyShowType.ratio16x9 => '16:9',
+                              GsyShowType.ratio4x3 => '4:3',
+                              GsyShowType.ratio18x9 => '18:9',
+                              GsyShowType.full => _t('kinetic_settings_crop'),
+                              GsyShowType.matchFull => _t(
+                                'kinetic_settings_stretch',
+                              ),
+                            },
+                            accent: accent,
+                            selected: _aspectMode == type.index,
+                            onTap: () => _setAspect(type.index),
+                          ),
+                        _settingsSection(_t('kinetic_settings_other')),
+                        _settingsToggle(
+                          id: 'watermark',
+                          icon: Icons.branding_watermark_outlined,
+                          title: _t('kinetic_settings_watermark'),
+                          value: hasWatermark,
+                          accent: accent,
+                          toggle: watermarkSource == null
+                              ? null
+                              : () => _c.mpvSetWatermarkUrl(
+                                  hasWatermark ? null : watermarkSource,
+                                ),
+                        ),
+                        _settingsToggle(
+                          id: 'cover',
+                          icon: Icons.image_outlined,
+                          title: _t('kinetic_settings_cover'),
+                          value: hasCover,
+                          accent: accent,
+                          toggle: _savedCoverUrl == null
+                              ? null
+                              : () => _c.mpvSetCoverUrl(
+                                  hasCover ? null : _savedCoverUrl,
+                                ),
+                        ),
+                        _settingsToggle(
+                          id: 'last-frame',
+                          icon: Icons.video_stable_rounded,
+                          title: _t('kinetic_settings_last_frame'),
+                          value: _c.keepLastFrame.value,
+                          accent: accent,
+                          toggle: () => _c.mpvSetKeepLastFrameWhenComplete(
+                            enabled: !_c.keepLastFrame.value,
+                          ),
+                        ),
+                        _settingsToggle(
+                          id: 'pure-play',
+                          icon: Icons.play_circle_outline_rounded,
+                          title: _t('kinetic_settings_pure_play'),
+                          value: _c.purePlayMode.value,
+                          accent: accent,
+                          toggle: () {
+                            setState(() => _settingsOpen = false);
+                            _c.mpvSetPurePlayMode(
+                              enabled: !_c.purePlayMode.value,
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(
-                    _t('kinetic_settings_loop'),
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                  ),
-                  value: _looping,
-                  activeThumbColor: accent,
-                  onChanged: (_) => _toggleLoop(),
-                ),
-                TextButton(
-                  onPressed: () => setState(() => _settingsMore = true),
-                  child: Text(
-                    _t('kinetic_settings_more'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: _screenshot,
-                  icon: const Icon(
-                    Icons.camera_alt,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                  label: Text(
-                    _t('kinetic_settings_screenshot'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ),
@@ -1027,48 +1252,35 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
     );
   }
 
-  Widget _qualityPopup(Color accent) {
-    return _panel(
-      SingleChildScrollView(
+  Widget _qualityPopup(Color accent) => _panel(
+    SizedBox(
+      width: 220,
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              _t('kinetic_quality_title'),
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            TextButton(
-              onPressed: () => _selectVideoTrack(-1),
-              child: Text(
-                _t('kinetic_quality_auto'),
-                style: TextStyle(
-                  color: _videoTracks.every((t) => !t.selected)
-                      ? accent
-                      : Colors.white,
-                ),
-              ),
+            _settingsSection(_t('kinetic_quality_title')),
+            _settingsRow(
+              id: 'quality-auto',
+              icon: Icons.auto_awesome_outlined,
+              title: _t('kinetic_quality_auto'),
+              accent: accent,
+              selected: _c.videoTrackAuto.value,
+              onTap: () => _selectVideoTrack(-1),
             ),
             for (final track in _videoTracks)
-              TextButton(
-                onPressed: () => _selectVideoTrack(track.index),
-                child: Text(
-                  _ellipsis(
-                    track.label.isEmpty ? '#${track.index}' : track.label,
-                  ),
-                  style: TextStyle(
-                    color: track.selected ? accent : Colors.white,
-                  ),
-                ),
+              _settingsRow(
+                id: 'quality-${track.index}',
+                icon: Icons.high_quality_outlined,
+                title: track.label.isEmpty ? '#${track.index}' : track.label,
+                accent: accent,
+                selected: !_c.videoTrackAuto.value && track.selected,
+                onTap: () => _selectVideoTrack(track.index),
               ),
           ],
         ),
       ),
-    );
-  }
-
-  String _ellipsis(String text) {
-    if (text.length <= 10) return text;
-    return '${text.substring(0, 10)}…';
-  }
+    ),
+  );
 }

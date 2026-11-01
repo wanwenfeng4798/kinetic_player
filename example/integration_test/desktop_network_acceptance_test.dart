@@ -154,6 +154,10 @@ void main() {
             ),
             true,
           );
+          // A manually selected track ID belongs to the previous file. Restore
+          // automatic selection before testing another provider/manifest.
+          expect(await p.mpvSelectVideoTrack(-1), true);
+          await p.mpvCommand(['set', 'aid', 'auto']);
           await p.load(url);
           final ready = await until(
             () =>

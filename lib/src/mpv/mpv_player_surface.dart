@@ -71,6 +71,8 @@ class _MpvPlayerSurfaceState extends State<MpvPlayerSurface> {
         final locale = _chromeConfig.locale;
         _controller!.playbackRate.value = _chromeConfig.speed;
         _controller!.looping.value = _chromeConfig.looping;
+        _controller!.keepLastFrame.value =
+            _chromeConfig.keepLastFrameWhenComplete;
         _controller!.autoPlayNext.value =
             widget.creationParams?['autoPlayNext'] as bool? ?? true;
         _controller!.chromeLocale.value = locale;

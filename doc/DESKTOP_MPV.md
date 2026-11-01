@@ -129,24 +129,19 @@ Windows/Linux 共用同一 Dart 桌面控制栏和同一 C++ mpv core。已修�
 
 ### 完整验收进度（2026-11-01）
 
-完整验收尚未通过，不能据此发布 tag。已取回 Windows 原始日志 `kinetic-full5.log` / `kinetic-full6.log`。
+完整验收尚未通过，不能据此发布 tag。已取回 Windows full7/full8/full9 原始日志。
 
 | 项目 | 当前结果 |
 |---|---|
-| Windows Debug 构建、基础原生播放套件 | 已通过 2/2，full5 中重新构建并回归 |
-| Flutter 全部测试 | Mac 和 Windows 均通过 35/35；包括独立轨道颜色、纯播放按钮、窄窗口与 Windows 图片路径 |
-| 本轮静态检查、C++ 语法检查 | 已通过；C++ 使用 clang++ -std=c++17 -fsyntax-only |
-| Windows 纹理像素颜色 | 已通过：真实 Flutter 纹理与原生 RGBA 像素比较 |
-| 垂直镜像开关、VTT/SRT 字幕显示/隐藏 | 已通过：截图像素差异验证 |
-| 实际 2x 倍速 | 已通过：Windows 实测播放进度/墙钟时间约 1.94–1.96 |
-| EOF 重播、保留末帧截图 | 已通过，full5/full6 已执行对应断言 |
-| 统一播放列表 autoPlay:false | full5 发现被强制自动播放；已修复 Windows/Linux，full6 已通过该断言 |
-| 自动下一集 | full6 发现保留末帧时停在 completed；原实现只在 END_FILE 中切集。已补 eof-reached 处理并增加重复事件保护，待 Windows 回归 |
-| 原生循环、纯播放真实按钮、水印实际图片、停止后恢复 | 自动用例已增加，但 full6 在自动下一集处提前失败，后续断言尚未执行 |
-| 项目全部 18 个公网源、实际音视频轨选择 | 已增加 desktop_network_acceptance_test.dart，待执行 |
-| 音量/静音实际输出、画幅、硬解、HTTP 配置与错误恢复、Windows Release、多显示器/DPI、Linux 实机 | 待逐项验证，方法调用成功不等于效果验收通过 |
+| Windows 基础原生播放套件 | 已通过 2/2 |
+| Flutter 全部测试 | 新版设置弹窗 Windows 38/38 通过；Mac 既有版本 35/35 |
+| Windows 扩展原生验收 | full7 完整通过：真实纹理与 RGBA 一致、垂直镜像恢复、VTT/SRT 显隐、实际 2x 倍速、EOF 重播、保留末帧、autoPlay:false、自动下一集、循环、纯播放按钮、水印图片、停止后恢复 |
+| HTTP 配置与错误恢复 | full8 通过：请求头 / UA / Range、404 后重新加载、清除请求选项 |
+| 公网源 | full7 为 9/18 通过；full8 Mux HLS 也通过，jsDelivr DNS 失败，部分 DASH 停在 buffering；后续运行被中断，不能推断其余格式无效。18 源中 17 个主 URL HTTP 可达，不能替代分片解码验收 |
+| 音量 / 静音真实输出 | full9 通过：满音量峰值 0.172633、低音量 0.000172633、静音 0、恢复 0.172633；音量曲线非线性 |
+| Windows Release | full8 构建成功，已检查打包 libmpv DLL 并计算 SHA256；full9 新版菜单 Release 构建也成功；人工交互验收尚未完成 |
+| 设置弹窗 / 外部控制 | 新增分组、选中状态、更多设置返回/关闭、画幅及水印/封面/末帧/纯播放开关；控制器状态通知与示例外部按钮双向同步。静态检查通过，菜单回归 38/38 通过；示例外部按钮监听的最后修改仅静态检查通过 |
+| 多显示器 / DPI、Linux 实机 | 尚未验收 |
 | 桌面弹幕、广告 UI、系统 PiP 等功能差异 | 仍未实现，详见上方对照表，不能作为已验收功能 |
 
-本轮修复 Windows 纹理 RGBA 被错误交换为 BGRA、桌面未读取 progressColor / volumeColor、纯播放缺少播放/暂停按钮、Windows 盘符/UNC 图片路径被当成网络 URL、播放列表忽略 autoPlay，以及保留末帧时不自动下一集。
-
-UU 输入曾恢复并执行 full5/full6；发送 full7 后操作工具再次返回 noWindowsAvailable，仍可读取远端画面。重新绑定、激活窗口后仍未恢复。最新源码和验收脚本已发送到远端桌面 kinetic-full7.zip / kinetic-full7.cmd（基于已应用的 full5/full6）；full7 尚未启动。脚本先回归原生末帧/下一集/循环/水印等，再测试全部公网源；没有传输 iOS 或 Flutter 编译产物。应取回日志并修复所有失败项后再验收，不可将此表的待验证项或缺失功能标记通过。
+full9 完整公网源回归为 10/18 通过，8 项失败（jsDelivr MP4、BBB/Shaka DASH、TS、Ogg、MP3、MKV、FLV）。仍需隔离媒体与切源恢复问题，不能仅据连续运行结果删除全部失败源。full10 示例控制端监听源码和构建脚本已发送到 Windows，执行结果尚未取回。没有传输 iOS 或 Flutter 编译产物。公网源回归恢复自动音视频轨选择，避免前一文件的手动轨道 ID 干扰下一媒体。新结果必须以取回日志及实际显示为准；未完成项目不能标记通过，也不能发布 tag。

@@ -50,6 +50,14 @@ abstract final class KineticChromeStrings {
   }
 
   static const Map<String, String> _zh = <String, String>{
+    'kinetic_settings_close': '关闭',
+    'kinetic_settings_crop': '裁切铺满',
+    'kinetic_settings_stretch': '拉伸铺满',
+    'kinetic_settings_watermark': '水印',
+    'kinetic_settings_cover': '封面',
+    'kinetic_settings_last_frame': '保留最后一帧',
+    'kinetic_settings_pure_play': '纯播放',
+
     'kinetic_volume_icon': '音量',
     'kinetic_play_pause_icon': '播放或暂停',
     'kinetic_settings_icon': '设置',
@@ -95,6 +103,14 @@ abstract final class KineticChromeStrings {
   };
 
   static const Map<String, String> _en = <String, String>{
+    'kinetic_settings_close': 'Close',
+    'kinetic_settings_crop': 'Crop to fill',
+    'kinetic_settings_stretch': 'Stretch to fill',
+    'kinetic_settings_watermark': 'Watermark',
+    'kinetic_settings_cover': 'Cover',
+    'kinetic_settings_last_frame': 'Keep last frame',
+    'kinetic_settings_pure_play': 'Pure playback',
+
     'kinetic_volume_icon': 'Volume',
     'kinetic_play_pause_icon': 'Play or pause',
     'kinetic_settings_icon': 'Settings',
@@ -140,6 +156,14 @@ abstract final class KineticChromeStrings {
   };
 
   static const Map<String, String> _vi = <String, String>{
+    'kinetic_settings_close': 'Đóng',
+    'kinetic_settings_crop': 'Cắt để lấp đầy',
+    'kinetic_settings_stretch': 'Kéo giãn',
+    'kinetic_settings_watermark': 'Hình mờ',
+    'kinetic_settings_cover': 'Ảnh bìa',
+    'kinetic_settings_last_frame': 'Giữ khung cuối',
+    'kinetic_settings_pure_play': 'Chỉ phát video',
+
     'kinetic_volume_icon': 'Âm lượng',
     'kinetic_play_pause_icon': 'Phát hoặc tạm dừng',
     'kinetic_settings_icon': 'Cài đặt',
@@ -185,6 +209,14 @@ abstract final class KineticChromeStrings {
   };
 
   static const Map<String, String> _ms = <String, String>{
+    'kinetic_settings_close': 'Tutup',
+    'kinetic_settings_crop': 'Pangkas penuh',
+    'kinetic_settings_stretch': 'Regang penuh',
+    'kinetic_settings_watermark': 'Tera air',
+    'kinetic_settings_cover': 'Kulit video',
+    'kinetic_settings_last_frame': 'Kekalkan bingkai akhir',
+    'kinetic_settings_pure_play': 'Main sahaja',
+
     'kinetic_volume_icon': 'Kelantangan',
     'kinetic_play_pause_icon': 'Main atau jeda',
     'kinetic_settings_icon': 'Tetapan',
@@ -230,6 +262,14 @@ abstract final class KineticChromeStrings {
   };
 
   static const Map<String, String> _id = <String, String>{
+    'kinetic_settings_close': 'Tutup',
+    'kinetic_settings_crop': 'Pangkas penuh',
+    'kinetic_settings_stretch': 'Regangkan',
+    'kinetic_settings_watermark': 'Tanda air',
+    'kinetic_settings_cover': 'Sampul',
+    'kinetic_settings_last_frame': 'Pertahankan bingkai akhir',
+    'kinetic_settings_pure_play': 'Pemutaran murni',
+
     'kinetic_volume_icon': 'Volume',
     'kinetic_play_pause_icon': 'Putar atau jeda',
     'kinetic_settings_icon': 'Pengaturan',
@@ -275,6 +315,14 @@ abstract final class KineticChromeStrings {
   };
 
   static const Map<String, String> _fil = <String, String>{
+    'kinetic_settings_close': 'Isara',
+    'kinetic_settings_crop': 'I-crop para punuin',
+    'kinetic_settings_stretch': 'I-stretch para punuin',
+    'kinetic_settings_watermark': 'Watermark',
+    'kinetic_settings_cover': 'Cover',
+    'kinetic_settings_last_frame': 'Panatilihin ang huling frame',
+    'kinetic_settings_pure_play': 'Video lang',
+
     'kinetic_volume_icon': 'Volume',
     'kinetic_play_pause_icon': 'I-play o i-pause',
     'kinetic_settings_icon': 'Mga setting',

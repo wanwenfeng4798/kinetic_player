@@ -100,6 +100,83 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  Future<void> moreSettings(WidgetTester tester) async {
+    await tester.tap(find.byIcon(Icons.settings));
+    await tester.pumpAndSettle();
+    final more = find.byKey(const ValueKey('mpv-settings-more'));
+    await tester.ensureVisible(more);
+    await tester.tap(more);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('pause when finished disables native loop and auto next', (
+    tester,
+  ) async {
+    await tester.pumpWidget(player());
+    await controller.setLooping(true);
+    await moreSettings(tester);
+    await tester.tap(find.byKey(const ValueKey('mpv-settings-mode-pause')));
+    await tester.pumpAndSettle();
+    expect(controller.looping.value, false);
+    expect(controller.autoPlayNext.value, false);
+    expect(calls.where((c) => c.method == 'setLooping').last.arguments, {
+      'looping': false,
+    });
+    expect(
+      calls.where((c) => c.method == 'mpvSetAutoPlayNext').last.arguments,
+      {'enabled': false},
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('external scale and last-frame controls update settings', (
+    tester,
+  ) async {
+    await tester.pumpWidget(player());
+    await controller.setScaleMode(CommonScaleMode.fill);
+    await controller.mpvSetKeepLastFrameWhenComplete(enabled: true);
+    await moreSettings(tester);
+    final crop = find.byKey(const ValueKey('mpv-settings-aspect-3'));
+    expect(
+      find.descendant(of: crop, matching: find.byIcon(Icons.check_rounded)),
+      findsOneWidget,
+    );
+    final lastFrame = find.byKey(const ValueKey('mpv-settings-last-frame'));
+    await tester.ensureVisible(lastFrame);
+    expect(
+      tester
+          .widget<Switch>(
+            find.descendant(of: lastFrame, matching: find.byType(Switch)),
+          )
+          .value,
+      true,
+    );
+    await tester.tap(lastFrame);
+    await tester.pumpAndSettle();
+    expect(controller.keepLastFrame.value, false);
+    expect(calls.last.arguments, {'enabled': false});
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('settings back and close keep navigation within the player', (
+    tester,
+  ) async {
+    await tester.pumpWidget(player(width: 280));
+    await moreSettings(tester);
+    expect(
+      find.byKey(const ValueKey('mpv-settings-mode-pause')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('mpv-settings-back')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('mpv-settings-more')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('mpv-settings-close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('mpv-settings-more')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('small desktop view keeps all toolbar actions without overflow', (
     tester,
   ) async {
