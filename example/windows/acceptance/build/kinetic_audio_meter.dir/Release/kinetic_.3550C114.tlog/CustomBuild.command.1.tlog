@@ -1,0 +1,10 @@
+^C:\USERS\MDW10\DESKTOP\KINETIC_PLAYER\EXAMPLE\WINDOWS\ACCEPTANCE\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/mdw10/Desktop/kinetic_player/example/windows/acceptance -BC:/Users/mdw10/Desktop/kinetic_player/example/windows/acceptance/build --check-stamp-file C:/Users/mdw10/Desktop/kinetic_player/example/windows/acceptance/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

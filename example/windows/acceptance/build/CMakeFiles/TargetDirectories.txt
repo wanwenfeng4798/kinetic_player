@@ -1,0 +1,3 @@
+C:/Users/mdw10/Desktop/kinetic_player/example/windows/acceptance/build/CMakeFiles/kinetic_audio_meter.dir
+C:/Users/mdw10/Desktop/kinetic_player/example/windows/acceptance/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/mdw10/Desktop/kinetic_player/example/windows/acceptance/build/CMakeFiles/ZERO_CHECK.dir
