@@ -18,6 +18,10 @@ class KineticPlayerExampleApp extends StatelessWidget {
     return MaterialApp(
       title: 'Kinetic Player',
       theme: ThemeData(
+        fontFamilyFallback:
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.linux
+            ? const ['Noto Sans CJK SC', 'Noto Sans CJK TC', 'sans-serif']
+            : null,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),

@@ -4,6 +4,7 @@
 #include <gtk/gtk.h>
 
 #include <cstring>
+#include <clocale>
 #include <functional>
 #include <map>
 #include <memory>
@@ -248,6 +249,15 @@ GtkWindow* HostWindow(FlPluginRegistrar* registrar) {
   return GTK_WINDOW(top);
 }
 
+// Flutter Linux uses GTK 3; gtk_window_is_fullscreen is a GTK 4 API.
+// Query the compositor-confirmed state on both Wayland and X11.
+bool IsFullscreen(GtkWindow* window) {
+  if (!window) return false;
+  GdkWindow* surface = gtk_widget_get_window(GTK_WIDGET(window));
+  return surface &&
+         (gdk_window_get_state(surface) & GDK_WINDOW_STATE_FULLSCREEN) != 0;
+}
+
 class PlayerSlot {
  public:
   PlayerSlot(int view_id, FlPluginRegistrar* registrar)
@@ -416,7 +426,7 @@ class PlayerSlot {
     } else if (g_strcmp0(method, "mpvStartFullscreen") == 0) {
       GtkWindow* win = HostWindow(registrar_);
       if (win) {
-        if (gtk_window_is_fullscreen(win)) {
+        if (IsFullscreen(win)) {
           gtk_window_unfullscreen(win);
         } else {
           gtk_window_fullscreen(win);
@@ -429,7 +439,7 @@ class PlayerSlot {
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
     } else if (g_strcmp0(method, "mpvIsFullscreen") == 0) {
       GtkWindow* win = HostWindow(registrar_);
-      const bool full = win && gtk_window_is_fullscreen(win);
+      const bool full = IsFullscreen(win);
       g_autoptr(FlValue) v = fl_value_new_bool(full);
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(v));
     } else if (g_strcmp0(method, "mpvSetHwdec") == 0) {
@@ -571,6 +581,9 @@ void PluginHandle(FlMethodChannel*, FlMethodCall* call, gpointer user_data) {
 
 void kinetic_player_plugin_register_with_registrar(
     FlPluginRegistrar* registrar) {
+  // GTK initializes the process locale; libmpv requires C numeric parsing.
+  // Preserve the user's language and fonts while normalizing numbers only.
+  std::setlocale(LC_NUMERIC, "C");
   auto* state = new PluginState();
   state->registrar = FL_PLUGIN_REGISTRAR(g_object_ref(registrar));
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();

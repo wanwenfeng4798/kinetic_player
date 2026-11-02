@@ -220,6 +220,7 @@ bool MpvPlayer::TryPlayNextUnlocked(bool automatic) {
 void MpvPlayer::Play() {
   std::lock_guard<std::mutex> lock(api_mu_);
   if (!mpv_) return;
+  auto_play_ = true;
   if (eof_ || state_ == kStateCompleted) {
     Cmd({"seek", "0", "absolute"});
     eof_ = false;
@@ -232,6 +233,7 @@ void MpvPlayer::Play() {
 void MpvPlayer::Pause() {
   std::lock_guard<std::mutex> lock(api_mu_);
   if (!mpv_) return;
+  auto_play_ = false;
   SetPropertyFlag("pause", true);
   paused_ = true;
 }
@@ -617,6 +619,10 @@ void MpvPlayer::SetOutputSize(int width, int height) {
   if (height < 2) height = 2;
   if (width > 3840) width = 3840;
   if (height > 2160) height = 2160;
+  // The software renderer crops subsampled video on chroma boundaries.
+  // GTK window sizes can be odd; keep the render target chroma-aligned.
+  width = (width + 1) & ~1;
+  height = (height + 1) & ~1;
   output_w_ = width;
   output_h_ = height;
 }
