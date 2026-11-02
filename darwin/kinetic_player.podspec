@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.description      = <<-DESC
 Flutter video player plugin. iOS / macOS use wanwenfeng4798/SGPlayer v2.0.0; Android uses GSYVideoPlayer 14.0.0.
 SGPlayer.xcframework via SPM local binaryTarget (Package.swift) and/or
-CocoaPods prepare_command → ensure_sgplayer.sh (30-60 min only if local build).
+CocoaPods prepare_command → ensure_sgplayer.sh (pinned tag download + SHA256 verification).
                        DESC
   s.homepage         = 'https://github.com/wanwenfeng4798/kinetic_player'
   s.license          = { :type => 'MIT', :file => '../LICENSE' }

@@ -8,7 +8,7 @@ Before resolving SwiftPM for the first time, run from the plugin root:
 bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
 ```
 
-This prepares both conditional local binary targets. Official release archives contain a local package with a nested Artifacts/SGPlayer.xcframework; they are not remote binaryTarget archives. Downloads use the published SHA-256 and a versioned cache. Run the preparation script once for CocoaPods as well: Flutter local path dependencies may skip prepare_command. Failed downloads stop with an error; source fallback requires KINETIC_PLAYER_SGPLAYER_BUILD_FROM_SOURCE=1.
+This prepares both conditional local binary targets. Official release archives contain a local package with a nested Artifacts/SGPlayer.xcframework; they are not remote binaryTarget archives. Downloads use the published SHA-256 and a versioned cache. Run the preparation script once for CocoaPods as well: Flutter local path dependencies may skip prepare_command. Failed downloads stop with an error; local-checkout overrides and source fallback are disabled. Cached artifacts must match both the version and pinned release SHA256.
 
 SGPlaybackSession owns automatic kernel selection, compatibility fallback, playlists and looping. SGPlaybackController owns seeks, audio tracks, screenshots and PiP. SGPlaybackControls owns native UI, iOS gestures and macOS shortcuts. Flutter forwards commands/events. Host window fullscreen, transforms and segmented assets remain adapters. Custom HTTP/demuxer options, pitch and VR require FFmpeg. Segmented assets use the FFmpeg compatibility path.
 
@@ -27,3 +27,5 @@ SGVideoControllerImpl.native now forwards session/rendition/kernel policies, Aâ€
 Use native.onEvent for task/HLS/PiP events and native.onRestorePictureInPicture for asynchronous host navigation before acknowledging system restoration. Background HLS identifiers are namespaced under kinetic_player.hls.; the iOS plugin handles background NSURLSession lifecycle delivery. Stores survive player disposal and may be reopened with the same identifier. Close only after downloads finish/cancel. Authorized cookies are supported; arbitrary authenticated resource loaders/DRM remain host-native responsibilities.
 
 All Duration arguments cross the channel as milliseconds; upstream effect offsets/positions retain their SDK units. Fonts/licenses are extracted and bundled for SPM/CocoaPods. No CVPixelBuffer/Metal pointers are passed to Dart; image results use PNG. See the full method/config inventory in DARWIN_SGPLAYER.md.
+
+2026-11-02 release-artifact regression: macOS native suite 2/2, physical iPhone native suite 2/2 and desktop chrome regression 12/12 passed. Covers local playback/pause/seek/capture/disposal, subtitle/danmaku/WebVTT preview/watermark/pure-play/last-frame/floating/advertisement state, playlists and fullscreen. This does not establish all public formats or PiP pixel-level acceptance.

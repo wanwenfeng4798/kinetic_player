@@ -102,13 +102,16 @@ sync_spm_package_inputs() {
     if [[ -L "${SPM_LOCAL_XCFRAMEWORK}" ]]; then
       rm -f "${SPM_LOCAL_XCFRAMEWORK}"
     fi
-    if [[ ! -f "${pkg_root}/Artifacts/${KINETIC_SGPLAYER_PLATFORM}/.sgplayer-version" ]] ||
+    if [[ ! -f "${pkg_root}/Artifacts/${KINETIC_SGPLAYER_PLATFORM}/.sgplayer-release-sha256" ]] ||
+        [[ "$(cat "${pkg_root}/Artifacts/${KINETIC_SGPLAYER_PLATFORM}/.sgplayer-release-sha256" 2>/dev/null)" != "$(read_manifest_field sha256)" ]] ||
+        [[ ! -f "${pkg_root}/Artifacts/${KINETIC_SGPLAYER_PLATFORM}/.sgplayer-version" ]] ||
         [[ "$(cat "${pkg_root}/Artifacts/${KINETIC_SGPLAYER_PLATFORM}/.sgplayer-version" 2>/dev/null)" != "$(read_manifest_field version)" ]]; then
       rm -rf "${SPM_LOCAL_XCFRAMEWORK}"
       sgplayer_log "Copying xcframework into SPM package..."
       mkdir -p "$(dirname "${SPM_LOCAL_XCFRAMEWORK}")"
       ditto "${XCFRAMEWORK_OUTPUT}" "${SPM_LOCAL_XCFRAMEWORK}"
       read_manifest_field version > "${pkg_root}/Artifacts/${KINETIC_SGPLAYER_PLATFORM}/.sgplayer-version"
+      cp "${OUTPUT_DIR}/.sgplayer-release-sha256" "${pkg_root}/Artifacts/${KINETIC_SGPLAYER_PLATFORM}/.sgplayer-release-sha256"
     fi
     sgplayer_log "SPM local xcframework: ${SPM_LOCAL_XCFRAMEWORK}"
   fi
@@ -129,6 +132,8 @@ sync_flutter_spm_wrapper_if_needed() {
 sgplayer_artifact_is_current() {
   [[ -f "${XCFRAMEWORK_OUTPUT}/Info.plist" ]] || return 1
   [[ -f "${OUTPUT_DIR}/.sgplayer-version" ]] || return 1
+  [[ -f "${OUTPUT_DIR}/.sgplayer-release-sha256" ]] || return 1
+  [[ "$(cat "${OUTPUT_DIR}/.sgplayer-release-sha256")" == "$(read_manifest_field sha256)" ]] || return 1
   [[ -f "${SPM_PACKAGE_DIR}/Sources/kinetic_player/Resources/SGPlayer/Fonts/NotoSansCJKsc-Regular.otf" ]] || return 1
   [[ "$(cat "${OUTPUT_DIR}/.sgplayer-version")" == "$(read_manifest_field version)" ]]
 }

@@ -12,7 +12,7 @@ bash darwin/scripts/sgplayer/spm_prebuild_hook.sh ios
 
 该入口准备 iOS 和 macOS 两个条件 binaryTarget。官方 zip 内含本地 Package，XCFramework 位于嵌套的 Artifacts 目录，因此不能作为远程 binaryTarget URL 直接使用。脚本校验下载文件后复制到 `darwin/Frameworks/{ios,macos}` 与 `darwin/kinetic_player/Artifacts/{ios,macos}`。这些目录不提交 Git。
 
-CocoaPods 发布准备支持 prepare_command；Flutter 的本地 path 依赖可能跳过该阶段，因此两种集成方式都建议首次先运行上面的准备脚本。下载失败直接报告错误；需要源码编译时显式设置 `KINETIC_PLAYER_SGPLAYER_BUILD_FROM_SOURCE=1`。旧缓存没有 2.0.0 版本标记时重新下载。
+CocoaPods 发布准备支持 prepare_command；Flutter 的本地 path 依赖可能跳过该阶段，因此两种集成方式都建议首次先运行上面的准备脚本。下载失败直接报告错误，不读取本机 SGPlayer 工程、不回退源码构建。缓存必须同时匹配版本及发布包 SHA256；只有旧版本标记的缓存也会重新下载。
 
 ## 原生能力
 
@@ -97,11 +97,13 @@ HLS 下载仅在 SDK 的 hlsSupported 返回 true 时可用（iOS 18/macOS 14 �
 字体与许可证随官方包提取并作为 SPM/CocoaPods 资源打包，原生 ASS/CJK 字幕使用随包字体。SGPlayer 的系统/编码器/格式限制由 SDK 明确返回错误，Flutter 不偷偷换编码器或伪造支持。
 
 
-## 本地 SGPlayer 联调
+## SGPlayer tag 产物联调
 
-本机联调源使用 `/Users/mdw/Desktop/SGPlayer`。可通过环境变量 `KINETIC_PLAYER_SGPLAYER_LOCAL_ROOT`，或本机未跟踪文件 `darwin/sgplayer/.local-root` 指定路径。设置后 `ensure_sgplayer.sh` 只接入该目录的 `build/Package-iOS/Artifacts/SGPlayer.xcframework` 和 `build/Package-macOS/Artifacts/SGPlayer.xcframework`，不存在时直接失败，不回退下载 GitHub 产物。
+2026-11-02 核查 GitHub Releases：最新稳定 tag 为 v2.0.0；同一 tag 的发布包已更新，本项目同步了最新 SHA256。iOS 为 `43559053a824582d19f2bad25613e774eef3d1556f1aa011243c4723091d6362`，macOS 为 `004a2584165ac730e35aca48a98a699eb8157c393dca2a488b0b8f9ba36fcac5`。两个发布包均已下载并校验。
 
-SGPlayer 的源码或打包缺陷应在 SGPlayer 项目修复，消费端不修补 Framework 内容。切换到本地产物后必须重新执行设备回归，旧发布包的测试结果不能作为新产物的验证结果。全部调试和验证完成后再上传 tag 产物。
+SPM 继续使用解包缓存中的 binaryTarget 路径，这是官方集成包结构要求，产物来源是 GitHub tag，不是本机 SGPlayer 编译目录。全新检出必须先运行上方准备脚本，再执行 flutter run；Xcode 构建阶段脚本晚于依赖解析，不能用于首次下载。
+
+SGPlayer 源码缺陷仍应在 SGPlayer 项目修复并发布；消费端不修补 Framework 内容。
 
 ## 原生工具栏风格对齐
 
@@ -181,3 +183,5 @@ VR 视口控制视场角 degrees、水平/垂直朝向 x/y、镜像方向和传�
 演示水印开关统一：Apple 控制面板准备与外部按钮相同的封面水印，默认隐藏；设置菜单和外部按钮都只修改 `watermarksEnabled`，关闭时不删除素材。未提供水印的通用 SDK 实例仍可通过菜单加载图片。
 
 上一集/下一集菜单切换成功后开始播放；首集的上一集、末集非列表循环时的下一集禁用。会话结束时停止底层播放意图；再次播放重新打开当前条目并定位零点。新增双内核回归实际跑到 EOF 后点击原生播放按钮，验证播放位置从零前进；同时验证暂停状态下菜单切集能够启动播放。Apple 三目标编译、双内核回归、macOS 集成 2/2、静态分析均通过；手机当前构建仍待实机验收。
+
+2026-11-02 tag 产物回归：macOS 原生套件 2/2、iPhone 真机原生套件 2/2、桌面工具栏回归 12/12 均通过。覆盖本地播放/暂停/跳转/截图/销毁、字幕/弹幕/WebVTT 预览/水印/纯播放/末帧/悬浮/广告状态及播放列表/全屏。该结果不等于所有公网格式及 PiP 像素效果均已验收。

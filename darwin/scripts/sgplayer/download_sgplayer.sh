@@ -6,8 +6,7 @@
 # Usage:
 #   bash darwin/scripts/sgplayer/download_sgplayer.sh ios|macos
 #
-# Override:
-#   KINETIC_PLAYER_SGPLAYER_DOWNLOAD_URL=https://.../SGPlayer.xcframework.zip
+# Source and checksum are pinned in darwin/sgplayer/manifest.<platform>.json.
 
 set -euo pipefail
 
@@ -54,13 +53,9 @@ main() {
     exit 0
   fi
 
-  local download_url="${KINETIC_PLAYER_SGPLAYER_DOWNLOAD_URL:-}"
-  local expected_sha256=""
-
-  if [[ -z "${download_url}" && -f "${MANIFEST}" ]]; then
-    download_url="$(read_manifest_field download_url)"
-    expected_sha256="$(read_manifest_field sha256)"
-  fi
+  local download_url="$(read_manifest_field download_url)"
+  local expected_sha256="$(read_manifest_field sha256)"
+  [[ "$expected_sha256" =~ ^[0-9a-fA-F]{64}$ ]] || sgplayer_fail "Pinned release SHA256 is required."
 
   if [[ -z "${download_url}" ]]; then
     sgplayer_log "No download_url configured. Skipping prebuilt download."
@@ -113,6 +108,7 @@ main() {
   rm -rf "${XCFRAMEWORK_OUTPUT}"
   mv "${framework}" "${XCFRAMEWORK_OUTPUT}"
   read_manifest_field version > "${OUTPUT_DIR}/.sgplayer-version"
+  printf '%s\n' "$expected_sha256" > "${OUTPUT_DIR}/.sgplayer-release-sha256"
   rm -rf "${tmp_dir}"
 
   sgplayer_log "Installed ${XCFRAMEWORK_OUTPUT}"
