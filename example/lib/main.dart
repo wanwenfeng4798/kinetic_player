@@ -1620,11 +1620,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                 FilledButton.tonal(
                   onPressed: () async {
                     final controller = widget.controller;
-                    if (controller is GSYVideoControllerImpl) {
-                      await controller.gsySetRenderRotation(0);
-                    } else if (controller is SGVideoControllerImpl) {
-                      await controller.sgSetRenderRotation(0);
-                    }
+                    await controller?.setRenderRotation(0);
                     if (mounted) setState(() => _renderRotation = 0);
                   },
                   child: const Text('复位 0°'),
@@ -1633,8 +1629,7 @@ class _ControlPanelState extends State<_ControlPanel> {
             ),
             const SizedBox(height: 4),
             Text(
-              '当前旋转 $_renderRotation°。镜像请用原生设置面板。'
-              '${isAndroidGsy ? '（gsySetRenderRotation）' : '（sgSetRenderRotation）'}',
+              '当前旋转 $_renderRotation°。镜像请用播放器设置面板。',
               style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],

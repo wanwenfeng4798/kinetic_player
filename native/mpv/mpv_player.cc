@@ -83,6 +83,8 @@ bool MpvPlayer::Init(Callbacks callbacks) {
   SetOption("idle", "yes");
   SetOption("sw-fast", "yes");
   SetOption("video-timing-offset", "0");
+  // Handle rotation in the filter graph, including container metadata.
+  SetOption("video-rotate", "no");
 
   if (mpv_initialize(mpv_) < 0) {
     mpv_destroy(mpv_);
@@ -320,9 +322,11 @@ void MpvPlayer::SetRotation(int degrees) {
   if (!mpv_) return;
   int norm = degrees % 360;
   if (norm < 0) norm += 360;
-  char buf[16];
-  std::snprintf(buf, sizeof(buf), "%d", norm);
-  SetProperty("video-rotate", buf);
+  rotation_ = norm;
+  // libmpv's SW renderer cannot safely crop a frame using rotated geometry.
+  // Transform pixels before the renderer instead of rotating its crop rect.
+  SetProperty("video-rotate", "no");
+  ApplyVfUnlocked();
 }
 
 void MpvPlayer::SetMirrorHorizontal(bool enabled) {
@@ -344,6 +348,23 @@ void MpvPlayer::ApplyVfUnlocked() {
   if (mirror_v_) {
     if (!vf.empty()) vf += ",";
     vf += "vflip";
+  }
+  std::string rotate;
+  const int rotation = (rotation_ + source_rotation_) % 360;
+  if (rotation == 90) rotate = "lavfi=[transpose=clock]";
+  else if (rotation == 180) rotate = "hflip,vflip";
+  else if (rotation == 270) rotate = "lavfi=[transpose=cclock]";
+  else if (rotation != 0) {
+    char angle[192];
+    const double radians = rotation * 3.14159265358979323846 / 180.0;
+    std::snprintf(angle, sizeof(angle),
+                  "lavfi=[rotate=%.12f:ow=rotw(%.12f):oh=roth(%.12f)]",
+                  radians, radians, radians);
+    rotate = angle;
+  }
+  if (!rotate.empty()) {
+    if (!vf.empty()) vf += ",";
+    vf += rotate;
   }
   SetProperty("vf", vf.c_str());
 }
@@ -549,6 +570,7 @@ MpvNetSpeed MpvPlayer::GetNetSpeed() {
 }
 
 MpvVideoSize MpvPlayer::GetVideoSize() const {
+  std::lock_guard<std::mutex> lock(api_mu_);
   return {video_w_, video_h_};
 }
 
@@ -619,10 +641,7 @@ void MpvPlayer::SetOutputSize(int width, int height) {
   if (height < 2) height = 2;
   if (width > 3840) width = 3840;
   if (height > 2160) height = 2160;
-  // The software renderer crops subsampled video on chroma boundaries.
-  // GTK window sizes can be odd; keep the render target chroma-aligned.
-  width = (width + 1) & ~1;
-  height = (height + 1) & ~1;
+  std::lock_guard<std::mutex> lock(frame_mu_);
   output_w_ = width;
   output_h_ = height;
 }
@@ -649,6 +668,8 @@ void MpvPlayer::WorkerLoop() {
       if (quit_) break;
     }
     if (!mpv_) continue;
+    // Serialize event-driven state/filter changes with public API calls.
+    std::lock_guard<std::mutex> api_lock(api_mu_);
     while (true) {
       mpv_event* event = mpv_wait_event(mpv_, 0);
       if (!event || event->event_id == MPV_EVENT_NONE) break;
@@ -663,6 +684,26 @@ void MpvPlayer::HandleEvent(mpv_event* event) {
   switch (event->event_id) {
     case MPV_EVENT_FILE_LOADED:
       file_loaded_ = true;
+      source_rotation_ = 0;
+      // Decoder parameters already reflect video-rotate=no. Read the original
+      // container transform from the selected track instead.
+      {
+        mpv_node tracks{};
+        if (mpv_get_property(mpv_, "track-list", MPV_FORMAT_NODE, &tracks) >= 0) {
+          if (tracks.format == MPV_FORMAT_NODE_ARRAY && tracks.u.list) {
+            for (int i = 0; i < tracks.u.list->num; ++i) {
+              mpv_node* track = &tracks.u.list->values[i];
+              if (std::strcmp(NodeString(MapGet(track, "type")), "video") == 0 &&
+                  NodeFlag(MapGet(track, "selected"))) {
+                source_rotation_ = static_cast<int>(NodeInt(MapGet(track, "demux-rotation")));
+                break;
+              }
+            }
+          }
+          mpv_free_node_contents(&tracks);
+        }
+      }
+      source_rotation_ = (source_rotation_ % 360 + 360) % 360;
       eof_ = false;
       eof_handled_ = false;
       if (seek_on_start_ms_ >= 0) {
@@ -785,8 +826,12 @@ void MpvPlayer::MaybeRender() {
   if (!(flags & MPV_RENDER_UPDATE_FRAME)) {
     return;
   }
-  const int w = output_w_;
-  const int h = output_h_;
+  int w, h;
+  {
+    std::lock_guard<std::mutex> lock(frame_mu_);
+    w = output_w_;
+    h = output_h_;
+  }
   std::vector<uint8_t> rgb0(static_cast<size_t>(w) * static_cast<size_t>(h) * 4);
   int size[2] = {w, h};
   size_t stride = static_cast<size_t>(w) * 4;

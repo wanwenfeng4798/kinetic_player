@@ -37,7 +37,7 @@ if (controller is MpvVideoControllerImpl) {
 | 公共播放 / 音量 / 倍速 / 循环 / 音轨 | ✅ | 与 GSY/SG 相同 method 名 |
 | 封面 | ✅ `mpvSetCoverUrl` | Dart overlay，运行时可改 |
 | 标题 | ✅ `KineticUiConfig.videoTitle` / `mpvSetUiConfig` | 控制栏顶部 |
-| 旋转 | ✅ `mpvSetRenderRotation` | `video-rotate` |
+| 旋转 | ✅ `mpvSetRenderRotation` | 像素滤镜旋转；保留容器旋转元数据，避免 libmpv 软件渲染器旋转裁剪崩溃 |
 | 镜像 | ✅ `mpvSetMirrorHorizontal` / `Vertical` | `vf` hflip/vflip；设置面板可开关水平镜像 |
 | 画幅 16:9 / 4:3 / 铺满 | ✅ `mpvSetShowType` | 对齐 `GsyShowType` |
 | 外挂字幕 | ✅ `mpvSetSubtitleUrl` / `mpvSetSubtitleEnabled` | `sub-add` / `sid` / `sub-visibility` |
@@ -89,6 +89,19 @@ flutter run -d linux
 ```
 
 Wayland 与 X11 均走 Texture，不使用 `--wid` 嵌入。硬件解码默认 `hwdec=auto-safe`（vaapi / nvdec 等由 mpv 探测）。
+
+### GTK 3 / GTK 4
+
+插件的窗口归属和全屏查询分别实现 GTK 3、GTK 4 分支；CMake 的
+`KINETIC_PLAYER_GTK_VERSION=AUTO` 默认跟随宿主的 `GTK_VERSION`，未提供时使用 GTK 3。
+自定义 GTK 4 Flutter embedder 可设置 `-DKINETIC_PLAYER_GTK_VERSION=4`。
+GTK 主版本必须与 Flutter 宿主一致；不能把 GTK 4 插件加载进 GTK 3 的 Flutter 进程。
+标准 Flutter Linux SDK 当前使用 GTK 3，安装 GTK 4 开发库不会将宿主变为 GTK 4。
+
+Ubuntu 26.04 ARM64 实测：GTK 3 完整 Flutter 应用验收通过；GTK 3/4 独立窗口
+全屏测试和 GTK 4 插件源码编译通过。虚拟机 GTK 4 窗口测试使用
+`GSK_RENDERER=cairo`，默认 GPU 后端未通过该测试；未验证 GTK 4 自定义 Flutter 宿主。
+详细结果及未通过的网络片源见 `doc/acceptance`。
 
 ## Channel
 

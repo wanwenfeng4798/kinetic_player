@@ -1,0 +1,195 @@
+00:00 +0: loading /home/parallels/Desktop/kinetic_player/example/integration_test/desktop_network_acceptance_test.dart
+Building Linux application...                                   
+✓ Built build/linux/arm64/debug/bundle/kinetic_player_example
+00:00 +0: all project network sources decode and expose selectable native tracks
+NETWORK START MP4 Sample 5s https://samplelib.com/lib/preview/mp4/sample-5s.mp4
+NETWORK FAIL MP4 Sample 5s: Expected: <true>
+  Actual: <false>
+CommonPlayerState.buffering null
+
+NETWORK START MP4 Flower https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4
+NETWORK PASS MP4 Flower time=0:00:01.468000 audioTracks=1
+NETWORK START WebM Flower https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm
+NETWORK PASS WebM Flower time=0:00:01.071000 audioTracks=1
+NETWORK START MP4 XGPlayer Demo 360p https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/mp4/xgplayer-demo-360p.mp4
+NETWORK PASS MP4 XGPlayer Demo 360p time=0:00:01.120000 audioTracks=1
+NETWORK START MP4 Sintel Trailer https://media.w3.org/2010/05/sintel/trailer.mp4
+NETWORK PASS MP4 Sintel Trailer time=0:00:01.125000 audioTracks=1
+NETWORK START MP4 Big Buck Bunny https://cdn.jsdelivr.net/gh/mediaelement/mediaelement-files@master/big_buck_bunny.mp4
+NETWORK FAIL MP4 Big Buck Bunny: Expected: <true>
+  Actual: <false>
+CommonPlayerState.error loading failed
+
+NETWORK START HLS Apple BipBop fMP4 https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8
+NETWORK PASS HLS Apple BipBop fMP4 time=0:00:01.149000 audioTracks=3
+NETWORK START HLS Mux Big Buck Bunny https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+NETWORK PASS HLS Mux Big Buck Bunny time=0:00:00.800000 audioTracks=5
+NETWORK START HLS Tears of Steel VOD https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8
+NETWORK FAIL HLS Tears of Steel VOD: Expected: <true>
+  Actual: <false>
+CommonPlayerState.idle null
+
+NETWORK START HLS XGPlayer HLS Demo https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/xgplayer-demo.m3u8
+NETWORK PASS HLS XGPlayer HLS Demo time=0:00:01.080000 audioTracks=1
+NETWORK START DASH Envivio MultiRate https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd
+02:28 +0: loading /home/parallels/Desktop/kinetic_player/example/integration_test/desktop_network_acceptance_test.dart
+Some possible finders for the widgets at Offset(803.5, 106.5):
+  find.byType(ExcludeSemantics)
+  find.byType(BlockSemantics)
+  find.byType(ModalBarrier)
+  find.byType(Overlay)
+  find.byType(AbsorbPointer)
+  find.byElementType(InheritedModelElement<Object>)
+  find.byElementType(InheritedModelElement<_MediaQueryAspect>)
+Some possible finders for the widgets at Offset(826.5, 459.5):
+  find.byType(ExcludeSemantics)
+  find.byType(BlockSemantics)
+  find.byType(ModalBarrier)
+  find.byType(Overlay)
+  find.byType(AbsorbPointer)
+  find.byElementType(InheritedModelElement<Object>)
+  find.byElementType(InheritedModelElement<_MediaQueryAspect>)
+Some possible finders for the widgets at Offset(371.5, 179.5):
+  find.byType(ExcludeSemantics)
+  find.byType(BlockSemantics)
+  find.byType(ModalBarrier)
+  find.byType(Overlay)
+  find.byType(AbsorbPointer)
+  find.byElementType(InheritedModelElement<Object>)
+  find.byElementType(InheritedModelElement<_MediaQueryAspect>)
+Some possible finders for the widgets at Offset(741.5, 307.5):
+  find.byType(ExcludeSemantics)
+  find.byType(BlockSemantics)
+  find.byType(ModalBarrier)
+  find.byType(Overlay)
+  find.byType(AbsorbPointer)
+  find.byElementType(InheritedModelElement<Object>)
+  find.byElementType(InheritedModelElement<_MediaQueryAspect>)
+Some possible finders for the widgets at Offset(485.5, 303.5):
+  find.byType(GestureDetector)
+  find.byType(Positioned)
+  find.byType(AnimatedDefaultTextStyle)
+  find.byType(NotificationListener<LayoutChangedNotification>)
+  find.byType(ClipPath)
+  find.byElementType(InheritedModelElement<_ModalRouteAspect>)
+  find.byElementType(InheritedModelElement<Object>)
+  find.byElementType(InheritedModelElement<_MediaQueryAspect>)
+02:40 +0: all project network sources decode and expose selectable native tracks
+NETWORK PASS DASH Envivio MultiRate time=0:00:01.221000 audioTracks=1
+NETWORK START DASH BBB 30fps MultiRate https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd
+02:40 +0: loading /home/parallels/Desktop/kinetic_player/example/integration_test/desktop_network_acceptance_test.dart
+Some possible finders for the widgets at Offset(485.5, 276.5):
+  find.byType(GestureDetector)
+  find.byType(Positioned)
+  find.byType(AnimatedDefaultTextStyle)
+  find.byType(NotificationListener<LayoutChangedNotification>)
+  find.byType(ClipPath)
+  find.byElementType(InheritedModelElement<_ModalRouteAspect>)
+  find.byElementType(InheritedModelElement<Object>)
+  find.byElementType(InheritedModelElement<_MediaQueryAspect>)
+Some possible finders for the widgets at Offset(485.5, 276.5):
+  find.byType(GestureDetector)
+  find.byType(Positioned)
+  find.byType(AnimatedDefaultTextStyle)
+  find.byType(NotificationListener<LayoutChangedNotification>)
+  find.byType(ClipPath)
+  find.byElementType(InheritedModelElement<_ModalRouteAspect>)
+  find.byElementType(InheritedModelElement<Object>)
+  find.byElementType(InheritedModelElement<_MediaQueryAspect>)
+Some possible finders for the widgets at Offset(488.5, 315.5):
+  find.byType(GestureDetector)
+  find.byType(Positioned)
+  find.byType(AnimatedDefaultTextStyle)
+  find.byType(NotificationListener<LayoutChangedNotification>)
+  find.byType(ClipPath)
+  find.byElementType(InheritedModelElement<_ModalRouteAspect>)
+  find.byElementType(InheritedModelElement<Object>)
+  find.byElementType(InheritedModelElement<_MediaQueryAspect>)
+03:17 +0: all project network sources decode and expose selectable native tracks
+NETWORK PASS DASH BBB 30fps MultiRate time=0:00:01.322000 audioTracks=1
+NETWORK START DASH Shaka Angel One https://storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd
+NETWORK PASS DASH Shaka Angel One time=0:00:00.778000 audioTracks=10
+NETWORK START TS XGPlayer MPEG-TS 片段 https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/segment-0.ts
+NETWORK PASS TS XGPlayer MPEG-TS 片段 time=0:00:01.240000 audioTracks=1
+NETWORK START Ogg Sintel Trailer Ogg https://media.w3.org/2010/05/sintel/trailer.ogv
+NETWORK PASS Ogg Sintel Trailer Ogg time=0:00:00.625000 audioTracks=1
+NETWORK START MP3 ExoPlayer 音频 https://storage.googleapis.com/exoplayer-test-media-0/play.mp3
+NETWORK PASS MP3 ExoPlayer 音频 time=0:00:01.048000 audioTracks=1
+NETWORK START MKV ExoPlayer lavf sample https://storage.googleapis.com/exoplayer-test-media-1/mkv/android-screens-lavf-56.36.100-aac-avc-main-1280x720.mkv
+NETWORK PASS MKV ExoPlayer lavf sample time=0:00:01.200000 audioTracks=1
+NETWORK START FLV XGPlayer Demo 360p https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/flv/xgplayer-demo-360p.flv
+NETWORK PASS FLV XGPlayer Demo 360p time=0:00:01.063000 audioTracks=1
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: empty
+  Actual: [
+            'MP4 Sample 5s: Expected: <true>\n'
+              '  Actual: <false>\n'
+              'CommonPlayerState.buffering null\n'
+              '',
+            'MP4 Big Buck Bunny: Expected: <true>\n'
+              '  Actual: <false>\n'
+              'CommonPlayerState.error loading failed\n'
+              '',
+            'HLS Tears of Steel VOD: Expected: <true>\n'
+              '  Actual: <false>\n'
+              'CommonPlayerState.idle null\n'
+              ''
+          ]
+MP4 Sample 5s: Expected: <true>
+  Actual: <false>
+CommonPlayerState.buffering null
+
+MP4 Big Buck Bunny: Expected: <true>
+  Actual: <false>
+CommonPlayerState.error loading failed
+
+HLS Tears of Steel VOD: Expected: <true>
+  Actual: <false>
+CommonPlayerState.idle null
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/parallels/Desktop/kinetic_player/example/integration_test/desktop_network_acceptance_test.dart:212:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/parallels/Desktop/kinetic_player/example/integration_test/desktop_network_acceptance_test.dart line 212
+The test description was:
+  all project network sources decode and expose selectable native tracks
+════════════════════════════════════════════════════════════════════════════════════════════════════
+04:07 +0 -1: all project network sources decode and expose selectable native tracks [E]
+  Test failed. See exception logs above.
+  The test description was: all project network sources decode and expose selectable native tracks
+  
+04:07 +0 -1: (tearDownAll)
+04:07 +0 -1: Some tests failed.
+
+Failing tests:
+  /home/parallels/Desktop/kinetic_player/example/integration_test/desktop_network_acceptance_test.dart: all project network sources decode and expose selectable native tracks
+[tls @ 0xbf398290eb80] Error in the pull function.
+[tls @ 0xbf398290eb80] IO error: Connection reset by peer
+https://cdn.jsdelivr.net/gh/mediaelement/mediaelement-files@master/big_buck_bunny.mp4: Connection reset by peer
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found PkgConfig: /bin/pkg-config (found version "2.5.1")
+-- Checking for module 'gtk+-3.0'
+--   Found gtk+-3.0, version 3.24.52
+-- Checking for module 'glib-2.0'
+--   Found glib-2.0, version 2.88.0
+-- Checking for module 'gio-2.0'
+--   Found gio-2.0, version 2.88.0
+CMake Error at flutter/ephemeral/.plugin_symlinks/kinetic_player/linux/CMakeLists.txt:31 (message):
+  GTK major must match the Flutter host (3); use a matching embedder.
+
+
+-- Configuring incomplete, errors occurred!

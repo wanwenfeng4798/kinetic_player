@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "mpv_player.h"
+#include "gtk_window_compat.h"
 
 G_DECLARE_FINAL_TYPE(KineticMpvTexture,
                      kinetic_mpv_texture,
@@ -243,19 +244,7 @@ void PostUi(std::function<void()> fn) {
 
 GtkWindow* HostWindow(FlPluginRegistrar* registrar) {
   FlView* view = fl_plugin_registrar_get_view(registrar);
-  if (!view) return nullptr;
-  GtkWidget* top = gtk_widget_get_toplevel(GTK_WIDGET(view));
-  if (!top || !GTK_IS_WINDOW(top)) return nullptr;
-  return GTK_WINDOW(top);
-}
-
-// Flutter Linux uses GTK 3; gtk_window_is_fullscreen is a GTK 4 API.
-// Query the compositor-confirmed state on both Wayland and X11.
-bool IsFullscreen(GtkWindow* window) {
-  if (!window) return false;
-  GdkWindow* surface = gtk_widget_get_window(GTK_WIDGET(window));
-  return surface &&
-         (gdk_window_get_state(surface) & GDK_WINDOW_STATE_FULLSCREEN) != 0;
+  return kinetic::WindowForWidget(GTK_WIDGET(view));
 }
 
 class PlayerSlot {
@@ -426,7 +415,7 @@ class PlayerSlot {
     } else if (g_strcmp0(method, "mpvStartFullscreen") == 0) {
       GtkWindow* win = HostWindow(registrar_);
       if (win) {
-        if (IsFullscreen(win)) {
+        if (kinetic::IsFullscreen(win)) {
           gtk_window_unfullscreen(win);
         } else {
           gtk_window_fullscreen(win);
@@ -439,7 +428,7 @@ class PlayerSlot {
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
     } else if (g_strcmp0(method, "mpvIsFullscreen") == 0) {
       GtkWindow* win = HostWindow(registrar_);
-      const bool full = IsFullscreen(win);
+      const bool full = kinetic::IsFullscreen(win);
       g_autoptr(FlValue) v = fl_value_new_bool(full);
       response = FL_METHOD_RESPONSE(fl_method_success_response_new(v));
     } else if (g_strcmp0(method, "mpvSetHwdec") == 0) {

@@ -146,6 +146,18 @@ void main() {
     }
     image.dispose();
     debugPrint('ACCEPT native/texture colors passed');
+    // This used to SIGABRT inside libmpv SW cropping at 90/270 degrees.
+    for (final angle in [90, 180, 270, 0]) {
+      await p.setRenderRotation(angle);
+      await tester.pump(const Duration(milliseconds: 700));
+      final rotated = await capture();
+      expect(
+        difference(base, rotated),
+        angle == 0 ? lessThan(500) : greaterThan(1000),
+        reason: 'rotation $angle must transform pixels and restore at zero',
+      );
+    }
+    debugPrint('ACCEPT all quarter-turn rotations and reset passed');
     await p.setMirrorVertical(true);
     await tester.pump(const Duration(milliseconds: 700));
     expect(
@@ -251,8 +263,17 @@ void main() {
     debugPrint('ACCEPT EOF/replay/automatic next/playlist end passed');
     await p.setLooping(true);
     await p.seekTo(p.duration.value - const Duration(milliseconds: 500));
-    await until(() => p.position.value > p.duration.value - const Duration(seconds: 2), 'seek near loop EOF');
-    await until(() => p.position.value.inMilliseconds > 100 && p.position.value.inSeconds < 3 && p.playerState.value == CommonPlayerState.playing, 'native loop restarts');
+    await until(
+      () => p.position.value > p.duration.value - const Duration(seconds: 2),
+      'seek near loop EOF',
+    );
+    await until(
+      () =>
+          p.position.value.inMilliseconds > 100 &&
+          p.position.value.inSeconds < 3 &&
+          p.playerState.value == CommonPlayerState.playing,
+      'native loop restarts',
+    );
     await p.setLooping(false);
     debugPrint('ACCEPT native loop passed');
 

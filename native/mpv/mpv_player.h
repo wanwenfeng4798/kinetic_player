@@ -150,7 +150,7 @@ class MpvPlayer {
   int video_w_ = 0;
   int video_h_ = 0;
 
-  std::mutex api_mu_;
+  mutable std::mutex api_mu_;
   int state_ = 0;  // CommonPlayerState.idle
   bool auto_play_ = true;
   bool looping_ = false;
@@ -169,6 +169,8 @@ class MpvPlayer {
   bool auto_play_next_ = true;
   bool mirror_h_ = false;
   bool mirror_v_ = false;
+  int rotation_ = 0;
+  int source_rotation_ = 0;
   int show_type_ = 0;
   std::string subtitle_url_;
   bool subtitle_enabled_ = true;

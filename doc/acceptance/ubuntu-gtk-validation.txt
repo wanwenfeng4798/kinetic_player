@@ -1,0 +1,5 @@
+PASS GTK 3 root, enter, idempotent enter, exit, null window
+PASS full plugin source gtk+-3.0
+GTK4 mapped=1 state=43592 fullscreen=1
+PASS GTK 4 root, enter, idempotent enter, exit, null window
+PASS full plugin source gtk4

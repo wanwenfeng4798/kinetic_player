@@ -1,0 +1,91 @@
+Ubuntu rotation and desktop functional acceptance — 2026-11-02
+
+Environment
+Ubuntu 26.04 ARM64 in Parallels Desktop; Flutter 3.47.9; libmpv 0.41.0;
+GTK 3.24.52 and GTK 4.22.4. Full Flutter application tested on Wayland/GTK 3.
+
+Confirmed defect and fix
+An independent native regression reproduced SIGABRT at 90 degrees in
+mpv_render_context_render -> mp_image_crop (crop exceeds image dimensions).
+Even output dimensions alone did not fix this defect.
+Rotation now transforms decoded pixels using filters, with renderer-level
+rotation disabled. Original container rotation is read from the selected
+track and combined with the requested rotation. Mirrors remain composable.
+API and worker state changes are serialized; output dimensions are synchronized.
+Odd output sizes are preserved rather than silently rounded.
+The example's reset-to-zero button now calls the common rotation API on Linux.
+
+Passed
+- All 38 Flutter unit/widget tests.
+- Example flutter analyze: no issues.
+- Real pixel orientation checks for 0/90/180/270/reset.
+- 126 combinations each for normal and rotation-metadata video: 252 total.
+  Angles: 0, 90, 180, 270, 45, -90, 450.
+  All six aspect modes; 957x379, 281x501, 480x320 output; mirror combinations.
+  Includes real rendered frames, PNG capture, exact output size checks,
+  software/auto-safe decode switching, scale modes, video-track selection/auto,
+  network-speed query. Auto-safe may fall back to software in this VM.
+- Native integration: texture color channels, all quarter-turn rotations/reset,
+  vertical mirror/reset, VTT/SRT subtitles show/hide, actual 2x timing,
+  EOF/replay, automatic next/end of playlist, looping, title, watermark,
+  pure play/pause, stop/reload and disposal.
+- Real example button taps: four right turns, left turn, reset with PNG pixel
+  restoration; HTTP options/clear, screenshot, speed query, watermark,
+  pure mode, subtitle toggle, next, cover, last-frame, play/pause.
+- Real GTK 3 Flutter fullscreen enter, idempotent enter, exit and playlist.
+- Real Linux output sink monitor: full=0.172633, half-volume=0.021579,
+  muted=0, restored=0.172633. Monitors output, not microphone input.
+- Local HTTP headers/User-Agent, Range, 404 error, recovery and option clearing.
+- GTK 3 and GTK 4: complete plugin source compiles with -Wall -Werror;
+  standalone real window root, null handling, fullscreen enter/re-enter/exit.
+- CMake rejects a GTK 4 plugin linked to the standard GTK 3 Flutter host.
+
+Network sources: 15/18 passed (actual playback, tracks and screenshots)
+PASS: Flower MP4/WebM, XGPlayer MP4, Sintel MP4, Apple BipBop HLS,
+Mux HLS, XGPlayer HLS, Envivio DASH, BBB DASH, Shaka DASH,
+XGPlayer TS, Sintel Ogg, ExoPlayer MP3/MKV, XGPlayer FLV.
+FAIL: Sample 5s MP4, jsDelivr Big Buck Bunny MP4, Tears of Steel HLS.
+Independent checks: Sample redirected and downloaded only 491226/2848208 bytes
+before a 25-second timeout; jsDelivr connection reset also reproduced in
+ffprobe; Tears of Steel ffprobe exceeded a 20-second timeout.
+These failed cases remain failed; the network suite is not reported as green.
+
+GTK compatibility limits
+The standard Flutter Linux embedder is GTK 3. GTK 4 plugin source and standalone
+window operations are tested, but a complete GTK 4 Flutter embedder is not
+available here and has not been validated. Do not mix both GTK majors in one
+process. AUTO follows the host GTK_VERSION; a matching custom GTK 4 host may
+use KINETIC_PLAYER_GTK_VERSION=4.
+GTK 4 window tests pass with GSK_RENDERER=cairo in this VM; the default GPU
+backend did not complete fullscreen successfully. This is not claimed fixed.
+The extra X11 window test did not complete; full runtime results above are for
+Wayland. No Windows runtime re-test was performed in this session.
+Desktop-unimplemented features (PiP, GIF recording, ads, danmaku and GSY GL
+filters) remain outside desktop acceptance; they are not newly implemented.
+
+Evidence
+ubuntu-rotation-native.txt: original gdb stack and final 252-case matrices.
+ubuntu-functional-tests.txt: unit, analyze and native/demo/audio/HTTP results.
+ubuntu-gtk-validation.txt: both GTK majors' compile and real window tests.
+ubuntu-network-and-host-limits.txt: all network results and host mismatch guard.
+
+Native regression reproduction (from repository root on Ubuntu)
+g++ -g -std=c++17 -pthread -I native/mpv -I native/mpv/include \
+  test/native/mpv_render_regression.cc native/mpv/mpv_player.cc \
+  native/mpv/png_encode.cc $(pkg-config --cflags --libs mpv) -o /tmp/mpv-regression
+/tmp/mpv-regression example/integration_test/fixtures/orientation.mp4
+ffmpeg -y -display_rotation 90 -i example/integration_test/fixtures/orientation.mp4 \
+  -c copy /tmp/rotated.mp4
+/tmp/mpv-regression /tmp/rotated.mp4 270
+
+GTK regression (repeat with gtk4 instead of gtk+-3.0)
+g++ -std=c++17 -Wall -Werror -I linux test/native/gtk_window_compat_test.cc \
+  $(pkg-config --cflags --libs gtk+-3.0) -o /tmp/gtk-regression
+GDK_BACKEND=wayland GSK_RENDERER=cairo /tmp/gtk-regression
+
+Flutter native suites (run individually from example)
+flutter test integration_test/desktop_acceptance_test.dart -d linux
+flutter test integration_test/desktop_demo_controls_test.dart -d linux
+flutter test integration_test/playlist_smoke_test.dart -d linux
+flutter test integration_test/desktop_output_acceptance_test.dart -d linux
+Linux output testing requires pulseaudio-utils (parec).

@@ -48,11 +48,12 @@ void main() {
     ),
   );
 
-  testWidgets(
-    'Windows output-session volume and mute change actual audio amplitude',
-    (tester) async {
-      if (!Platform.isWindows) return;
-      final meter = Platform.environment['KINETIC_AUDIO_METER_EXE'];
+  testWidgets('desktop output volume and mute change actual audio amplitude', (
+    tester,
+  ) async {
+    if (!Platform.isWindows && !Platform.isLinux) return;
+    final meter = Platform.environment['KINETIC_AUDIO_METER_EXE'];
+    if (Platform.isWindows) {
       expect(
         meter,
         isNotNull,
@@ -60,95 +61,123 @@ void main() {
             'Build example/windows/acceptance and set KINETIC_AUDIO_METER_EXE',
       );
       expect(File(meter!).existsSync(), true);
-      final directory = await Directory(
-        '${(await getTemporaryDirectory()).path}/kinetic-audio-acceptance',
-      ).create(recursive: true);
-      final file = File('${directory.path}/tone.wav');
-      const samples = 48000 * 6;
-      final wav = ByteData(44 + samples * 2);
-      void ascii(int offset, String text) {
-        for (var i = 0; i < text.length; i++) {
-          wav.setUint8(offset + i, text.codeUnitAt(i));
-        }
+    }
+    final directory = await Directory(
+      '${(await getTemporaryDirectory()).path}/kinetic-audio-acceptance',
+    ).create(recursive: true);
+    final file = File('${directory.path}/tone.wav');
+    const samples = 48000 * 6;
+    final wav = ByteData(44 + samples * 2);
+    void ascii(int offset, String text) {
+      for (var i = 0; i < text.length; i++) {
+        wav.setUint8(offset + i, text.codeUnitAt(i));
       }
+    }
 
-      ascii(0, 'RIFF');
-      wav.setUint32(4, wav.lengthInBytes - 8, Endian.little);
-      ascii(8, 'WAVEfmt ');
-      wav.setUint32(16, 16, Endian.little);
-      wav.setUint16(20, 1, Endian.little);
-      wav.setUint16(22, 1, Endian.little);
-      wav.setUint32(24, 48000, Endian.little);
-      wav.setUint32(28, 96000, Endian.little);
-      wav.setUint16(32, 2, Endian.little);
-      wav.setUint16(34, 16, Endian.little);
-      ascii(36, 'data');
-      wav.setUint32(40, samples * 2, Endian.little);
-      for (var i = 0; i < samples; i++) {
-        wav.setInt16(
-          44 + i * 2,
-          (8000 * math.sin(2 * math.pi * 1000 * i / 48000)).round(),
-          Endian.little,
-        );
-      }
-      await file.writeAsBytes(wav.buffer.asUint8List());
-      MpvVideoControllerImpl? player;
-      await mount(tester, file.uri.toString(), (p) => player = p);
-      await until(tester, () => player != null, 'audio controller');
-      final p = player!;
-      await p.setLooping(true);
-      await p.setVolume(1);
-      await p.setMute(false);
-      await p.play();
-      await until(
-        tester,
-        () => p.position.value.inMilliseconds > 300,
-        'tone playing',
+    ascii(0, 'RIFF');
+    wav.setUint32(4, wav.lengthInBytes - 8, Endian.little);
+    ascii(8, 'WAVEfmt ');
+    wav.setUint32(16, 16, Endian.little);
+    wav.setUint16(20, 1, Endian.little);
+    wav.setUint16(22, 1, Endian.little);
+    wav.setUint32(24, 48000, Endian.little);
+    wav.setUint32(28, 96000, Endian.little);
+    wav.setUint16(32, 2, Endian.little);
+    wav.setUint16(34, 16, Endian.little);
+    ascii(36, 'data');
+    wav.setUint32(40, samples * 2, Endian.little);
+    for (var i = 0; i < samples; i++) {
+      wav.setInt16(
+        44 + i * 2,
+        (8000 * math.sin(2 * math.pi * 1000 * i / 48000)).round(),
+        Endian.little,
       );
-      Future<double> peak() async {
-        await tester.pump(const Duration(milliseconds: 400));
-        final result = await tester.runAsync(
-          () => Process.run(meter, ['$pid']),
-        );
-        expect(
-          result!.exitCode,
-          0,
-          reason: '${result.stdout} ${result.stderr}',
-        );
-        final output = jsonDecode(result.stdout as String) as Map;
-        expect(output['samples'] as int, greaterThan(0));
-        return (output['peak'] as num).toDouble();
+    }
+    await file.writeAsBytes(wav.buffer.asUint8List());
+    MpvVideoControllerImpl? player;
+    await mount(tester, file.uri.toString(), (p) => player = p);
+    await until(tester, () => player != null, 'audio controller');
+    final p = player!;
+    await p.setLooping(true);
+    await p.setVolume(1);
+    await p.setMute(false);
+    await p.play();
+    await until(
+      tester,
+      () => p.position.value.inMilliseconds > 300,
+      'tone playing',
+    );
+    Future<double> peak() async {
+      await tester.pump(const Duration(milliseconds: 400));
+      if (Platform.isLinux) {
+        // Measure the output sink monitor, never a microphone input.
+        return (await tester.runAsync(() async {
+          final process = await Process.start('parec', [
+            '--device=@DEFAULT_MONITOR@',
+            '--format=float32le',
+            '--channels=1',
+            '--rate=48000',
+            '--raw',
+            '--latency-msec=50',
+            '--process-time-msec=20',
+          ]);
+          final data = process.stdout.fold<List<int>>(
+            [],
+            (a, b) => a..addAll(b),
+          );
+          final errors = process.stderr.transform(utf8.decoder).join();
+          await Future<void>.delayed(const Duration(milliseconds: 1200));
+          process.kill();
+          final bytes = Uint8List.fromList(await data);
+          final message = await errors;
+          expect(bytes.length, greaterThan(0), reason: message);
+          final samples = ByteData.sublistView(bytes);
+          var maximum = 0.0;
+          for (var i = 0; i + 4 <= bytes.length; i += 4) {
+            maximum = math.max(
+              maximum,
+              samples.getFloat32(i, Endian.little).abs(),
+            );
+          }
+          return maximum;
+        }))!;
       }
+      final result = await tester.runAsync(() => Process.run(meter!, ['$pid']));
+      expect(result!.exitCode, 0, reason: '${result.stdout} ${result.stderr}');
+      final output = jsonDecode(result.stdout as String) as Map;
+      expect(output['samples'] as int, greaterThan(0));
+      return (output['peak'] as num).toDouble();
+    }
 
-      final full = await peak();
-      expect(
-        full,
-        greaterThan(0.02),
-        reason: 'Decoded tone must reach Windows output session',
-      );
-      await p.setVolume(0.1);
-      final quiet = await peak();
-      // libmpv uses a perceptual volume curve; require audible attenuation,
-      // without assuming a linear slider-to-amplitude mapping.
-      debugPrint('OUTPUT MEASURE full=$full quiet=$quiet');
-      expect(quiet, greaterThan(full * 0.0001));
-      expect(quiet, lessThan(full * 0.3));
-      await p.setMute(true);
-      final silent = await peak();
-      debugPrint('OUTPUT MEASURE muted=$silent');
-      expect(silent, lessThan(quiet * 0.1));
-      await p.setVolume(1);
-      await p.setMute(false);
-      final restored = await peak();
-      expect(restored, greaterThan(full * 0.7));
-      debugPrint(
-        'OUTPUT PASS full=$full quiet=$quiet muted=$silent restored=$restored',
-      );
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump(const Duration(seconds: 1));
-      await directory.delete(recursive: true);
-    },
-  );
+    final full = await peak();
+    expect(
+      full,
+      greaterThan(0.02),
+      reason: 'Decoded tone must reach the system output',
+    );
+      // Use a midrange level to distinguish attenuation from explicit mute.
+      await p.setVolume(Platform.isLinux ? 0.5 : 0.1);
+    final quiet = await peak();
+    // libmpv uses a perceptual volume curve; require audible attenuation,
+    // without assuming a linear slider-to-amplitude mapping.
+    debugPrint('OUTPUT MEASURE full=$full quiet=$quiet');
+    expect(quiet, greaterThan(full * 0.0001));
+    expect(quiet, lessThan(full * 0.3));
+    await p.setMute(true);
+    final silent = await peak();
+    debugPrint('OUTPUT MEASURE muted=$silent');
+    expect(silent, lessThan(quiet * 0.1));
+    await p.setVolume(1);
+    await p.setMute(false);
+    final restored = await peak();
+    expect(restored, greaterThan(full * 0.7));
+    debugPrint(
+      'OUTPUT PASS full=$full quiet=$quiet muted=$silent restored=$restored',
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
+    await directory.delete(recursive: true);
+  });
 
   testWidgets(
     'native HTTP headers, range loading, 404 recovery and clearing options',

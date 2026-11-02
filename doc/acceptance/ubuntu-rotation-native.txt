@@ -1,0 +1,345 @@
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/aarch64-linux-gnu/libthread_db.so.1".
+[New Thread 0xffffe849e360 (LWP 736832)]
+[New Thread 0xffffe7c8e360 (LWP 736833)]
+[New Thread 0xffffe747e360 (LWP 736834)]
+[New Thread 0xffffe6c6e360 (LWP 736835)]
+[New Thread 0xffffe645e360 (LWP 736836)]
+[New Thread 0xffffe5c4e360 (LWP 736837)]
+[New Thread 0xffffe543e360 (LWP 736838)]
+[New Thread 0xffffe4c2e360 (LWP 736839)]
+[New Thread 0xffffc7ffe360 (LWP 736840)]
+[Thread 0xffffe645e360 (LWP 736836) exited]
+[New Thread 0xffffe645e360 (LWP 736841)]
+[New Thread 0xffffc77ee360 (LWP 736842)]
+[Thread 0xffffc77ee360 (LWP 736842) exited]
+[New Thread 0xffffc77ee360 (LWP 736843)]
+[New Thread 0xffffc69fe360 (LWP 736844)]
+[New Thread 0xffffc61ee360 (LWP 736845)]
+[New Thread 0xffffc59de360 (LWP 736846)]
+[New Thread 0xffffc51ce360 (LWP 736847)]
+[New Thread 0xffffc49be360 (LWP 736848)]
+[New Thread 0xffffb653e360 (LWP 736849)]
+[New Thread 0xffffb5d2e360 (LWP 736850)]
+[New Thread 0xffffb51fe360 (LWP 736851)]
+[New Thread 0xffffb49ee360 (LWP 736855)]
+[New Thread 0xffffa7f7e360 (LWP 736856)]
+[New Thread 0xffffa776e360 (LWP 736857)]
+[New Thread 0xffffa6f5e360 (LWP 736858)]
+[Thread 0xffffb49ee360 (LWP 736855) exited]
+[Thread 0xffffa6f5e360 (LWP 736858) exited]
+[Thread 0xffffa776e360 (LWP 736857) exited]
+[Thread 0xffffa7f7e360 (LWP 736856) exited]
+[Thread 0xffffc59de360 (LWP 736846) exited]
+[Thread 0xffffb5d2e360 (LWP 736850) exited]
+[Thread 0xffffb653e360 (LWP 736849) exited]
+[Thread 0xffffc49be360 (LWP 736848) exited]
+[Thread 0xffffc51ce360 (LWP 736847) exited]
+[Thread 0xffffb51fe360 (LWP 736851) exited]
+[New Thread 0xffffb51fe360 (LWP 736859)]
+[New Thread 0xffffc49be360 (LWP 736860)]
+[New Thread 0xffffc51ce360 (LWP 736861)]
+[New Thread 0xffffb5d2e360 (LWP 736862)]
+[New Thread 0xffffb72ae360 (LWP 736863)]
+[Thread 0xffffc49be360 (LWP 736860) exited]
+[Thread 0xffffb5d2e360 (LWP 736862) exited]
+[Thread 0xffffb72ae360 (LWP 736863) exited]
+[Thread 0xffffc51ce360 (LWP 736861) exited]
+[Thread 0xffffb51fe360 (LWP 736859) exited]
+[New Thread 0xffffb51fe360 (LWP 736864)]
+[New Thread 0xffffb72ae360 (LWP 736865)]
+[New Thread 0xffffb5d2e360 (LWP 736866)]
+[New Thread 0xffffc51ce360 (LWP 736867)]
+ROTATE 0
+ROTATE 90
+kinetic-render-test: ../video/mp_image.c:601: mp_image_crop: Assertion `x1 <= img->w && y1 <= img->h' failed.
+
+Thread 11 "kinetic-render-" received signal SIGABRT, Aborted.
+[Switching to Thread 0xffffe645e360 (LWP 736841)]
+__pthread_kill_implementation (threadid=281474545083232, signo=signo@entry=6, no_tid=no_tid@entry=0) at ./nptl/pthread_kill.c:44
+warning: 44	./nptl/pthread_kill.c: No such file or directory
+#0  __pthread_kill_implementation (threadid=281474545083232, signo=signo@entry=6, no_tid=no_tid@entry=0) at ./nptl/pthread_kill.c:44
+#1  0x0000fffff788e1b4 [PAC] in __pthread_kill_internal (threadid=<optimized out>, signo=6) at ./nptl/pthread_kill.c:89
+#2  0x0000fffff78385fc in __GI_raise (sig=sig@entry=6) at ../sysdeps/posix/raise.c:26
+#3  0x0000fffff7822720 [PAC] in __GI_abort () at ./stdlib/abort.c:77
+#4  0x0000fffff7880a58 [PAC] in __libc_message_impl (vma_name=vma_name@entry=0xfffff796a980 "glibc: assert", fmt=<optimized out>) at ../sysdeps/posix/libc_fatal.c:138
+#5  0x0000fffff78310d8 [PAC] in __libc_message_wrapper (vmaname=0xfffff796a980 "glibc: assert", fmt=<optimized out>) at ../include/stdio.h:203
+#6  __assert_fail (assertion=0xfffff7e7c788 "x1 <= img->w && y1 <= img->h", file=0xfffff7e7c518 "../video/mp_image.c", line=<optimized out>, function=<optimized out>) at ./assert/assert.c:37
+#7  0x0000fffff7dcbc68 [PAC] in ??? () at /usr/lib/aarch64-linux-gnu/libmpv.so.2
+#8  0x0000fffff7de53d0 [PAC] in ??? () at /usr/lib/aarch64-linux-gnu/libmpv.so.2
+#9  0x0000fffff7dec6e4 [PAC] in mpv_render_context_render () at /usr/lib/aarch64-linux-gnu/libmpv.so.2
+#10 0x0000aaaaaaaabce8 [PAC] in kinetic::MpvPlayer::MaybeRender (this=0xfffffffff8e0) at native/mpv/mpv_player.cc:803
+#11 0x0000aaaaaaaab130 in kinetic::MpvPlayer::WorkerLoop (this=0xfffffffff8e0) at native/mpv/mpv_player.cc:657
+#12 0x0000aaaaaaaa78ac in operator() (__closure=0xaaaaaab05248) at native/mpv/mpv_player.cc:137
+#13 0x0000aaaaaaaadb24 in std::__invoke_impl<void, kinetic::MpvPlayer::Init(Callbacks)::<lambda()> >(std::__invoke_other, struct {...} &&) (__f=...) at /usr/include/c++/15/bits/invoke.h:63
+#14 0x0000aaaaaaaadadc in std::__invoke<kinetic::MpvPlayer::Init(Callbacks)::<lambda()> >(struct {...} &&) (__fn=...) at /usr/include/c++/15/bits/invoke.h:98
+#15 0x0000aaaaaaaada88 in std::thread::_Invoker<std::tuple<kinetic::MpvPlayer::Init(Callbacks)::<lambda()> > >::_M_invoke<0>(std::_Index_tuple<0>) (this=0xaaaaaab05248) at /usr/include/c++/15/bits/std_thread.h:303
+#16 0x0000aaaaaaaada58 in std::thread::_Invoker<std::tuple<kinetic::MpvPlayer::Init(Callbacks)::<lambda()> > >::operator()(void) (this=0xaaaaaab05248) at /usr/include/c++/15/bits/std_thread.h:310
+#17 0x0000aaaaaaaada38 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<kinetic::MpvPlayer::Init(Callbacks)::<lambda()> > > >::_M_run(void) (this=0xaaaaaab05240) at /usr/include/c++/15/bits/std_thread.h:255
+#18 0x0000fffff7af7860 in ??? () at /usr/lib/aarch64-linux-gnu/libstdc++.so.6
+#19 0x0000fffff788c248 [PAC] in start_thread (arg=0xffffe645e360) at ./nptl/pthread_create.c:454
+#20 0x0000fffff78f6b9c [PAC] in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:75
+ROTATE 0
+ROTATE 90
+ROTATE 180
+ROTATE 270
+ROTATE 0
+MATRIX aspect=0 angle=0 size=957x379
+MATRIX aspect=0 angle=0 size=281x501
+MATRIX aspect=0 angle=0 size=480x320
+MATRIX aspect=0 angle=90 size=957x379
+MATRIX aspect=0 angle=90 size=281x501
+MATRIX aspect=0 angle=90 size=480x320
+MATRIX aspect=0 angle=180 size=957x379
+MATRIX aspect=0 angle=180 size=281x501
+MATRIX aspect=0 angle=180 size=480x320
+MATRIX aspect=0 angle=270 size=957x379
+MATRIX aspect=0 angle=270 size=281x501
+MATRIX aspect=0 angle=270 size=480x320
+MATRIX aspect=0 angle=45 size=957x379
+MATRIX aspect=0 angle=45 size=281x501
+MATRIX aspect=0 angle=45 size=480x320
+MATRIX aspect=0 angle=-90 size=957x379
+MATRIX aspect=0 angle=-90 size=281x501
+MATRIX aspect=0 angle=-90 size=480x320
+MATRIX aspect=0 angle=450 size=957x379
+MATRIX aspect=0 angle=450 size=281x501
+MATRIX aspect=0 angle=450 size=480x320
+MATRIX aspect=1 angle=0 size=957x379
+MATRIX aspect=1 angle=0 size=281x501
+MATRIX aspect=1 angle=0 size=480x320
+MATRIX aspect=1 angle=90 size=957x379
+MATRIX aspect=1 angle=90 size=281x501
+MATRIX aspect=1 angle=90 size=480x320
+MATRIX aspect=1 angle=180 size=957x379
+MATRIX aspect=1 angle=180 size=281x501
+MATRIX aspect=1 angle=180 size=480x320
+MATRIX aspect=1 angle=270 size=957x379
+MATRIX aspect=1 angle=270 size=281x501
+MATRIX aspect=1 angle=270 size=480x320
+MATRIX aspect=1 angle=45 size=957x379
+MATRIX aspect=1 angle=45 size=281x501
+MATRIX aspect=1 angle=45 size=480x320
+MATRIX aspect=1 angle=-90 size=957x379
+MATRIX aspect=1 angle=-90 size=281x501
+MATRIX aspect=1 angle=-90 size=480x320
+MATRIX aspect=1 angle=450 size=957x379
+MATRIX aspect=1 angle=450 size=281x501
+MATRIX aspect=1 angle=450 size=480x320
+MATRIX aspect=2 angle=0 size=957x379
+MATRIX aspect=2 angle=0 size=281x501
+MATRIX aspect=2 angle=0 size=480x320
+MATRIX aspect=2 angle=90 size=957x379
+MATRIX aspect=2 angle=90 size=281x501
+MATRIX aspect=2 angle=90 size=480x320
+MATRIX aspect=2 angle=180 size=957x379
+MATRIX aspect=2 angle=180 size=281x501
+MATRIX aspect=2 angle=180 size=480x320
+MATRIX aspect=2 angle=270 size=957x379
+MATRIX aspect=2 angle=270 size=281x501
+MATRIX aspect=2 angle=270 size=480x320
+MATRIX aspect=2 angle=45 size=957x379
+MATRIX aspect=2 angle=45 size=281x501
+MATRIX aspect=2 angle=45 size=480x320
+MATRIX aspect=2 angle=-90 size=957x379
+MATRIX aspect=2 angle=-90 size=281x501
+MATRIX aspect=2 angle=-90 size=480x320
+MATRIX aspect=2 angle=450 size=957x379
+MATRIX aspect=2 angle=450 size=281x501
+MATRIX aspect=2 angle=450 size=480x320
+MATRIX aspect=3 angle=0 size=957x379
+MATRIX aspect=3 angle=0 size=281x501
+MATRIX aspect=3 angle=0 size=480x320
+MATRIX aspect=3 angle=90 size=957x379
+MATRIX aspect=3 angle=90 size=281x501
+MATRIX aspect=3 angle=90 size=480x320
+MATRIX aspect=3 angle=180 size=957x379
+MATRIX aspect=3 angle=180 size=281x501
+MATRIX aspect=3 angle=180 size=480x320
+MATRIX aspect=3 angle=270 size=957x379
+MATRIX aspect=3 angle=270 size=281x501
+MATRIX aspect=3 angle=270 size=480x320
+MATRIX aspect=3 angle=45 size=957x379
+MATRIX aspect=3 angle=45 size=281x501
+MATRIX aspect=3 angle=45 size=480x320
+MATRIX aspect=3 angle=-90 size=957x379
+MATRIX aspect=3 angle=-90 size=281x501
+MATRIX aspect=3 angle=-90 size=480x320
+MATRIX aspect=3 angle=450 size=957x379
+MATRIX aspect=3 angle=450 size=281x501
+MATRIX aspect=3 angle=450 size=480x320
+MATRIX aspect=4 angle=0 size=957x379
+MATRIX aspect=4 angle=0 size=281x501
+MATRIX aspect=4 angle=0 size=480x320
+MATRIX aspect=4 angle=90 size=957x379
+MATRIX aspect=4 angle=90 size=281x501
+MATRIX aspect=4 angle=90 size=480x320
+MATRIX aspect=4 angle=180 size=957x379
+MATRIX aspect=4 angle=180 size=281x501
+MATRIX aspect=4 angle=180 size=480x320
+MATRIX aspect=4 angle=270 size=957x379
+MATRIX aspect=4 angle=270 size=281x501
+MATRIX aspect=4 angle=270 size=480x320
+MATRIX aspect=4 angle=45 size=957x379
+MATRIX aspect=4 angle=45 size=281x501
+MATRIX aspect=4 angle=45 size=480x320
+MATRIX aspect=4 angle=-90 size=957x379
+MATRIX aspect=4 angle=-90 size=281x501
+MATRIX aspect=4 angle=-90 size=480x320
+MATRIX aspect=4 angle=450 size=957x379
+MATRIX aspect=4 angle=450 size=281x501
+MATRIX aspect=4 angle=450 size=480x320
+MATRIX aspect=5 angle=0 size=957x379
+MATRIX aspect=5 angle=0 size=281x501
+MATRIX aspect=5 angle=0 size=480x320
+MATRIX aspect=5 angle=90 size=957x379
+MATRIX aspect=5 angle=90 size=281x501
+MATRIX aspect=5 angle=90 size=480x320
+MATRIX aspect=5 angle=180 size=957x379
+MATRIX aspect=5 angle=180 size=281x501
+MATRIX aspect=5 angle=180 size=480x320
+MATRIX aspect=5 angle=270 size=957x379
+MATRIX aspect=5 angle=270 size=281x501
+MATRIX aspect=5 angle=270 size=480x320
+MATRIX aspect=5 angle=45 size=957x379
+MATRIX aspect=5 angle=45 size=281x501
+MATRIX aspect=5 angle=45 size=480x320
+MATRIX aspect=5 angle=-90 size=957x379
+MATRIX aspect=5 angle=-90 size=281x501
+MATRIX aspect=5 angle=-90 size=480x320
+MATRIX aspect=5 angle=450 size=957x379
+MATRIX aspect=5 angle=450 size=281x501
+MATRIX aspect=5 angle=450 size=480x320
+PASS orientation pixels and 126 rotation/aspect/resize/mirror combinations
+ROTATE 0
+ROTATE 90
+ROTATE 180
+ROTATE 270
+ROTATE 0
+MATRIX aspect=0 angle=0 size=957x379
+MATRIX aspect=0 angle=0 size=281x501
+MATRIX aspect=0 angle=0 size=480x320
+MATRIX aspect=0 angle=90 size=957x379
+MATRIX aspect=0 angle=90 size=281x501
+MATRIX aspect=0 angle=90 size=480x320
+MATRIX aspect=0 angle=180 size=957x379
+MATRIX aspect=0 angle=180 size=281x501
+MATRIX aspect=0 angle=180 size=480x320
+MATRIX aspect=0 angle=270 size=957x379
+MATRIX aspect=0 angle=270 size=281x501
+MATRIX aspect=0 angle=270 size=480x320
+MATRIX aspect=0 angle=45 size=957x379
+MATRIX aspect=0 angle=45 size=281x501
+MATRIX aspect=0 angle=45 size=480x320
+MATRIX aspect=0 angle=-90 size=957x379
+MATRIX aspect=0 angle=-90 size=281x501
+MATRIX aspect=0 angle=-90 size=480x320
+MATRIX aspect=0 angle=450 size=957x379
+MATRIX aspect=0 angle=450 size=281x501
+MATRIX aspect=0 angle=450 size=480x320
+MATRIX aspect=1 angle=0 size=957x379
+MATRIX aspect=1 angle=0 size=281x501
+MATRIX aspect=1 angle=0 size=480x320
+MATRIX aspect=1 angle=90 size=957x379
+MATRIX aspect=1 angle=90 size=281x501
+MATRIX aspect=1 angle=90 size=480x320
+MATRIX aspect=1 angle=180 size=957x379
+MATRIX aspect=1 angle=180 size=281x501
+MATRIX aspect=1 angle=180 size=480x320
+MATRIX aspect=1 angle=270 size=957x379
+MATRIX aspect=1 angle=270 size=281x501
+MATRIX aspect=1 angle=270 size=480x320
+MATRIX aspect=1 angle=45 size=957x379
+MATRIX aspect=1 angle=45 size=281x501
+MATRIX aspect=1 angle=45 size=480x320
+MATRIX aspect=1 angle=-90 size=957x379
+MATRIX aspect=1 angle=-90 size=281x501
+MATRIX aspect=1 angle=-90 size=480x320
+MATRIX aspect=1 angle=450 size=957x379
+MATRIX aspect=1 angle=450 size=281x501
+MATRIX aspect=1 angle=450 size=480x320
+MATRIX aspect=2 angle=0 size=957x379
+MATRIX aspect=2 angle=0 size=281x501
+MATRIX aspect=2 angle=0 size=480x320
+MATRIX aspect=2 angle=90 size=957x379
+MATRIX aspect=2 angle=90 size=281x501
+MATRIX aspect=2 angle=90 size=480x320
+MATRIX aspect=2 angle=180 size=957x379
+MATRIX aspect=2 angle=180 size=281x501
+MATRIX aspect=2 angle=180 size=480x320
+MATRIX aspect=2 angle=270 size=957x379
+MATRIX aspect=2 angle=270 size=281x501
+MATRIX aspect=2 angle=270 size=480x320
+MATRIX aspect=2 angle=45 size=957x379
+MATRIX aspect=2 angle=45 size=281x501
+MATRIX aspect=2 angle=45 size=480x320
+MATRIX aspect=2 angle=-90 size=957x379
+MATRIX aspect=2 angle=-90 size=281x501
+MATRIX aspect=2 angle=-90 size=480x320
+MATRIX aspect=2 angle=450 size=957x379
+MATRIX aspect=2 angle=450 size=281x501
+MATRIX aspect=2 angle=450 size=480x320
+MATRIX aspect=3 angle=0 size=957x379
+MATRIX aspect=3 angle=0 size=281x501
+MATRIX aspect=3 angle=0 size=480x320
+MATRIX aspect=3 angle=90 size=957x379
+MATRIX aspect=3 angle=90 size=281x501
+MATRIX aspect=3 angle=90 size=480x320
+MATRIX aspect=3 angle=180 size=957x379
+MATRIX aspect=3 angle=180 size=281x501
+MATRIX aspect=3 angle=180 size=480x320
+MATRIX aspect=3 angle=270 size=957x379
+MATRIX aspect=3 angle=270 size=281x501
+MATRIX aspect=3 angle=270 size=480x320
+MATRIX aspect=3 angle=45 size=957x379
+MATRIX aspect=3 angle=45 size=281x501
+MATRIX aspect=3 angle=45 size=480x320
+MATRIX aspect=3 angle=-90 size=957x379
+MATRIX aspect=3 angle=-90 size=281x501
+MATRIX aspect=3 angle=-90 size=480x320
+MATRIX aspect=3 angle=450 size=957x379
+MATRIX aspect=3 angle=450 size=281x501
+MATRIX aspect=3 angle=450 size=480x320
+MATRIX aspect=4 angle=0 size=957x379
+MATRIX aspect=4 angle=0 size=281x501
+MATRIX aspect=4 angle=0 size=480x320
+MATRIX aspect=4 angle=90 size=957x379
+MATRIX aspect=4 angle=90 size=281x501
+MATRIX aspect=4 angle=90 size=480x320
+MATRIX aspect=4 angle=180 size=957x379
+MATRIX aspect=4 angle=180 size=281x501
+MATRIX aspect=4 angle=180 size=480x320
+MATRIX aspect=4 angle=270 size=957x379
+MATRIX aspect=4 angle=270 size=281x501
+MATRIX aspect=4 angle=270 size=480x320
+MATRIX aspect=4 angle=45 size=957x379
+MATRIX aspect=4 angle=45 size=281x501
+MATRIX aspect=4 angle=45 size=480x320
+MATRIX aspect=4 angle=-90 size=957x379
+MATRIX aspect=4 angle=-90 size=281x501
+MATRIX aspect=4 angle=-90 size=480x320
+MATRIX aspect=4 angle=450 size=957x379
+MATRIX aspect=4 angle=450 size=281x501
+MATRIX aspect=4 angle=450 size=480x320
+MATRIX aspect=5 angle=0 size=957x379
+MATRIX aspect=5 angle=0 size=281x501
+MATRIX aspect=5 angle=0 size=480x320
+MATRIX aspect=5 angle=90 size=957x379
+MATRIX aspect=5 angle=90 size=281x501
+MATRIX aspect=5 angle=90 size=480x320
+MATRIX aspect=5 angle=180 size=957x379
+MATRIX aspect=5 angle=180 size=281x501
+MATRIX aspect=5 angle=180 size=480x320
+MATRIX aspect=5 angle=270 size=957x379
+MATRIX aspect=5 angle=270 size=281x501
+MATRIX aspect=5 angle=270 size=480x320
+MATRIX aspect=5 angle=45 size=957x379
+MATRIX aspect=5 angle=45 size=281x501
+MATRIX aspect=5 angle=45 size=480x320
+MATRIX aspect=5 angle=-90 size=957x379
+MATRIX aspect=5 angle=-90 size=281x501
+MATRIX aspect=5 angle=-90 size=480x320
+MATRIX aspect=5 angle=450 size=957x379
+MATRIX aspect=5 angle=450 size=281x501
+MATRIX aspect=5 angle=450 size=480x320
+PASS orientation pixels and 126 rotation/aspect/resize/mirror combinations

@@ -37,7 +37,7 @@ What libmpv / the Dart overlay can match is implemented as `mpv*` APIs (not on `
 | Common play / volume / rate / loop / audio tracks | ✅ | Same method names as GSY/SG |
 | Cover | ✅ `mpvSetCoverUrl` | Dart overlay, live update |
 | Title | ✅ `KineticUiConfig.videoTitle` / `mpvSetUiConfig` | Top of chrome |
-| Rotation | ✅ `mpvSetRenderRotation` | `video-rotate` |
+| Rotation | ✅ `mpvSetRenderRotation` | Pixel filters, preserving container rotation metadata and avoiding SW renderer crop crashes |
 | Mirror | ✅ `mpvSetMirrorHorizontal` / `Vertical` | `vf` hflip/vflip |
 | 16:9 / 4:3 / fill | ✅ `mpvSetShowType` | Maps `GsyShowType` |
 | External subtitles | ✅ `mpvSetSubtitleUrl` / `mpvSetSubtitleEnabled` | `sub-add` / `sid` |
@@ -89,6 +89,21 @@ flutter run -d linux
 ```
 
 Wayland and X11 both use Texture (no `--wid` embedding). Hardware decode defaults to `hwdec=auto-safe`.
+
+### GTK 3 / GTK 4
+
+The plugin has separate GTK 3/4 window lookup and fullscreen implementations.
+`KINETIC_PLAYER_GTK_VERSION=AUTO` follows the host's `GTK_VERSION`, defaulting to 3
+when the host does not provide it. A custom GTK 4 Flutter embedder can select
+`-DKINETIC_PLAYER_GTK_VERSION=4`. The plugin and embedder must use the same GTK
+major; the build rejects a detected mismatch. Installing GTK 4 does not change
+the standard GTK 3 Flutter embedder.
+
+Ubuntu 26.04 ARM64 validation covers the complete GTK 3 Flutter app, standalone
+GTK 3/4 window/fullscreen tests, and plugin source compilation with GTK 4.
+The VM's GTK 4 window tests require `GSK_RENDERER=cairo`; its default GPU backend
+did not pass. A complete custom GTK 4 Flutter host has not been validated.
+See `doc/acceptance` for results, including network sources that failed.
 
 ## Channels
 
