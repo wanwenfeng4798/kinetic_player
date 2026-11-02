@@ -813,7 +813,7 @@ class _MpvChromeOverlayState extends State<MpvChromeOverlay> {
   Widget _volumePopup(Color accent) {
     return _panel(
       SizedBox(
-        height: 140,
+        height: 260,
         width: 56,
         child: Column(
           children: [
