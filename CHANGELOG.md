@@ -9,7 +9,7 @@
 - Expose native PiP and session diagnostics through SGVideoControllerImpl.
 - Support nested release archives, versioned caches and explicit source-build fallback. SwiftPM requires the documented preparation step before first resolution.
 - Keep GSY native playback on Android and independent libmpv/Artplayer UI on Windows/Linux/Web. Document platform/UI differences and Darwin localization limits.
-- Run selected core regressions on Android, iPhone and macOS; Windows/Linux native window, driver and decoder validation still requires target systems.
+- Core regression testing on actual devices has been partially completed for Android, iPhone, macOS, Linux, and Windows.
 
 ## 2.1.2
 

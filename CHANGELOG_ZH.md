@@ -9,7 +9,7 @@
 - 新增原生 PiP 与播放会话诊断入口。
 - 支持嵌套发布包、版本缓存与显式源码回退；SPM 首次解析前需执行准备脚本。
 - Android 保持 GSY 原生能力；Windows/Linux/Web 保留独立 UI，记录跨端配置差异与原生 UI 本地化限制。
-- Android/iPhone/macOS 已执行部分核心真机回归；Windows/Linux 原生窗口、驱动和解码仍需目标系统验收。
+- Android/iPhone/macOS/linux/windows 已执行部分核心真机回归；
 
 ## 2.1.2
 
