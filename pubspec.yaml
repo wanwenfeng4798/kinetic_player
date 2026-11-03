@@ -14,7 +14,7 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   web: ^1.1.2
-  material_ui: ^1.8.0
+  material_ui: ^1.9.0
 
 dev_dependencies:
   flutter_test:
