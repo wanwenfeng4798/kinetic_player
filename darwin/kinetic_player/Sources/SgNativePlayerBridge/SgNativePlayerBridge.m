@@ -87,6 +87,11 @@
       typeof(self) self = weakSelf;
       if (!self) return;
       const NSInteger states[] = {0, 1, 3, 4, 1, 5, 6};
+      // Autoplay, native toolbar and playlist advancement bypass Dart play().
+      // Configure the host audio session on the shared native playing transition.
+      if (session.state == SGPlaybackSessionStatePlaying) {
+        [self configurePlaybackAudioSessionIfNeeded];
+      }
       [self emitState:states[session.state]];
       if (session.error) [self publishError:session.error];
       if (self.progressHandler) self.progressHandler([self milliseconds:self.controller.currentTime],

@@ -5,6 +5,6 @@
   "sgplayer_repository": "https://github.com/wanwenfeng4798/SGPlayer.git",
   "asset_name": "SGPlayer-iOS-v2.0.0.zip",
   "download_url": "https://github.com/wanwenfeng4798/SGPlayer/releases/download/v2.0.0/SGPlayer-iOS-v2.0.0.zip",
-  "sha256": "43559053a824582d19f2bad25613e774eef3d1556f1aa011243c4723091d6362",
+  "sha256": "9e06f0457ccfd062becb871c71bd02fb36420e44f36631462141bd0ea98984c7",
   "notes": "Official v2.0.0 integration package; XCFramework is nested under Artifacts. Run ensure_sgplayer.sh before resolving local SPM targets."
 }
